@@ -126,7 +126,6 @@ resource "aws_lambda_function" "document_processor" {
 resource "aws_cloudwatch_log_group" "lambda_logs" {
   name              = "/aws/lambda/document-scrubbing-processor"
   retention_in_days = 14
-  kms_key_id        = aws_kms_key.document_scrubbing_key.arn
 
   tags = {
     Name        = "document-scrubbing-lambda-logs"

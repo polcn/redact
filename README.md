@@ -2,10 +2,18 @@
 
 A secure, automated document processing system that removes client names and logos from uploaded documents using AWS services.
 
+## Current Status: Infrastructure Deployed ✅
+
+- **Input Bucket**: `redact-input-documents-32a4ee51`
+- **Processed Bucket**: `redact-processed-documents-32a4ee51` 
+- **Quarantine Bucket**: `redact-quarantine-documents-32a4ee51`
+- **KMS Key**: `d539a81e-b71f-4cd4-a5c3-fd7c20456614`
+- **VPC**: `vpc-09b9d34d87641d465`
+
 ## Architecture
 
 ```
-Documents → S3 Input → Lambda → AI Processing → S3 Output
+Documents → S3 Input → Lambda → Text Processing → S3 Output
                      ↓
               S3 Quarantine (if sensitive)
 ```

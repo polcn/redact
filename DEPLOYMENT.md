@@ -11,7 +11,7 @@
   - VPC and networking resources
   - IAM role and policy creation
 
-## Quick Deploy
+## Phase 1: Infrastructure (COMPLETED ✅)
 
 ```bash
 # Clone or navigate to project
@@ -25,6 +25,19 @@ terraform plan
 
 # Deploy infrastructure
 terraform apply -auto-approve
+```
+
+**Status**: Infrastructure successfully deployed with all resources tagged `Project = "redact"`
+
+## Phase 2: Lambda Function (NEXT)
+
+```bash
+# Deploy processing function
+terraform apply -auto-approve
+
+# Test the system
+echo "ACME Corporation confidential" > test.txt
+aws s3 cp test.txt s3://redact-input-documents-32a4ee51/
 ```
 
 ## Post-Deployment
