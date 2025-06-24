@@ -1,4 +1,0 @@
-Contact ACME Corporation at john.doe@example.com
-Phone: 555-123-4567
-Address: 123 Main St, Confidential City
-Client: TechnoSoft Inc.

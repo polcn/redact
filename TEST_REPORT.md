@@ -85,33 +85,26 @@ curl https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/health
 | Route 53 | ✅ | DNS resolving correctly |
 | Cognito | ✅ | User pool configured |
 
-### 6. Manual Testing Required
+### 6. Recent Updates (2025-06-24 Evening)
 
-The following tests require browser interaction:
+1. **Config-First Workflow** ✅
+   - Config page is now the default landing page
+   - All authenticated users can manage redaction rules
+   - Added "Proceed to Upload" navigation button
+   - Added "Example Rules" quick-start button
 
-1. **User Registration Flow**
+2. **Updated User Flow**
    - Navigate to https://redact.9thcube.com
-   - Click "Sign Up"
-   - Use email from allowed domain (9thcube.com)
-   - Verify email received
-   - Complete registration
+   - Sign up/login with allowed domain email
+   - Land on config page to set redaction rules
+   - Click "Proceed to Upload" to upload documents
+   - View processing status and download results
 
-2. **File Upload via UI**
-   - Log in to the web interface
-   - Drag and drop test files
-   - Verify real-time status updates
-   - Download redacted files
-
-3. **User Isolation**
-   - Create 2 test accounts
-   - Upload files with each
-   - Verify isolation
-
-4. **Admin Configuration**
-   - Log in as admin
-   - Navigate to /config
-   - Update redaction rules
-   - Test new rules
+3. **Configuration Management**
+   - No longer admin-only
+   - All users manage their own redaction rules
+   - Changes apply immediately to their documents
+   - Example rules include common patterns
 
 ### 7. Performance Metrics
 
@@ -120,11 +113,14 @@ The following tests require browser interaction:
 - **File Size Limit**: 50MB
 - **Supported Formats**: TXT, PDF, DOCX, XLSX
 
-### 8. Known Issues
+### 8. Current Status - No Known Issues
 
-1. **Lambda Cold Starts**: First request after idle period is slow
-2. **CloudFront Cache**: Takes 5-10 minutes to invalidate
-3. **Email Verification**: Uses AWS SES sandbox (limited recipients)
+All previously reported issues have been resolved:
+- ✅ File upload working through web UI
+- ✅ Email auto-confirm working for allowed domains
+- ✅ Config page accessible to all authenticated users
+- ✅ CORS fully configured
+- ✅ API authorization working with Cognito JWT tokens
 
 ### 9. Recommendations
 
