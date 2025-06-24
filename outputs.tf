@@ -19,3 +19,17 @@ output "config_bucket_name" {
 }
 
 # Cost-optimized: KMS and VPC outputs removed as these resources were eliminated
+
+output "api_gateway_url" {
+  description = "API Gateway endpoint URL"
+  value       = "https://${aws_api_gateway_rest_api.redact_api.id}.execute-api.${var.aws_region}.amazonaws.com/${var.environment}"
+}
+
+output "api_endpoints" {
+  description = "Available API endpoints"
+  value = {
+    health = "GET /health"
+    upload = "POST /documents/upload"
+    status = "GET /documents/status/{id}"
+  }
+}

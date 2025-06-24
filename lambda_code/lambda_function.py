@@ -38,6 +38,8 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB limit
 MAX_CONFIG_SIZE = 1 * 1024 * 1024  # 1MB limit for config
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls'}
 MAX_REPLACEMENTS = 100  # Maximum number of replacement rules
+BATCH_SIZE = 5  # Maximum files to process in one batch
+BATCH_TIMEOUT = 45  # Maximum seconds for batch processing
 
 # Retry configuration
 MAX_RETRIES = 3
@@ -125,85 +127,66 @@ def validate_config(config):
 
 def lambda_handler(event, context):
     """
-    Main Lambda handler for document processing
+    Main Lambda handler for document processing with batch support
     """
     results = []
+    start_time = time.time()
     
     try:
-        # Load configuration
+        # Load configuration once for the entire batch
         config = get_redaction_config()
-        
-        # Validate configuration
         validate_config(config)
         
+        # Get files to process
+        files_to_process = []
         for record in event['Records']:
             bucket = record['s3']['bucket']['name']
             key = unquote_plus(record['s3']['object']['key'])
+            files_to_process.append((bucket, key))
+        
+        # Log batch start
+        logger.info(json.dumps({
+            'event': 'BATCH_START',
+            'batch_size': len(files_to_process),
+            'request_id': context.aws_request_id
+        }))
+        
+        # Process files in batches
+        processed_count = 0
+        for i in range(0, len(files_to_process), BATCH_SIZE):
+            batch = files_to_process[i:i + BATCH_SIZE]
             
-            result = {
-                'file': key,
-                'status': 'PROCESSING',
-                'timestamp': context.aws_request_id
-            }
+            # Check timeout
+            elapsed = time.time() - start_time
+            if elapsed > BATCH_TIMEOUT:
+                logger.warning(json.dumps({
+                    'event': 'BATCH_TIMEOUT',
+                    'processed': processed_count,
+                    'remaining': len(files_to_process) - processed_count,
+                    'elapsed': elapsed
+                }))
+                break
             
-            try:
-                # Validate file before processing
-                validate_file(bucket, key)
-                
-                logger.info(json.dumps({
-                    'event': 'PROCESSING_START',
-                    'file': key,
-                    'bucket': bucket,
-                    'request_id': context.aws_request_id
-                }))
-                
-                # Process document based on file type
-                file_ext = key.lower().split('.')[-1]
-                
-                if file_ext == 'txt':
-                    success = process_text_file(bucket, key, config)
-                elif file_ext == 'pdf':
-                    success = process_pdf_file(bucket, key, config)
-                elif file_ext in ['docx', 'doc']:
-                    success = process_docx_file(bucket, key, config)
-                elif file_ext in ['xlsx', 'xls']:
-                    success = process_xlsx_file(bucket, key, config)
-                else:
-                    quarantine_document(bucket, key, f"Unsupported file type: {file_ext}")
-                    success = False
-                
-                result['status'] = 'SUCCESS' if success else 'QUARANTINED'
-                
-                logger.info(json.dumps({
-                    'event': 'PROCESSING_COMPLETE',
-                    'file': key,
-                    'status': result['status'],
-                    'request_id': context.aws_request_id
-                }))
-                
-            except Exception as e:
-                logger.error(json.dumps({
-                    'event': 'PROCESSING_ERROR',
-                    'file': key,
-                    'error': str(e),
-                    'request_id': context.aws_request_id
-                }))
-                
-                # Move to quarantine on error
-                try:
-                    quarantine_document(bucket, key, f"Processing error: {str(e)}")
-                except Exception as qe:
-                    logger.error(f"Failed to quarantine {key}: {str(qe)}")
-                
-                result['status'] = 'ERROR'
-                result['error'] = str(e)
-            
-            results.append(result)
+            # Process batch
+            batch_results = process_file_batch(batch, config, context)
+            results.extend(batch_results)
+            processed_count += len(batch_results)
+        
+        # Log batch completion
+        logger.info(json.dumps({
+            'event': 'BATCH_COMPLETE',
+            'processed': processed_count,
+            'total': len(files_to_process),
+            'elapsed': time.time() - start_time,
+            'request_id': context.aws_request_id
+        }))
         
         return {
             'statusCode': 200,
             'body': json.dumps({
-                'message': 'Processing completed',
+                'message': 'Batch processing completed',
+                'processed': processed_count,
+                'total': len(files_to_process),
                 'results': results
             })
         }
@@ -222,6 +205,75 @@ def lambda_handler(event, context):
                 'results': results
             })
         }
+
+def process_file_batch(files_batch, config, context):
+    """
+    Process a batch of files
+    """
+    results = []
+    
+    for bucket, key in files_batch:
+        result = {
+            'file': key,
+            'status': 'PROCESSING',
+            'timestamp': context.aws_request_id
+        }
+        
+        try:
+            # Validate file before processing
+            validate_file(bucket, key)
+            
+            logger.info(json.dumps({
+                'event': 'PROCESSING_START',
+                'file': key,
+                'bucket': bucket,
+                'request_id': context.aws_request_id
+            }))
+            
+            # Process document based on file type
+            file_ext = key.lower().split('.')[-1]
+            
+            if file_ext == 'txt':
+                success = process_text_file(bucket, key, config)
+            elif file_ext == 'pdf':
+                success = process_pdf_file(bucket, key, config)
+            elif file_ext in ['docx', 'doc']:
+                success = process_docx_file(bucket, key, config)
+            elif file_ext in ['xlsx', 'xls']:
+                success = process_xlsx_file(bucket, key, config)
+            else:
+                quarantine_document(bucket, key, f"Unsupported file type: {file_ext}")
+                success = False
+            
+            result['status'] = 'SUCCESS' if success else 'QUARANTINED'
+            
+            logger.info(json.dumps({
+                'event': 'PROCESSING_COMPLETE',
+                'file': key,
+                'status': result['status'],
+                'request_id': context.aws_request_id
+            }))
+            
+        except Exception as e:
+            logger.error(json.dumps({
+                'event': 'PROCESSING_ERROR',
+                'file': key,
+                'error': str(e),
+                'request_id': context.aws_request_id
+            }))
+            
+            # Move to quarantine on error
+            try:
+                quarantine_document(bucket, key, f"Processing error: {str(e)}")
+            except Exception as qe:
+                logger.error(f"Failed to quarantine {key}: {str(qe)}")
+            
+            result['status'] = 'ERROR'
+            result['error'] = str(e)
+        
+        results.append(result)
+    
+    return results
 
 def exponential_backoff_retry(func, *args, **kwargs):
     """
