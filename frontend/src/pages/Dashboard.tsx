@@ -34,9 +34,9 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/config')}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
               >
-                Config
+                ← Back to Config
               </button>
               <span className="text-gray-500 text-sm">{user?.signInDetails?.loginId}</span>
               <button

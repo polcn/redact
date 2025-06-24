@@ -24,12 +24,12 @@ function App() {
           <Route
             path="/config"
             element={
-              <PrivateRoute requireAdmin={true}>
+              <PrivateRoute>
                 <Config />
               </PrivateRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/config" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

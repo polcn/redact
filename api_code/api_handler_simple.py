@@ -490,15 +490,10 @@ def handle_get_config(headers, user_context):
         }
 
 def handle_update_config(event, headers, user_context):
-    """Handle PUT /api/config endpoint (admin only)"""
+    """Handle PUT /api/config endpoint"""
     try:
-        # Check if user has admin role
-        if user_context.get('role') != 'admin':
-            return {
-                'statusCode': 403,
-                'headers': headers,
-                'body': json.dumps({'error': 'Admin access required'})
-            }
+        # Allow all authenticated users to update config
+        # Note: In production, you may want to restrict this to admins only
         
         # Parse request body
         body = event.get('body', '')

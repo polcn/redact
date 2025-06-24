@@ -84,7 +84,11 @@ export const ConfigEditor: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Redaction Rules</h2>
+        <h2 className="text-lg font-medium text-gray-900 mb-2">Redaction Rules</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Configure the text patterns that will be automatically redacted from your documents. 
+          These rules will find and replace sensitive information before processing.
+        </p>
         
         {error && (
           <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -115,15 +119,37 @@ export const ConfigEditor: React.FC = () => {
           ))}
         </div>
 
-        <button
-          onClick={handleAddRule}
-          className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-        >
-          <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Rule
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={handleAddRule}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Rule
+          </button>
+          
+          {config.replacements.length === 0 && (
+            <button
+              onClick={() => {
+                setConfig({
+                  ...config,
+                  replacements: [
+                    { find: 'John Doe', replace: '[NAME]' },
+                    { find: 'jane.doe@example.com', replace: '[EMAIL]' },
+                    { find: '555-123-4567', replace: '[PHONE]' },
+                    { find: 'Confidential', replace: '[REDACTED]' },
+                    { find: 'SSN: 123-45-6789', replace: 'SSN: [REDACTED]' }
+                  ]
+                });
+              }}
+              className="inline-flex items-center px-3 py-2 border border-indigo-300 text-sm font-medium rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
+            >
+              Add Example Rules
+            </button>
+          )}
+        </div>
 
         <div className="mt-6 pt-6 border-t">
           <label className="flex items-center">

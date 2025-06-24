@@ -49,7 +49,7 @@ React Frontend → Cognito Auth → API Gateway → Lambda
 - **🔐 Authentication**: AWS Cognito with invite-only registration  
 - **👤 User Isolation**: Each user only sees their files (users/{userId}/*)
 - **📁 Multi-Format**: TXT, PDF, DOCX, XLSX → redacted .txt
-- **⚙️ Config UI**: Admin panel for redaction rules
+- **⚙️ Config UI**: User-configurable redaction rules (now default page)
 - **🔄 Real-time**: Status updates via polling
 
 ## Live Resources
@@ -66,9 +66,11 @@ Frontend S3: redact-frontend-9thcube-12476920
 
 ### Regular User
 1. Sign up at redact.9thcube.com (use allowed email domains)
-2. Upload documents via drag-drop
-3. View processing status in real-time
-4. Download redacted .txt files
+2. Configure redaction rules on the config page (default landing)
+3. Click "Proceed to Upload" to go to document upload
+4. Upload documents via drag-drop
+5. View processing status in real-time
+6. Download redacted .txt files
 
 **Note**: Email verification temporarily bypassed. For manual user confirmation:
 ```bash
@@ -76,11 +78,12 @@ aws cognito-idp admin-confirm-sign-up --user-pool-id us-east-1_4Uv3seGwS --usern
 aws cognito-idp admin-set-user-password --user-pool-id us-east-1_4Uv3seGwS --username EMAIL --password PASSWORD --permanent
 ```
 
-### Admin User
-1. Access /config page
-2. Manage redaction rules
-3. Set case sensitivity
-4. Changes apply immediately
+### All Users
+1. Config page is now the default landing page
+2. All authenticated users can manage redaction rules
+3. Set case sensitivity toggle
+4. Changes apply immediately to their documents
+5. Example rules button available for quick setup
 
 ## Config Format
 ```json
@@ -113,7 +116,11 @@ REACT_APP_DOMAIN=redact.9thcube.com
 
 ## Implementation Notes
 
-### ✅ Recent Fixes (2025-06-24)
+### ✅ Recent Updates (2025-06-24)
+- **Config First**: Config page is now the default landing page
+- **User Access**: All users can configure their own redaction rules
+- **Improved UX**: Clear flow from config → upload with navigation buttons
+- **Example Rules**: Added quick-start button with sample redaction patterns
 - **File Upload**: Working - using simplified API handler
 - **Email Auto-Confirm**: Working - enabled for allowed domains
 - **CORS**: Fully configured for all endpoints
