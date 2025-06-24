@@ -63,6 +63,30 @@ npm run build
 
 **Note**: Email verification can be bypassed for testing. Use `aws cognito-idp admin-confirm-sign-up` to manually confirm users.
 
+### ⚠️ Known Issues (as of 2025-06-24)
+
+1. **File Upload Failing**: Frontend authentication is working, but file uploads fail due to API Gateway authorization mismatch
+2. **Email Auto-Confirm**: Pre-signup Lambda auto-confirm feature not working properly
+3. **Lambda Deployment**: Document processor Lambda taking excessive time to deploy (>5 minutes)
+
+### 🔧 Temporary Workarounds
+
+#### Manual User Creation:
+```bash
+# Confirm user
+aws cognito-idp admin-confirm-sign-up --user-pool-id us-east-1_4Uv3seGwS --username EMAIL
+
+# Set password
+aws cognito-idp admin-set-user-password --user-pool-id us-east-1_4Uv3seGwS --username EMAIL --password PASSWORD --permanent
+```
+
+#### Direct S3 Upload (bypasses API):
+```bash
+aws s3 cp document.txt s3://redact-input-documents-32a4ee51/
+# Wait 30 seconds
+aws s3 cp s3://redact-processed-documents-32a4ee51/processed/document.txt ./
+```
+
 ## Security Features (Production-Hardened)
 
 - **AWS-Managed Encryption**: AES256 for all S3 data (no KMS costs)

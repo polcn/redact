@@ -111,6 +111,20 @@ REACT_APP_DOMAIN=redact.9thcube.com
 - `api_code/api_handler_v2.py` - Enhanced API with user context
 - `lambda_code/lambda_function_v2.py` - Processor with user isolation
 
+## Current Issues & Workarounds
+
+### 🔴 File Upload Failing
+The web UI authentication works but file uploads fail. Use direct S3 upload:
+```bash
+aws s3 cp file.txt s3://redact-input-documents-32a4ee51/
+```
+
+### 🟡 Email Verification
+Auto-confirm not working. Manually confirm users:
+```bash
+aws cognito-idp admin-confirm-sign-up --user-pool-id us-east-1_4Uv3seGwS --username EMAIL
+```
+
 ## Troubleshooting
 
 ### Frontend Issues

@@ -83,7 +83,8 @@ resource "aws_api_gateway_method" "upload_post" {
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
   resource_id   = aws_api_gateway_resource.upload.id
   http_method   = "POST"
-  authorization = "AWS_IAM"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
   
   request_parameters = {
     "method.request.header.Content-Type" = true
@@ -95,7 +96,8 @@ resource "aws_api_gateway_method" "status_get" {
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
   resource_id   = aws_api_gateway_resource.status_id.id
   http_method   = "GET"
-  authorization = "AWS_IAM"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
   
   request_parameters = {
     "method.request.path.id" = true
@@ -115,7 +117,8 @@ resource "aws_api_gateway_method" "user_files_get" {
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
   resource_id   = aws_api_gateway_resource.user_files.id
   http_method   = "GET"
-  authorization = "AWS_IAM"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
 }
 
 # GET /api/config - Get redaction configuration
@@ -123,7 +126,8 @@ resource "aws_api_gateway_method" "api_config_get" {
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
   resource_id   = aws_api_gateway_resource.api_config.id
   http_method   = "GET"
-  authorization = "AWS_IAM"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
 }
 
 # PUT /api/config - Update redaction configuration
@@ -131,7 +135,8 @@ resource "aws_api_gateway_method" "api_config_put" {
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
   resource_id   = aws_api_gateway_resource.api_config.id
   http_method   = "PUT"
-  authorization = "AWS_IAM"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
   
   request_parameters = {
     "method.request.header.Content-Type" = true
