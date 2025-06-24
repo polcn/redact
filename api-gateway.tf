@@ -148,7 +148,7 @@ resource "aws_lambda_function" "api_handler" {
   filename         = "api_lambda.zip"
   function_name    = "redact-api-handler"
   role            = aws_iam_role.api_lambda_role.arn
-  handler         = "api_handler.lambda_handler"
+  handler         = "api_handler_v2.lambda_handler"
   runtime         = "python3.11"
   timeout         = 30
   memory_size     = 256
@@ -160,7 +160,6 @@ resource "aws_lambda_function" "api_handler" {
       QUARANTINE_BUCKET = aws_s3_bucket.quarantine_documents.bucket
       CONFIG_BUCKET     = aws_s3_bucket.config_bucket.bucket
       USER_POOL_ID      = aws_cognito_user_pool.redact_users.id
-      AWS_REGION        = var.aws_region
     }
   }
   
@@ -321,6 +320,11 @@ resource "aws_api_gateway_deployment" "redact_api_deployment" {
     aws_api_gateway_integration.user_files_integration,
     aws_api_gateway_integration.api_config_get_integration,
     aws_api_gateway_integration.api_config_put_integration,
+    # CORS integrations
+    aws_api_gateway_integration_response.upload_options_integration_response,
+    aws_api_gateway_integration_response.status_id_options_integration_response,
+    aws_api_gateway_integration_response.user_files_options_integration_response,
+    aws_api_gateway_integration_response.api_config_options_integration_response,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
@@ -328,6 +332,16 @@ resource "aws_api_gateway_deployment" "redact_api_deployment" {
   
   lifecycle {
     create_before_destroy = true
+  }
+  
+  # Force new deployment when configuration changes
+  triggers = {
+    redeployment = sha1(jsonencode([
+      aws_api_gateway_resource.upload.id,
+      aws_api_gateway_method.upload_post.id,
+      aws_api_gateway_integration.upload_integration.id,
+      aws_api_gateway_authorizer.cognito_authorizer.id,
+    ]))
   }
 }
 
