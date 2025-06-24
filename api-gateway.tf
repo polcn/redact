@@ -148,7 +148,7 @@ resource "aws_lambda_function" "api_handler" {
   filename         = "api_lambda.zip"
   function_name    = "redact-api-handler"
   role            = aws_iam_role.api_lambda_role.arn
-  handler         = "api_handler_v2.lambda_handler"
+  handler         = "api_handler_simple.lambda_handler"
   runtime         = "python3.11"
   timeout         = 30
   memory_size     = 256

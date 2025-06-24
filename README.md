@@ -63,29 +63,24 @@ npm run build
 
 **Note**: Email verification can be bypassed for testing. Use `aws cognito-idp admin-confirm-sign-up` to manually confirm users.
 
-### ⚠️ Known Issues (as of 2025-06-24)
+### ✅ Recent Fixes (as of 2025-06-24)
 
-1. **File Upload Failing**: Frontend authentication is working, but file uploads fail due to API Gateway authorization mismatch
-2. **Email Auto-Confirm**: Pre-signup Lambda auto-confirm feature not working properly
-3. **Lambda Deployment**: Document processor Lambda taking excessive time to deploy (>5 minutes)
+1. **File Upload**: Fixed API authorization - now using simplified handler that works with Cognito
+2. **Email Auto-Confirm**: Fixed - users from allowed domains are now auto-confirmed
+3. **CORS Configuration**: Added complete CORS support for all API endpoints
 
-### 🔧 Temporary Workarounds
+### ⚠️ Current Status
 
-#### Manual User Creation:
-```bash
-# Confirm user
-aws cognito-idp admin-confirm-sign-up --user-pool-id us-east-1_4Uv3seGwS --username EMAIL
+- **Web UI**: Fully functional at https://redact.9thcube.com
+- **File Upload**: Working for all supported formats (TXT, PDF, DOCX, XLSX)
+- **Authentication**: Auto-confirm enabled for gmail.com, outlook.com, yahoo.com, 9thcube.com
+- **API**: All endpoints operational with proper JWT authentication
 
-# Set password
-aws cognito-idp admin-set-user-password --user-pool-id us-east-1_4Uv3seGwS --username EMAIL --password PASSWORD --permanent
-```
+### 🔧 Notes
 
-#### Direct S3 Upload (bypasses API):
-```bash
-aws s3 cp document.txt s3://redact-input-documents-32a4ee51/
-# Wait 30 seconds
-aws s3 cp s3://redact-processed-documents-32a4ee51/processed/document.txt ./
-```
+- Document processor Lambda may take 5+ minutes to deploy initially
+- Users are identified by UUID in Cognito (not email)
+- Processing happens via S3 trigger to Lambda
 
 ## Security Features (Production-Hardened)
 

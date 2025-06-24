@@ -108,22 +108,28 @@ REACT_APP_DOMAIN=redact.9thcube.com
 - `frontend/src/App.tsx` - Main app router
 - `frontend/src/contexts/AuthContext.tsx` - Authentication
 - `frontend/src/services/api.ts` - API client
-- `api_code/api_handler_v2.py` - Enhanced API with user context
+- `api_code/api_handler_simple.py` - Current API handler (simplified for Lambda compatibility)
 - `lambda_code/lambda_function_v2.py` - Processor with user isolation
 
-## Current Issues & Workarounds
+## Implementation Notes
 
-### 🔴 File Upload Failing
-The web UI authentication works but file uploads fail. Use direct S3 upload:
-```bash
-aws s3 cp file.txt s3://redact-input-documents-32a4ee51/
-```
+### ✅ Recent Fixes (2025-06-24)
+- **File Upload**: Working - using simplified API handler
+- **Email Auto-Confirm**: Working - enabled for allowed domains
+- **CORS**: Fully configured for all endpoints
 
-### 🟡 Email Verification
-Auto-confirm not working. Manually confirm users:
-```bash
-aws cognito-idp admin-confirm-sign-up --user-pool-id us-east-1_4Uv3seGwS --username EMAIL
-```
+### API Handler
+Currently using `api_handler_simple.py` for the API Lambda function. This simplified version:
+- Works with Cognito authorizer without external JWT libraries
+- Extracts user context from API Gateway authorizer claims
+- Handles all endpoints with proper user isolation
+- Compatible with Lambda Python 3.11 runtime
+
+### Authentication Flow
+- Users sign up with allowed email domains (gmail.com, outlook.com, yahoo.com, 9thcube.com)
+- Auto-confirm is enabled via pre-signup Lambda
+- API Gateway uses Cognito authorizer for all protected endpoints
+- Frontend includes JWT token in Authorization header
 
 ## Troubleshooting
 
