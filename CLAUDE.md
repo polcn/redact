@@ -59,6 +59,7 @@ Upload → API Gateway/S3 → Lambda (Batch) → Text Extraction → Redaction �
 ## Key Features ✅ **ALL WORKING**
 - **LLM-Optimized**: All formats → clean text output (90% size reduction)
 - **Perfect Redaction**: 100% reliable text replacement across all formats
+- **Filename Redaction**: Applies redaction rules to output filenames
 - **Multi-Format Support**: 
   - ✅ **TXT**: Direct processing with redaction
   - ✅ **PDF**: Text extraction via pypdf → redacted .txt output
@@ -81,11 +82,11 @@ Upload → API Gateway/S3 → Lambda (Batch) → Text Extraction → Redaction �
 ```
 
 ## Processing Results
-All document types are converted to optimized text files:
-- **Input**: `document.pdf` → **Output**: `document.txt` (redacted)
-- **Input**: `report.docx` → **Output**: `report.txt` (redacted)  
-- **Input**: `data.xlsx` → **Output**: `data.txt` (redacted)
-- **Input**: `notes.txt` → **Output**: `notes.txt` (redacted)
+All document types are converted to optimized text files with redacted filenames:
+- **Input**: `Choice_Report.pdf` → **Output**: `CH_Report.txt` (content & filename redacted)
+- **Input**: `ACME_Corporation.docx` → **Output**: `[REDACTED].txt` (content & filename redacted)  
+- **Input**: `Confidential_data.xlsx` → **Output**: `[REDACTED]_data.txt` (content & filename redacted)
+- **Input**: `notes.txt` → **Output**: `notes.txt` (content redacted)
 
 ## Development Notes
 - **Infrastructure**: Terraform-managed, tagged `Project=redact`
@@ -99,6 +100,7 @@ All document types are converted to optimized text files:
 - **PDF Redaction**: Fixed text extraction and redaction application  
 - **Cache Bug**: Fixed configuration update logic
 - **Text Optimization**: All formats convert to clean .txt output
+- **Filename Redaction**: Added support for applying redaction rules to output filenames
 
 ## MCP Configuration
 **Active MCPs**: AWS Documentation, CDK, Core, Serverless

@@ -98,3 +98,27 @@
 - Perfect redaction reliability achieved (100% text replacement)
 - 90% file size reduction for optimal LLM consumption
 - Consistent output format regardless of input document type
+
+## Filename Redaction Feature (IMPLEMENTED)
+
+**Feature**: Apply redaction rules to output filenames in addition to file content.
+
+**Implementation Date**: June 24, 2025
+
+**Solution Implemented**:
+- Added `apply_filename_redaction()` function to process filenames with same rules as content
+- Modified `upload_processed_document()` to accept config parameter and apply filename redaction
+- Updated all document processing functions to pass config when uploading
+- Preserves file extensions while redacting the base filename
+
+**Current Behavior**:
+- ✅ Redaction rules apply to both file content and filenames
+- ✅ File extensions are preserved (e.g., `.txt`, `.pdf` → `.txt`)
+- ✅ Metadata tracks whether filename was redacted
+- ✅ Consistent redaction across all aspects of document processing
+
+**Test Results**: 
+- `Choice_Hotels_Report.txt` → `CH_Hotels_Report.txt` ✅
+- Content "Choice Hotels" → "CH Hotels" ✅
+
+**Status**: ✅ **IMPLEMENTED** - Filename redaction working for all document types.

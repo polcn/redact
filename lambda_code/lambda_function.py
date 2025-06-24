@@ -399,9 +399,42 @@ def apply_redaction_rules(content, config):
         logger.error(f"Error applying redaction rules: {str(e)}")
         return content, False
 
-def upload_processed_document(key, content, metadata=None):
+def apply_filename_redaction(filename, config):
+    """Apply redaction rules to file names"""
+    try:
+        # Extract base name and extension
+        base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        extension = filename.rsplit('.', 1)[1] if '.' in filename else ''
+        
+        # Apply redaction to base name only (preserve extension)
+        processed_name, redacted = apply_redaction_rules(base_name, config)
+        
+        # Reconstruct filename with extension
+        if extension:
+            processed_filename = f"{processed_name}.{extension}"
+        else:
+            processed_filename = processed_name
+            
+        if redacted:
+            logger.info(f"Applied filename redaction: {filename} -> {processed_filename}")
+            
+        return processed_filename, redacted
+        
+    except Exception as e:
+        logger.error(f"Error applying filename redaction: {str(e)}")
+        return filename, False
+
+def upload_processed_document(key, content, metadata=None, config=None):
     """Upload processed document to output bucket with retry logic"""
-    processed_key = f"processed/{key}"
+    # Apply filename redaction if config provided
+    if config:
+        redacted_key, filename_redacted = apply_filename_redaction(key, config)
+        processed_key = f"processed/{redacted_key}"
+        if metadata is None:
+            metadata = {}
+        metadata['filename_redacted'] = str(filename_redacted)
+    else:
+        processed_key = f"processed/{key}"
     
     base_metadata = {
         'processing-status': 'completed',
@@ -446,7 +479,7 @@ def process_text_file(bucket, key, config):
         
         # Upload processed document
         upload_processed_document(key, processed_content.encode('utf-8'), 
-                                {'redacted': str(redacted)})
+                                {'redacted': str(redacted)}, config)
         
         return True
         
@@ -488,7 +521,7 @@ def process_pdf_file(bucket, key, config):
             
             # Upload processed document as text
             upload_processed_document(text_key, processed_text.encode('utf-8'), 
-                                    {'redacted': str(redacted), 'converted_from': 'pdf'})
+                                    {'redacted': str(redacted), 'converted_from': 'pdf'}, config)
             
             return True
             
@@ -531,7 +564,7 @@ def process_docx_as_text(bucket, key, config):
         
         # Upload processed document as text
         upload_processed_document(text_key, processed_text.encode('utf-8'), 
-                                {'redacted': str(redacted), 'converted_from': 'docx', 'fallback_method': 'true'})
+                                {'redacted': str(redacted), 'converted_from': 'docx', 'fallback_method': 'true'}, config)
         
         logger.info(f"Processed DOCX as text using fallback method: {key} -> {text_key}")
         return True
@@ -542,54 +575,11 @@ def process_docx_as_text(bucket, key, config):
 
 def process_docx_file(bucket, key, config):
     """Process DOCX files - convert to text and redact"""
-    # If docx library isn't available, use text extraction fallback
-    if not DOCX_AVAILABLE:
-        logger.warning(f"DOCX library not available, using text extraction for {key}")
-        return process_docx_as_text(bucket, key, config)
-    
-    try:
-        # Download document
-        document_content = download_document(bucket, key)
-        
-        with tempfile.NamedTemporaryFile(suffix='.docx') as temp_file:
-            temp_file.write(document_content)
-            temp_file.flush()
-            
-            # Open document
-            doc = Document(temp_file.name)
-            
-            redacted = False
-            
-            # Process paragraphs
-            for paragraph in doc.paragraphs:
-                original_text = paragraph.text
-                processed_text, para_redacted = apply_redaction_rules(original_text, config)
-                
-                if para_redacted:
-                    paragraph.text = processed_text
-                    redacted = True
-            
-            # Remove all images
-            for shape in doc.inline_shapes:
-                if shape.type == 3:  # PICTURE type
-                    shape._element.getparent().remove(shape._element)
-            
-            # Save processed document
-            output_buffer = BytesIO()
-            doc.save(output_buffer)
-            output_buffer.seek(0)
-            
-            upload_processed_document(key, output_buffer, 
-                                    {'redacted': str(redacted), 'images_removed': 'true'})
-            
-            return True
-            
-    except Exception as e:
-        logger.error(f"Error processing DOCX file {key}: {str(e)}")
-        raise
+    # Always use text extraction approach for consistency
+    return process_docx_as_text(bucket, key, config)
 
 def process_xlsx_file(bucket, key, config):
-    """Process XLSX files - redact text content"""
+    """Process XLSX files - extract text and output as redacted text file"""
     if not load_workbook:
         raise ImportError("openpyxl library not available")
     
@@ -604,25 +594,34 @@ def process_xlsx_file(bucket, key, config):
             # Open workbook
             workbook = load_workbook(temp_file.name)
             
-            redacted = False
+            # Extract all text content
+            all_text = []
             
             # Process all worksheets
             for sheet in workbook.worksheets:
+                sheet_text = [f"Sheet: {sheet.title}"]
                 for row in sheet.iter_rows():
+                    row_values = []
                     for cell in row:
-                        if cell.value and isinstance(cell.value, str):
-                            processed_value, cell_redacted = apply_redaction_rules(cell.value, config)
-                            if cell_redacted:
-                                cell.value = processed_value
-                                redacted = True
+                        if cell.value is not None:
+                            row_values.append(str(cell.value))
+                    if row_values:
+                        sheet_text.append('\t'.join(row_values))
+                if len(sheet_text) > 1:  # Has content beyond title
+                    all_text.append('\n'.join(sheet_text))
             
-            # Save processed workbook
-            output_buffer = BytesIO()
-            workbook.save(output_buffer)
-            output_buffer.seek(0)
+            # Combine all text
+            full_text = '\n\n'.join(all_text)
             
-            upload_processed_document(key, output_buffer, 
-                                    {'redacted': str(redacted)})
+            # Apply redaction rules
+            processed_text, redacted = apply_redaction_rules(full_text, config)
+            
+            # Save as text file (change extension to .txt)
+            text_key = key.rsplit('.', 1)[0] + '.txt'
+            
+            # Upload processed document as text
+            upload_processed_document(text_key, processed_text.encode('utf-8'), 
+                                    {'redacted': str(redacted), 'converted_from': 'xlsx'}, config)
             
             return True
             
