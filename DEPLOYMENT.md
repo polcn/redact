@@ -4,11 +4,16 @@
 
 - AWS CLI configured with appropriate permissions
 - Terraform >= 1.0 installed
+- Node.js 16+ and npm (for frontend)
 - Python 3.11+ for testing (optional)
 - IAM permissions for:
   - S3 bucket creation and management
   - Lambda function deployment
   - API Gateway deployment and configuration
+  - CloudFront distribution management
+  - Route 53 DNS management
+  - ACM certificate creation
+  - Cognito user pool creation
   - SQS queue creation (for DLQ)
   - CloudWatch dashboard and alarms
   - IAM role and policy creation
@@ -16,6 +21,7 @@
 
 ## Quick Deploy (Recommended)
 
+### 1. Deploy Infrastructure
 ```bash
 # Navigate to project
 cd /home/ec2-user/redact-terraform
@@ -30,6 +36,25 @@ This script will:
 3. Set up budget alerts (after email update)
 4. Upload sample configuration
 5. Run validation tests
+
+### 2. Deploy Frontend
+```bash
+# Navigate to frontend
+cd frontend
+
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with values from: terraform output -json
+
+# Deploy to production
+npm run build
+./deploy.sh
+```
+
+The application will be available at: https://redact.9thcube.com
 
 ## Manual Deployment Steps
 
@@ -47,9 +72,12 @@ terraform apply -auto-approve
 ```
 
 **Deployed Resources:**
-- 4 S3 buckets (input, processed, quarantine, config)
-- 2 Lambda functions (document processing + API handler)
-- REST API Gateway with 3 endpoints
+- 5 S3 buckets (input, processed, quarantine, config, frontend)
+- 3 Lambda functions (document processing, API handler, Cognito pre-signup)
+- REST API Gateway with 6 endpoints
+- AWS Cognito user pool for authentication
+- CloudFront distribution with custom domain
+- Route 53 DNS records and ACM certificate
 - SQS Dead Letter Queue
 - CloudWatch log groups and dashboard
 - IAM roles and policies
@@ -249,12 +277,16 @@ bandit -r lambda_code/ api_code/
 - **Security Scanning**: Automated vulnerability detection
 - **Terraform Validation**: Infrastructure code quality checks
 
-## System Status: Production Ready ✅
+## System Status: Production Ready with Frontend ✅
 
 The document redaction system is now enterprise-grade with:
-- 🚀 **Multi-format Processing**: TXT, PDF, DOCX, XLSX
+- 🌐 **Web Interface**: React frontend at redact.9thcube.com
+- 🔐 **User Authentication**: AWS Cognito with email verification
+- 🚀 **Multi-format Processing**: TXT, PDF, DOCX, XLSX → redacted .txt
+- 👤 **User Isolation**: Each user only sees their own files
 - 🔒 **Security Hardened**: Input validation, retry logic, DLQ
 - 📊 **Fully Monitored**: CloudWatch dashboard and alerting
+- ⚙️ **Admin UI**: Configuration management interface
 - 🧪 **Comprehensive Testing**: 80%+ coverage with CI/CD
-- 💰 **Cost Optimized**: $0-5/month (down from $30-40/month)
+- 💰 **Cost Optimized**: $0-5/month serverless architecture
 - 🌐 **API Enabled**: REST endpoints for external integration

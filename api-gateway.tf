@@ -50,6 +50,34 @@ resource "aws_api_gateway_resource" "health" {
   path_part   = "health"
 }
 
+# API Gateway Resource - /user
+resource "aws_api_gateway_resource" "user" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_rest_api.redact_api.root_resource_id
+  path_part   = "user"
+}
+
+# API Gateway Resource - /user/files
+resource "aws_api_gateway_resource" "user_files" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.user.id
+  path_part   = "files"
+}
+
+# API Gateway Resource - /api
+resource "aws_api_gateway_resource" "api" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_rest_api.redact_api.root_resource_id
+  path_part   = "api"
+}
+
+# API Gateway Resource - /api/config
+resource "aws_api_gateway_resource" "api_config" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.api.id
+  path_part   = "config"
+}
+
 # POST /documents/upload - Upload document for redaction
 resource "aws_api_gateway_method" "upload_post" {
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
@@ -82,6 +110,34 @@ resource "aws_api_gateway_method" "health_get" {
   authorization = "NONE"
 }
 
+# GET /user/files - List user's files
+resource "aws_api_gateway_method" "user_files_get" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.user_files.id
+  http_method   = "GET"
+  authorization = "AWS_IAM"
+}
+
+# GET /api/config - Get redaction configuration
+resource "aws_api_gateway_method" "api_config_get" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.api_config.id
+  http_method   = "GET"
+  authorization = "AWS_IAM"
+}
+
+# PUT /api/config - Update redaction configuration
+resource "aws_api_gateway_method" "api_config_put" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.api_config.id
+  http_method   = "PUT"
+  authorization = "AWS_IAM"
+  
+  request_parameters = {
+    "method.request.header.Content-Type" = true
+  }
+}
+
 # Lambda function for API Gateway integration
 resource "aws_lambda_function" "api_handler" {
   filename         = "api_lambda.zip"
@@ -98,6 +154,8 @@ resource "aws_lambda_function" "api_handler" {
       PROCESSED_BUCKET  = aws_s3_bucket.processed_documents.bucket
       QUARANTINE_BUCKET = aws_s3_bucket.quarantine_documents.bucket
       CONFIG_BUCKET     = aws_s3_bucket.config_bucket.bucket
+      USER_POOL_ID      = aws_cognito_user_pool.redact_users.id
+      AWS_REGION        = var.aws_region
     }
   }
   
@@ -210,6 +268,36 @@ resource "aws_api_gateway_integration" "health_integration" {
   uri                    = aws_lambda_function.api_handler.invoke_arn
 }
 
+resource "aws_api_gateway_integration" "user_files_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.user_files.id
+  http_method = aws_api_gateway_method.user_files_get.http_method
+  
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = aws_lambda_function.api_handler.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "api_config_get_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_config.id
+  http_method = aws_api_gateway_method.api_config_get.http_method
+  
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = aws_lambda_function.api_handler.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "api_config_put_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_config.id
+  http_method = aws_api_gateway_method.api_config_put.http_method
+  
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = aws_lambda_function.api_handler.invoke_arn
+}
+
 # Lambda permissions for API Gateway
 resource "aws_lambda_permission" "api_gateway_invoke" {
   statement_id  = "AllowExecutionFromAPIGateway"
@@ -225,6 +313,9 @@ resource "aws_api_gateway_deployment" "redact_api_deployment" {
     aws_api_gateway_integration.upload_integration,
     aws_api_gateway_integration.status_integration,
     aws_api_gateway_integration.health_integration,
+    aws_api_gateway_integration.user_files_integration,
+    aws_api_gateway_integration.api_config_get_integration,
+    aws_api_gateway_integration.api_config_put_integration,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
@@ -301,6 +392,39 @@ resource "aws_api_gateway_method_response" "health_200" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.health.id
   http_method = aws_api_gateway_method.health_get.http_method
+  status_code = "200"
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin" = true
+  }
+}
+
+resource "aws_api_gateway_method_response" "user_files_200" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.user_files.id
+  http_method = aws_api_gateway_method.user_files_get.http_method
+  status_code = "200"
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin" = true
+  }
+}
+
+resource "aws_api_gateway_method_response" "api_config_get_200" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_config.id
+  http_method = aws_api_gateway_method.api_config_get.http_method
+  status_code = "200"
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin" = true
+  }
+}
+
+resource "aws_api_gateway_method_response" "api_config_put_200" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_config.id
+  http_method = aws_api_gateway_method.api_config_put.http_method
   status_code = "200"
   
   response_parameters = {

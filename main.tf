@@ -11,6 +11,12 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Additional provider for us-east-1 (required for CloudFront ACM certificates)
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}
+
 # Cost-optimized: Using AWS-managed encryption instead of customer-managed KMS
 # This saves $1/month and is still secure for most use cases
 

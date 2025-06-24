@@ -1,31 +1,65 @@
 # Redact - AWS Document Scrubbing System
 
-A secure, automated document processing system that removes client names and logos from uploaded documents using AWS services.
+A secure, automated document processing system that removes sensitive information from uploaded documents using AWS services, now with a full React frontend.
 
-## Current Status: Production-Ready Enterprise System ✅
+## Current Status: Production-Ready Enterprise System with Frontend ✅
 
+### Live Resources
+- **Frontend URL**: `https://redact.9thcube.com`
+- **API Gateway**: `https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production`
 - **Input Bucket**: `redact-input-documents-32a4ee51`
 - **Processed Bucket**: `redact-processed-documents-32a4ee51` 
 - **Quarantine Bucket**: `redact-quarantine-documents-32a4ee51`
 - **Config Bucket**: `redact-config-32a4ee51`
-- **Lambda Function**: `document-scrubbing-processor` (512MB, 60s timeout)
-- **API Gateway**: `https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production`
-- **Supported Formats**: TXT, PDF, DOCX, XLSX with image removal
-- **Configuration**: Flexible S3-based redaction rules
-- **Testing**: Comprehensive test suite with 80%+ coverage
-- **CI/CD**: GitHub Actions pipeline with automated deployment
+- **Lambda Functions**: `document-scrubbing-processor`, `redact-api-handler`
+- **Authentication**: AWS Cognito with invite-only registration
+
+### Key Features
+- **🌐 Web Interface**: Secure React frontend at redact.9thcube.com
+- **🔐 User Authentication**: AWS Cognito with email verification
+- **📁 Multi-Format Support**: TXT, PDF, DOCX, XLSX → redacted .txt output
+- **🔄 Real-time Processing**: Status updates and notifications
+- **👤 User Isolation**: Each user only sees their own files
+- **⚙️ Configuration UI**: Admin panel for redaction rules
+- **💰 Cost-Optimized**: $0-5/month serverless architecture
 
 ## Architecture
 
 ```
-External Users → API Gateway → Lambda (Batch) → S3 Storage
-                     ↓              ↓               ↓
-               CORS/Auth     DLQ + Retry    Lifecycle Policies
-                     ↓              ↓               ↓
-               CloudWatch ← Monitoring → Budget Alerts
-
-Alternative: Direct S3 Upload → Event Trigger → Lambda Processing
+Users → React Frontend (redact.9thcube.com) → CloudFront → S3
+             ↓
+        AWS Cognito
+             ↓
+      API Gateway → Lambda → S3 (User-Isolated Paths)
+             ↓         ↓
+       Config API   Processing
+             ↓         ↓
+        Admin UI   CloudWatch
 ```
+
+## Quick Start
+
+### 1. Deploy Infrastructure
+```bash
+terraform init
+terraform apply
+```
+
+### 2. Deploy Frontend
+```bash
+cd frontend
+npm install
+cp .env.example .env
+# Update .env with Terraform outputs
+npm run build
+./deploy.sh
+```
+
+### 3. Access the Application
+- Visit https://redact.9thcube.com
+- Sign up with your email (requires approval)
+- Upload documents for redaction
+- Download processed files
 
 ## Security Features (Production-Hardened)
 
@@ -182,33 +216,33 @@ python -m pytest tests/test_integration.py -v
 redact-terraform/
 ├── main.tf                    # Core infrastructure (S3, lifecycle policies)
 ├── lambda.tf                  # Document processing Lambda function
-├── api-gateway.tf             # REST API Gateway and API Lambda
+├── api-gateway.tf             # REST API Gateway with user endpoints
+├── frontend.tf                # CloudFront, Route 53, ACM for frontend
+├── cognito.tf                 # AWS Cognito user authentication
 ├── variables.tf               # Configuration variables
 ├── outputs.tf                 # Resource outputs and API endpoints
 ├── lambda_code/               # Document processing Lambda source
-│   ├── lambda_function.py     # Enhanced with batch processing & validation
+│   ├── lambda_function.py     # Main processor with user isolation
+│   ├── lambda_function_v2.py  # Updated with user prefix support
 │   └── requirements.txt       # Python dependencies
 ├── api_code/                  # API Gateway Lambda source
-│   └── api_handler.py         # REST API handlers for upload/status/health
-├── tests/                     # Comprehensive test suite
-│   ├── test_lambda_function.py # Unit tests for document processing
-│   ├── test_integration.py    # Integration tests (real + mocked AWS)
-│   └── __init__.py
+│   ├── api_handler.py         # Original API handlers
+│   ├── api_handler_v2.py      # Enhanced with user context
+│   └── requirements.txt       # API dependencies
+├── cognito_code/              # Cognito Lambda triggers
+│   └── pre_signup.py          # Controls user registration
+├── frontend/                  # React application
+│   ├── src/
+│   │   ├── components/        # Reusable UI components
+│   │   ├── pages/            # Dashboard, Config pages
+│   │   ├── contexts/         # Auth context provider
+│   │   └── services/         # API client service
+│   ├── public/               # Static assets
+│   ├── deploy.sh             # Frontend deployment script
+│   └── README.md             # Frontend documentation
+├── tests/                     # Test suite
 ├── .github/workflows/         # CI/CD automation
-│   ├── ci-cd.yml              # Main pipeline with testing & deployment
-│   └── pr-validation.yml      # Pull request validation
-├── monitoring-dashboard.json  # CloudWatch dashboard configuration
-├── budget-alert.json          # AWS Budget configuration
-├── budget-notifications.json  # Budget alert settings
-├── requirements-test.txt      # Testing dependencies
-├── run-tests.sh              # Test automation script
-├── deploy-improvements.sh     # Deployment automation script
-├── CLAUDE.md                  # AI assistant instructions
-├── STATUS.md                  # Current deployment status
-├── IMPROVEMENTS.md            # Recent enhancements summary
-├── NEXT_STEPS.md             # Implementation roadmap
-├── DEPLOYMENT.md             # Detailed deployment guide
-├── FRONTEND_PLAN.md          # React frontend implementation plan
+├── CLAUDE.md                  # AI assistant context
 └── README.md                  # This file
 ```
 
