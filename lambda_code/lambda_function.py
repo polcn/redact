@@ -6,6 +6,8 @@ import logging
 from urllib.parse import unquote_plus
 import tempfile
 from io import BytesIO
+import time
+from botocore.exceptions import ClientError
 
 # Document processing libraries
 try:
@@ -31,6 +33,17 @@ logger = logging.getLogger(__name__)
 # Initialize AWS clients
 s3 = boto3.client('s3')
 
+# Configuration constants
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB limit
+MAX_CONFIG_SIZE = 1 * 1024 * 1024  # 1MB limit for config
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls'}
+MAX_REPLACEMENTS = 100  # Maximum number of replacement rules
+
+# Retry configuration
+MAX_RETRIES = 3
+BASE_BACKOFF = 1  # seconds
+MAX_BACKOFF = 30  # seconds
+
 # Environment variables
 INPUT_BUCKET = os.environ['INPUT_BUCKET']
 OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET']
@@ -48,6 +61,68 @@ DEFAULT_REPLACEMENTS = [
     {"find": "TechnoSoft", "replace": "[REDACTED]"}
 ]
 
+def validate_file(bucket, key):
+    """
+    Validate file before processing
+    """
+    try:
+        # Check file extension
+        file_ext = key.lower().split('.')[-1]
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise ValueError(f"Unsupported file type: {file_ext}. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}")
+        
+        # Check file size
+        response = s3.head_object(Bucket=bucket, Key=key)
+        file_size = response['ContentLength']
+        
+        if file_size > MAX_FILE_SIZE:
+            raise ValueError(f"File too large: {file_size} bytes. Maximum allowed: {MAX_FILE_SIZE} bytes")
+        
+        if file_size == 0:
+            raise ValueError("File is empty")
+        
+        return True
+    except s3.exceptions.NoSuchKey:
+        raise ValueError(f"File not found: {key}")
+    except Exception as e:
+        logger.error(f"File validation error: {str(e)}")
+        raise
+
+def validate_config(config):
+    """
+    Validate configuration structure and content
+    """
+    if not isinstance(config, dict):
+        raise ValueError("Configuration must be a JSON object")
+    
+    # Check required fields
+    if 'replacements' not in config:
+        raise ValueError("Configuration must contain 'replacements' field")
+    
+    replacements = config.get('replacements', [])
+    
+    if not isinstance(replacements, list):
+        raise ValueError("'replacements' must be an array")
+    
+    if len(replacements) > MAX_REPLACEMENTS:
+        raise ValueError(f"Too many replacement rules: {len(replacements)}. Maximum allowed: {MAX_REPLACEMENTS}")
+    
+    # Validate each replacement rule
+    for idx, rule in enumerate(replacements):
+        if not isinstance(rule, dict):
+            raise ValueError(f"Replacement rule {idx} must be an object")
+        
+        if 'find' not in rule:
+            raise ValueError(f"Replacement rule {idx} missing required 'find' field")
+        
+        if not rule.get('find'):
+            raise ValueError(f"Replacement rule {idx} has empty 'find' field")
+        
+        if 'replace' not in rule:
+            logger.warning(f"Replacement rule {idx} missing 'replace' field, using '[REDACTED]'")
+    
+    return True
+
 def lambda_handler(event, context):
     """
     Main Lambda handler for document processing
@@ -57,6 +132,9 @@ def lambda_handler(event, context):
     try:
         # Load configuration
         config = get_redaction_config()
+        
+        # Validate configuration
+        validate_config(config)
         
         for record in event['Records']:
             bucket = record['s3']['bucket']['name']
@@ -69,6 +147,9 @@ def lambda_handler(event, context):
             }
             
             try:
+                # Validate file before processing
+                validate_file(bucket, key)
+                
                 logger.info(json.dumps({
                     'event': 'PROCESSING_START',
                     'file': key,
@@ -142,13 +223,45 @@ def lambda_handler(event, context):
             })
         }
 
+def exponential_backoff_retry(func, *args, **kwargs):
+    """
+    Retry function with exponential backoff
+    """
+    last_exception = None
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            return func(*args, **kwargs)
+        except ClientError as e:
+            last_exception = e
+            error_code = e.response['Error']['Code']
+            
+            # Don't retry on permanent errors
+            if error_code in ['NoSuchKey', 'NoSuchBucket', 'AccessDenied', 'InvalidRequest']:
+                raise
+            
+            if attempt < MAX_RETRIES - 1:
+                backoff = min(BASE_BACKOFF * (2 ** attempt), MAX_BACKOFF)
+                logger.warning(f"Retry {attempt + 1}/{MAX_RETRIES} after {backoff}s for {func.__name__}")
+                time.sleep(backoff)
+            else:
+                raise
+        except Exception as e:
+            # For non-ClientError exceptions, fail immediately
+            raise
+    
+    raise last_exception
+
 def download_document(bucket, key):
-    """Download document from S3"""
-    try:
+    """Download document from S3 with retry logic"""
+    def _download():
         response = s3.get_object(Bucket=bucket, Key=key)
         return response['Body'].read()
+    
+    try:
+        return exponential_backoff_retry(_download)
     except Exception as e:
-        logger.error(f"Error downloading {key}: {str(e)}")
+        logger.error(f"Error downloading {key} after {MAX_RETRIES} attempts: {str(e)}")
         raise
 
 def get_redaction_config():
@@ -159,6 +272,11 @@ def get_redaction_config():
         # Check if config file exists and get last modified time
         response = s3.head_object(Bucket=CONFIG_BUCKET, Key='config.json')
         last_modified = response['LastModified']
+        config_size = response['ContentLength']
+        
+        # Validate config file size
+        if config_size > MAX_CONFIG_SIZE:
+            raise ValueError(f"Configuration file too large: {config_size} bytes")
         
         # Return cached config if it's still current
         if _config_cache and _config_last_modified and last_modified <= _config_last_modified:
@@ -166,7 +284,13 @@ def get_redaction_config():
         
         # Download and parse config
         config_response = s3.get_object(Bucket=CONFIG_BUCKET, Key='config.json')
-        config_data = json.loads(config_response['Body'].read())
+        config_content = config_response['Body'].read()
+        
+        try:
+            config_data = json.loads(config_content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in configuration: {str(e)}")
+            raise ValueError("Configuration file contains invalid JSON")
         
         # Cache the config
         _config_cache = config_data
@@ -215,24 +339,24 @@ def apply_redaction_rules(content, config):
         return content, False
 
 def upload_processed_document(key, content, metadata=None):
-    """Upload processed document to output bucket"""
-    try:
-        processed_key = f"processed/{key}"
-        
-        base_metadata = {
-            'processing-status': 'completed',
-            'original-key': key
-        }
-        
-        if metadata:
-            base_metadata.update(metadata)
-        
-        # Handle both bytes and file-like objects
-        if hasattr(content, 'read'):
-            body = content.read()
-        else:
-            body = content
-        
+    """Upload processed document to output bucket with retry logic"""
+    processed_key = f"processed/{key}"
+    
+    base_metadata = {
+        'processing-status': 'completed',
+        'original-key': key
+    }
+    
+    if metadata:
+        base_metadata.update(metadata)
+    
+    # Handle both bytes and file-like objects
+    if hasattr(content, 'read'):
+        body = content.read()
+    else:
+        body = content
+    
+    def _upload():
         s3.put_object(
             Bucket=OUTPUT_BUCKET,
             Key=processed_key,
@@ -240,12 +364,13 @@ def upload_processed_document(key, content, metadata=None):
             ServerSideEncryption='AES256',
             Metadata=base_metadata
         )
-        
+    
+    try:
+        exponential_backoff_retry(_upload)
         logger.info(f"Uploaded processed document: s3://{OUTPUT_BUCKET}/{processed_key}")
         return True
-        
     except Exception as e:
-        logger.error(f"Error uploading processed document: {str(e)}")
+        logger.error(f"Error uploading processed document after {MAX_RETRIES} attempts: {str(e)}")
         raise
 
 def process_text_file(bucket, key, config):
@@ -410,26 +535,26 @@ def process_xlsx_file(bucket, key, config):
         raise
 
 def quarantine_document(bucket, key, reason):
-    """Move document to quarantine bucket"""
-    try:
-        # Copy to quarantine bucket
-        copy_source = {'Bucket': bucket, 'Key': key}
-        quarantine_key = f"quarantine/{key}"
-        
+    """Move document to quarantine bucket with retry logic"""
+    copy_source = {'Bucket': bucket, 'Key': key}
+    quarantine_key = f"quarantine/{key}"
+    
+    def _quarantine():
         s3.copy_object(
             CopySource=copy_source,
             Bucket=QUARANTINE_BUCKET,
             Key=quarantine_key,
             ServerSideEncryption='AES256',
             Metadata={
-                'quarantine-reason': reason,
+                'quarantine-reason': reason[:255],  # S3 metadata value limit
                 'original-bucket': bucket,
                 'original-key': key
             }
         )
-        
+    
+    try:
+        exponential_backoff_retry(_quarantine)
         logger.info(f"Document quarantined: s3://{QUARANTINE_BUCKET}/{quarantine_key}, reason: {reason}")
-        
     except Exception as e:
-        logger.error(f"Error quarantining document: {str(e)}")
+        logger.error(f"Error quarantining document after {MAX_RETRIES} attempts: {str(e)}")
         raise

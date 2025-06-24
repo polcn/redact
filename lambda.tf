@@ -1,3 +1,40 @@
+# SQS Dead Letter Queue for failed Lambda invocations
+resource "aws_sqs_queue" "lambda_dlq" {
+  name                      = "document-scrubbing-dlq"
+  message_retention_seconds = 1209600  # 14 days
+  visibility_timeout_seconds = 300     # 5 minutes
+
+  tags = {
+    Name        = "document-scrubbing-dlq"
+    Environment = var.environment
+    Project     = "redact"
+  }
+}
+
+# CloudWatch alarm for DLQ messages
+resource "aws_cloudwatch_metric_alarm" "dlq_alarm" {
+  alarm_name          = "document-scrubbing-dlq-messages"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  namespace           = "AWS/SQS"
+  period              = "300"
+  statistic           = "Average"
+  threshold           = "1"
+  alarm_description   = "Alert when messages are in the DLQ"
+  treat_missing_data  = "notBreaching"
+
+  dimensions = {
+    QueueName = aws_sqs_queue.lambda_dlq.name
+  }
+
+  tags = {
+    Name        = "document-scrubbing-dlq-alarm"
+    Environment = var.environment
+    Project     = "redact"
+  }
+}
+
 # IAM role for Lambda functions
 resource "aws_iam_role" "lambda_execution_role" {
   name = "document-scrubbing-lambda-role"
@@ -69,6 +106,14 @@ resource "aws_iam_role_policy" "lambda_policy" {
         ]
         Resource = "*"
       },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:GetQueueAttributes"
+        ]
+        Resource = aws_sqs_queue.lambda_dlq.arn
+      }
     ]
   })
 }
@@ -90,6 +135,10 @@ resource "aws_lambda_function" "document_processor" {
       QUARANTINE_BUCKET = aws_s3_bucket.quarantine_documents.bucket
       CONFIG_BUCKET     = aws_s3_bucket.config_bucket.bucket
     }
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
   }
 
   depends_on = [

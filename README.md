@@ -2,7 +2,7 @@
 
 A secure, automated document processing system that removes client names and logos from uploaded documents using AWS services.
 
-## Current Status: Enhanced Multi-Format Processing ✅
+## Current Status: Production-Ready with Enhanced Security ✅
 
 - **Input Bucket**: `redact-input-documents-32a4ee51`
 - **Processed Bucket**: `redact-processed-documents-32a4ee51` 
@@ -22,13 +22,16 @@ Documents → S3 Input → Lambda → Multi-Format Processing → S3 Output
                   S3 Quarantine (if errors)
 ```
 
-## Security Features (Cost-Optimized)
+## Security Features (Production-Hardened)
 
 - **AWS-Managed Encryption**: AES256 for all S3 data (no KMS costs)
 - **IAM Security**: Lambda runs with least privilege policies
 - **Public Access Blocked**: All S3 buckets private
 - **S3 Lifecycle Policies**: Automatic transition to cheaper storage
-- **No Network Costs**: Removed VPC to save ~$22/month
+- **Input Validation**: File size limits (50MB) and type restrictions
+- **Configuration Validation**: JSON schema checking with fallback
+- **Dead Letter Queue**: Captures and alerts on failed processing
+- **Retry Logic**: Exponential backoff for transient failures
 
 ## Deployed Infrastructure
 
@@ -50,6 +53,8 @@ Documents → S3 Input → Lambda → Multi-Format Processing → S3 Output
 - **Image Removal**: Automatic stripping from PDFs/DOCX
 - **Configurable Redaction**: S3-based rules (no code changes needed)
 - **Structured Logging**: JSON format to CloudWatch
+- **Error Handling**: Retry logic with exponential backoff
+- **Monitoring**: CloudWatch dashboard and budget alerts
 - Automatic S3 event triggers
 
 ### Cost Savings
@@ -102,28 +107,50 @@ All resources tagged with `Project = "redact"` for billing tracking.
 
 ## Deployment
 
+### Quick Deploy (Recommended)
+```bash
+cd /home/ec2-user/redact-terraform
+./deploy-improvements.sh
+```
+
+### Manual Deploy
 ```bash
 terraform init
 terraform plan
 terraform apply
+
+# Set up monitoring
+aws cloudwatch put-dashboard \
+  --dashboard-name "DocumentRedactionSystem" \
+  --dashboard-body file://monitoring-dashboard.json
+
+# Configure budget alerts (update email first)
+aws budgets create-budget \
+  --account-id $(aws sts get-caller-identity --query Account --output text) \
+  --budget file://budget-alert.json \
+  --notifications-with-subscribers file://budget-notifications.json
 ```
 
 ## File Structure
 
 ```
 redact-terraform/
-├── main.tf              # Core infrastructure (S3, lifecycle policies)
-├── lambda.tf            # Lambda function and IAM
-├── variables.tf         # Configuration variables
-├── outputs.tf           # Resource outputs
-├── lambda_code/         # Lambda function source
-│   └── lambda_function.py
-├── document_processor.zip  # Packaged Lambda code
-├── terraform.tfstate    # Terraform state
-├── CLAUDE.md           # AI assistant instructions
-├── STATUS.md           # Current deployment status
-├── README.md           # This file
-└── new-test.txt        # Test file
+├── main.tf                    # Core infrastructure (S3, lifecycle policies)
+├── lambda.tf                  # Lambda function, IAM, and DLQ
+├── variables.tf               # Configuration variables
+├── outputs.tf                 # Resource outputs
+├── lambda_code/               # Lambda function source
+│   ├── lambda_function.py     # Enhanced with validation & retry logic
+│   └── requirements.txt       # Python dependencies
+├── monitoring-dashboard.json  # CloudWatch dashboard config
+├── budget-alert.json          # AWS Budget configuration
+├── budget-notifications.json  # Budget alert settings
+├── deploy-improvements.sh     # Deployment automation script
+├── CLAUDE.md                  # AI assistant instructions
+├── STATUS.md                  # Current deployment status
+├── IMPROVEMENTS.md            # Recent enhancements summary
+├── NEXT_STEPS.md             # Prioritized roadmap
+└── README.md                  # This file
 ```
 
 ## Redaction Capabilities
@@ -136,11 +163,14 @@ The system supports configurable redaction via `config.json`:
 - **Multi-Format**: TXT, PDF, DOCX, XLSX processing
 - **No Downtime**: Update rules without redeployment
 
-## Monitoring
+## Monitoring & Alerts
 
-- CloudWatch logs for Lambda execution (within free tier)
-- S3 event notifications for processing
-- Cost monitoring via resource tags
+- **CloudWatch Dashboard**: Real-time metrics and error tracking
+- **Budget Alerts**: Notifications at 50%, 80%, 100% of $10 threshold
+- **DLQ Monitoring**: Alerts on processing failures
+- **Success Rate Tracking**: Target >99% processing success
+- **Structured Logging**: JSON format for easy querying
+- **Cost Tracking**: All resources tagged with `Project = "redact"`
 
 ## Compliance
 
