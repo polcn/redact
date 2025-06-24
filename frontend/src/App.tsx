@@ -6,6 +6,7 @@ import { PrivateRoute } from './components/Auth/PrivateRoute';
 import { Dashboard } from './pages/Dashboard';
 import { Config } from './pages/Config';
 import './aws-config';
+import './anthropic-theme.css';
 
 function App() {
   return (

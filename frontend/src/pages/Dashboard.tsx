@@ -24,24 +24,28 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
+    <div className="min-h-screen bg-secondary">
+      <nav className="nav-anthropic">
+        <div className="container-anthropic">
+          <div className="flex justify-between">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold">Document Redaction</h1>
+              <h1 className="text-primary" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 500 }}>
+                Document Upload
+              </h1>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-md">
               <button
                 onClick={() => navigate('/config')}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                className="btn-anthropic btn-anthropic-secondary"
               >
                 ← Back to Config
               </button>
-              <span className="text-gray-500 text-sm">{user?.signInDetails?.loginId}</span>
+              <span className="text-secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
+                {user?.signInDetails?.loginId}
+              </span>
               <button
                 onClick={handleSignOut}
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                className="btn-anthropic"
               >
                 Logout
               </button>
@@ -50,16 +54,16 @@ export const Dashboard: React.FC = () => {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="space-y-6">
+      <main className="container-anthropic" style={{ paddingTop: 'var(--space-3xl)', paddingBottom: 'var(--space-3xl)' }}>
+        <div className="fade-in">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2xl)' }}>
             <div>
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Upload Document</h2>
+              <h2 className="mb-lg" style={{ fontSize: 'var(--font-size-xl)' }}>Upload Document</h2>
               <Upload onUploadComplete={handleUploadComplete} />
             </div>
 
             <div>
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Your Files</h2>
+              <h2 className="mb-lg" style={{ fontSize: 'var(--font-size-xl)' }}>Your Files</h2>
               <FileList key={refreshKey} />
             </div>
           </div>

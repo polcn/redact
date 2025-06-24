@@ -75,56 +75,77 @@ export const ConfigEditor: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <div className="flex justify-center" style={{ padding: 'var(--space-3xl)' }}>
+        <div className="spinner-anthropic"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-2">Redaction Rules</h2>
-        <p className="text-sm text-gray-600 mb-4">
+      <div className="card-anthropic">
+        <h2 className="mb-sm" style={{ fontSize: 'var(--font-size-xl)' }}>Redaction Rules</h2>
+        <p className="text-secondary mb-xl" style={{ fontSize: 'var(--font-size-sm)', lineHeight: 'var(--line-height-relaxed)' }}>
           Configure the text patterns that will be automatically redacted from your documents. 
           These rules will find and replace sensitive information before processing.
         </p>
         
         {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="mb-lg p-md" style={{ 
+            background: 'rgba(214, 69, 69, 0.1)', 
+            border: '1px solid rgba(214, 69, 69, 0.2)',
+            borderRadius: 'var(--radius-md)',
+            color: '#D64545'
+          }}>
             {error}
           </div>
         )}
         
         {success && (
-          <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+          <div className="mb-lg p-md" style={{ 
+            background: 'rgba(82, 163, 115, 0.1)', 
+            border: '1px solid rgba(82, 163, 115, 0.2)',
+            borderRadius: 'var(--radius-md)',
+            color: '#52A373'
+          }}>
             {success}
           </div>
         )}
 
-        <div className="space-y-2 mb-4">
-          <div className="grid grid-cols-12 gap-2 text-sm font-medium text-gray-700 pb-2 border-b">
-            <div className="col-span-5">Find</div>
-            <div className="col-span-5">Replace</div>
-            <div className="col-span-2">Actions</div>
+        <div className="mb-xl">
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '1fr 1fr auto',
+            gap: 'var(--space-md)',
+            paddingBottom: 'var(--space-md)',
+            borderBottom: '1px solid var(--border-color)',
+            fontSize: 'var(--font-size-sm)',
+            fontWeight: 500,
+            color: 'var(--text-secondary)'
+          }}>
+            <div>Find</div>
+            <div>Replace</div>
+            <div style={{ width: '80px' }}>Actions</div>
           </div>
           
-          {config.replacements.map((rule, index) => (
-            <RuleRow
-              key={index}
-              rule={rule}
-              onUpdate={(rule) => handleUpdateRule(index, rule)}
-              onDelete={() => handleDeleteRule(index)}
-            />
-          ))}
+          <div className="mt-md" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+            {config.replacements.map((rule, index) => (
+              <RuleRow
+                key={index}
+                rule={rule}
+                onUpdate={(rule) => handleUpdateRule(index, rule)}
+                onDelete={() => handleDeleteRule(index)}
+              />
+            ))}
+          </div>
         </div>
 
-        <div className="flex space-x-2">
+        <div className="flex gap-sm">
           <button
             onClick={handleAddRule}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            className="btn-anthropic btn-anthropic-secondary"
           >
-            <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Add Rule
@@ -144,30 +165,31 @@ export const ConfigEditor: React.FC = () => {
                   ]
                 });
               }}
-              className="inline-flex items-center px-3 py-2 border border-indigo-300 text-sm font-medium rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100"
+              className="btn-anthropic btn-anthropic-accent"
             >
               Add Example Rules
             </button>
           )}
         </div>
 
-        <div className="mt-6 pt-6 border-t">
-          <label className="flex items-center">
+        <div className="mt-xl pt-xl" style={{ borderTop: '1px solid var(--border-color)' }}>
+          <label className="flex items-center cursor-pointer">
             <input
               type="checkbox"
               checked={config.case_sensitive}
               onChange={(e) => setConfig({ ...config, case_sensitive: e.target.checked })}
-              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              className="input-anthropic"
+              style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
             />
-            <span className="ml-2 text-sm text-gray-700">Case Sensitive</span>
+            <span style={{ fontSize: 'var(--font-size-sm)' }}>Case Sensitive</span>
           </label>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-xl">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-anthropic btn-anthropic-primary"
           >
             {saving ? 'Saving...' : 'Save Configuration'}
           </button>

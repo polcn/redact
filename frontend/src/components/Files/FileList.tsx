@@ -38,15 +38,20 @@ export const FileList: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <div className="flex justify-center p-xl">
+        <div className="spinner-anthropic"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+      <div className="p-md" style={{ 
+        background: 'rgba(214, 69, 69, 0.1)', 
+        border: '1px solid rgba(214, 69, 69, 0.2)',
+        borderRadius: 'var(--radius-md)',
+        color: '#D64545'
+      }}>
         {error}
       </div>
     );
@@ -54,14 +59,14 @@ export const FileList: React.FC = () => {
 
   if (files.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="text-center p-xl text-secondary">
         No files uploaded yet
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
       {files.map((file) => (
         <FileItem key={file.id} file={file} />
       ))}

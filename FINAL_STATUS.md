@@ -25,10 +25,14 @@ The AWS Document Redaction System is complete and running in production at https
    - Added "Example Rules" button for quick setup
    - Immediate application of rule changes
 
-3. **UI/UX Enhancements**
-   - Helpful descriptions on config page
-   - Improved navigation between config and upload
-   - Visual feedback for all actions
+3. **Anthropic-Inspired Design System**
+   - Clean, minimalist interface matching Anthropic's aesthetic
+   - Subtle borders and shadows instead of heavy elevation
+   - Orange accent color (#CC785C) for interactive elements
+   - System font stack for optimal performance
+   - Responsive typography using clamp() functions
+   - Smooth transitions and animations
+   - Consistent spacing and layout patterns
 
 ## 🏗️ Architecture
 

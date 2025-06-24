@@ -20,17 +20,17 @@ export const FileItem: React.FC<FileItemProps> = ({ file }) => {
     switch (file.status) {
       case 'processing':
         return (
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+          <div className="spinner-anthropic" style={{ width: '1.25rem', height: '1.25rem' }}></div>
         );
       case 'completed':
         return (
-          <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="#52A373">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         );
       case 'quarantined':
         return (
-          <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="#D64545">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         );
@@ -49,24 +49,26 @@ export const FileItem: React.FC<FileItemProps> = ({ file }) => {
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between hover:shadow-md transition-shadow">
-      <div className="flex items-center space-x-4">
+    <div className="card-anthropic card-anthropic-hover flex items-center justify-between">
+      <div className="flex items-center gap-md">
         <div className="flex-shrink-0">
           {getStatusIcon()}
         </div>
         <div>
-          <h3 className="text-sm font-medium text-gray-900">{file.filename}</h3>
-          <div className="mt-1 text-xs text-gray-500">
+          <h3 className="text-primary" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
+            {file.filename}
+          </h3>
+          <div className="text-secondary mt-xs" style={{ fontSize: 'var(--font-size-xs)' }}>
             {formatFileSize(file.size)} • {formatDate(file.last_modified)}
           </div>
         </div>
       </div>
       
-      <div className="flex items-center space-x-2">
-        <span className={`text-sm ${
-          file.status === 'completed' ? 'text-green-600' :
-          file.status === 'processing' ? 'text-blue-600' :
-          'text-red-600'
+      <div className="flex items-center gap-md">
+        <span className={`badge-anthropic ${
+          file.status === 'completed' ? 'badge-completed' :
+          file.status === 'processing' ? 'badge-processing' :
+          'badge-error'
         }`}>
           {getStatusText()}
         </span>
@@ -75,7 +77,8 @@ export const FileItem: React.FC<FileItemProps> = ({ file }) => {
           <a
             href={file.download_url}
             download
-            className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
+            className="btn-anthropic btn-anthropic-accent"
+            style={{ padding: '0.5rem 1rem' }}
           >
             Download
           </a>

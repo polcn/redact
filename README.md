@@ -65,13 +65,14 @@ npm run build
 
 ### ✅ Recent Updates (as of 2025-06-24)
 
-1. **Config Page**: Now the default landing page - users can configure redaction rules before uploading
-2. **User Access**: All authenticated users can now update redaction rules (not just admins)
-3. **Improved Flow**: Config → Upload workflow with clear navigation
-4. **Example Rules**: Added button to populate sample redaction rules
-5. **File Upload**: Fixed API authorization - now using simplified handler that works with Cognito
-6. **Email Auto-Confirm**: Fixed - users from allowed domains are now auto-confirmed
-7. **CORS Configuration**: Added complete CORS support for all API endpoints
+1. **Anthropic-Inspired Design**: Complete UI redesign with clean, minimalist aesthetic
+2. **Config Page**: Now the default landing page - users can configure redaction rules before uploading
+3. **User Access**: All authenticated users can now update redaction rules (not just admins)
+4. **Improved Flow**: Config → Upload workflow with clear navigation
+5. **Example Rules**: Added button to populate sample redaction rules
+6. **File Upload**: Fixed API authorization - now using simplified handler that works with Cognito
+7. **Email Auto-Confirm**: Fixed - users from allowed domains are now auto-confirmed
+8. **CORS Configuration**: Added complete CORS support for all API endpoints
 
 ### ⚠️ Current Status
 

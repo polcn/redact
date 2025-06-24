@@ -85,18 +85,14 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
   return (
     <div className="w-full">
       <div
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          isDragging
-            ? 'border-indigo-500 bg-indigo-50'
-            : 'border-gray-300 hover:border-gray-400'
-        }`}
+        className={`upload-area-anthropic ${isDragging ? 'drag-over' : ''}`}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         <svg
-          className="mx-auto h-12 w-12 text-gray-400"
+          className="mx-auto h-12 w-12 text-secondary mb-md"
           stroke="currentColor"
           fill="none"
           viewBox="0 0 48 48"
@@ -109,7 +105,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
           />
         </svg>
         
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="text-secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
           Drop files here or click to upload
         </p>
         
@@ -124,26 +120,37 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
         
         <label
           htmlFor="file-upload"
-          className={`mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer ${
+          className={`btn-anthropic btn-anthropic-primary mt-lg ${
             uploading ? 'opacity-50 cursor-not-allowed' : ''
           }`}
+          style={{ cursor: uploading ? 'not-allowed' : 'pointer' }}
         >
           {uploading ? 'Uploading...' : 'Select File'}
         </label>
         
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="text-secondary mt-sm" style={{ fontSize: 'var(--font-size-xs)' }}>
           Supported: TXT, PDF, DOCX, XLSX (max 50MB)
         </p>
       </div>
 
       {error && (
-        <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="mt-lg p-md" style={{ 
+          background: 'rgba(214, 69, 69, 0.1)', 
+          border: '1px solid rgba(214, 69, 69, 0.2)',
+          borderRadius: 'var(--radius-md)',
+          color: '#D64545'
+        }}>
           {error}
         </div>
       )}
 
       {success && (
-        <div className="mt-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+        <div className="mt-lg p-md" style={{ 
+          background: 'rgba(82, 163, 115, 0.1)', 
+          border: '1px solid rgba(82, 163, 115, 0.2)',
+          borderRadius: 'var(--radius-md)',
+          color: '#52A373'
+        }}>
           {success}
         </div>
       )}
