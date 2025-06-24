@@ -87,20 +87,27 @@ curl https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/health
 
 ### 6. Recent Updates (2025-06-24 Evening)
 
-1. **Config-First Workflow** ✅
+1. **Anthropic-Inspired Design** ✅
+   - Complete UI redesign with clean, minimalist aesthetic
+   - Orange accent color (#CC785C) matching Anthropic's brand
+   - Subtle borders and shadows for elegant appearance
+   - Responsive typography using clamp() functions
+   - Smooth transitions and professional animations
+
+2. **Config-First Workflow** ✅
    - Config page is now the default landing page
    - All authenticated users can manage redaction rules
    - Added "Proceed to Upload" navigation button
    - Added "Example Rules" quick-start button
 
-2. **Updated User Flow**
+3. **Updated User Flow**
    - Navigate to https://redact.9thcube.com
    - Sign up/login with allowed domain email
    - Land on config page to set redaction rules
    - Click "Proceed to Upload" to upload documents
    - View processing status and download results
 
-3. **Configuration Management**
+4. **Configuration Management**
    - No longer admin-only
    - All users manage their own redaction rules
    - Changes apply immediately to their documents

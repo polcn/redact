@@ -117,6 +117,7 @@ REACT_APP_DOMAIN=redact.9thcube.com
 ## Implementation Notes
 
 ### ✅ Recent Updates (2025-06-24)
+- **Anthropic Design**: Complete UI redesign with clean, minimalist aesthetic
 - **Config First**: Config page is now the default landing page
 - **User Access**: All users can configure their own redaction rules
 - **Improved UX**: Clear flow from config → upload with navigation buttons
@@ -124,6 +125,12 @@ REACT_APP_DOMAIN=redact.9thcube.com
 - **File Upload**: Working - using simplified API handler
 - **Email Auto-Confirm**: Working - enabled for allowed domains
 - **CORS**: Fully configured for all endpoints
+
+### Design System
+- **Colors**: Clean whites (#FFFFFF, #F7F7F7) with orange accent (#CC785C)
+- **Typography**: System font stack with responsive sizing using clamp()
+- **Components**: Minimalist buttons, subtle borders, smooth transitions
+- **Layout**: 1200px max-width container, consistent spacing scale
 
 ### API Handler
 Currently using `api_handler_simple.py` for the API Lambda function. This simplified version:
