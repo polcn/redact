@@ -331,7 +331,7 @@ def get_redaction_config():
             raise ValueError(f"Configuration file too large: {config_size} bytes")
         
         # Return cached config if it's still current
-        if _config_cache and _config_last_modified and last_modified <= _config_last_modified:
+        if _config_cache and _config_last_modified and last_modified == _config_last_modified:
             return _config_cache
         
         # Download and parse config
