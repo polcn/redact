@@ -216,29 +216,99 @@ src/
 
 ## Deployment
 
-1. **Frontend Hosting:**
+1. **Frontend Hosting with Custom Domain (9thcube.com):**
    - Build: `npm run build`
-   - Deploy to S3: `aws s3 sync build/ s3://frontend-bucket`
-   - CloudFront distribution for HTTPS
+   - Deploy to S3: `aws s3 sync build/ s3://redact-frontend-9thcube`
+   - CloudFront distribution with custom domain
+   - Route 53 configuration for 9thcube.com
 
-2. **Environment Variables:**
+2. **Domain Configuration (Route 53 Hosted Zone: Z08255452MP6V2QLHWIYG):**
    ```
-   REACT_APP_API_URL=https://api-id.execute-api.region.amazonaws.com/production
+   # A. Create subdomain for the app
+   redact.9thcube.com → CloudFront Distribution
+   
+   # B. API custom domain (optional)
+   api.redact.9thcube.com → API Gateway Custom Domain
+   ```
+
+3. **CloudFront Setup:**
+   - Origin: S3 bucket (redact-frontend-9thcube)
+   - Alternate domain names: redact.9thcube.com
+   - SSL Certificate: AWS Certificate Manager (ACM) for *.9thcube.com
+   - Default root object: index.html
+   - Error pages: 404 → /index.html (for React Router)
+
+4. **Environment Variables:**
+   ```
+   REACT_APP_API_URL=https://api.redact.9thcube.com
    REACT_APP_USER_POOL_ID=us-east-1_xxxxx
    REACT_APP_CLIENT_ID=xxxxxxxxxxxxx
+   REACT_APP_DOMAIN=redact.9thcube.com
    ```
+
+## Infrastructure Updates for Custom Domain
+
+### Terraform Updates Required:
+```hcl
+# ACM Certificate for CloudFront (must be in us-east-1)
+resource "aws_acm_certificate" "frontend_cert" {
+  provider          = aws.us-east-1
+  domain_name       = "redact.9thcube.com"
+  validation_method = "DNS"
+  
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Route 53 Record for domain validation
+resource "aws_route53_record" "cert_validation" {
+  zone_id = "Z08255452MP6V2QLHWIYG"
+  name    = aws_acm_certificate.frontend_cert.domain_validation_options[0].resource_record_name
+  type    = aws_acm_certificate.frontend_cert.domain_validation_options[0].resource_record_type
+  records = [aws_acm_certificate.frontend_cert.domain_validation_options[0].resource_record_value]
+  ttl     = 60
+}
+
+# CloudFront Distribution
+resource "aws_cloudfront_distribution" "frontend" {
+  aliases = ["redact.9thcube.com"]
+  
+  viewer_certificate {
+    acm_certificate_arn = aws_acm_certificate.frontend_cert.arn
+    ssl_support_method  = "sni-only"
+  }
+}
+
+# Route 53 A Record for CloudFront
+resource "aws_route53_record" "frontend" {
+  zone_id = "Z08255452MP6V2QLHWIYG"
+  name    = "redact.9thcube.com"
+  type    = "A"
+  
+  alias {
+    name                   = aws_cloudfront_distribution.frontend.domain_name
+    zone_id                = aws_cloudfront_distribution.frontend.hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+```
 
 ## Cost Estimate
 - Cognito: Free tier (50K users)
 - S3/CloudFront: ~$1/month
+- Route 53 Hosted Zone: $0.50/month (already exists)
 - Additional Lambda calls: ~$1/month
 - **Total: ~$2-3/month**
 
 ## Next Steps
 1. Update backend Lambda functions for user isolation
-2. Create React app with authentication
-3. Build file upload/download features
-4. Add configuration management
-5. Deploy and test
+2. Create ACM certificate for redact.9thcube.com
+3. Create React app with authentication
+4. Build file upload/download features
+5. Add configuration management
+6. Configure CloudFront with custom domain
+7. Update Route 53 records
+8. Deploy and test at redact.9thcube.com
 
 This simplified approach provides all requested features while maintaining security and keeping implementation straightforward.
