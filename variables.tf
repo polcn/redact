@@ -26,11 +26,11 @@ variable "client_patterns" {
 variable "lambda_timeout" {
   description = "Lambda function timeout in seconds"
   type        = number
-  default     = 300
+  default     = 60
 }
 
 variable "lambda_memory_size" {
   description = "Lambda function memory size in MB"
   type        = number
-  default     = 1024
+  default     = 512
 }

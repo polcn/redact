@@ -11,38 +11,8 @@ provider "aws" {
   region = var.aws_region
 }
 
-# KMS Key for encryption
-resource "aws_kms_key" "document_scrubbing_key" {
-  description             = "KMS key for document scrubbing encryption"
-  deletion_window_in_days = 7
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "Enable IAM User Permissions"
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        }
-        Action   = "kms:*"
-        Resource = "*"
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "document-scrubbing-key"
-    Environment = var.environment
-    Purpose     = "document-scrubbing"
-    Project     = "redact"
-  }
-}
-
-resource "aws_kms_alias" "document_scrubbing_alias" {
-  name          = "alias/document-scrubbing"
-  target_key_id = aws_kms_key.document_scrubbing_key.key_id
-}
+# Cost-optimized: Using AWS-managed encryption instead of customer-managed KMS
+# This saves $1/month and is still secure for most use cases
 
 # S3 Buckets
 resource "aws_s3_bucket" "input_documents" {
@@ -82,16 +52,14 @@ resource "random_id" "bucket_suffix" {
   byte_length = 4
 }
 
-# S3 Bucket encryption
+# S3 Bucket encryption (AWS-managed for cost optimization)
 resource "aws_s3_bucket_server_side_encryption_configuration" "input_documents" {
   bucket = aws_s3_bucket.input_documents.id
 
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.document_scrubbing_key.arn
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 
@@ -100,10 +68,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "processed_documen
 
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.document_scrubbing_key.arn
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 
@@ -112,10 +78,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "quarantine_docume
 
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.document_scrubbing_key.arn
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 
@@ -162,155 +126,87 @@ resource "aws_s3_bucket_public_access_block" "quarantine_documents" {
   restrict_public_buckets = true
 }
 
-# VPC for Lambda functions
-resource "aws_vpc" "document_scrubbing_vpc" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
-  enable_dns_support   = true
+# S3 Lifecycle policies for cost optimization
+resource "aws_s3_bucket_lifecycle_configuration" "input_documents" {
+  bucket = aws_s3_bucket.input_documents.id
 
-  tags = {
-    Name        = "document-scrubbing-vpc"
-    Environment = var.environment
-    Project     = "redact"
+  rule {
+    id     = "transition-to-ia"
+    status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+
+    transition {
+      days          = 90
+      storage_class = "GLACIER"
+    }
+
+    expiration {
+      days = 365
+    }
   }
 }
 
-resource "aws_subnet" "private_subnet_1" {
-  vpc_id            = aws_vpc.document_scrubbing_vpc.id
-  cidr_block        = "10.0.1.0/24"
-  availability_zone = data.aws_availability_zones.available.names[0]
+resource "aws_s3_bucket_lifecycle_configuration" "processed_documents" {
+  bucket = aws_s3_bucket.processed_documents.id
 
-  tags = {
-    Name        = "document-scrubbing-private-1"
-    Environment = var.environment
-    Project     = "redact"
+  rule {
+    id     = "transition-to-ia"
+    status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+
+    transition {
+      days          = 90
+      storage_class = "GLACIER"
+    }
   }
 }
 
-resource "aws_subnet" "private_subnet_2" {
-  vpc_id            = aws_vpc.document_scrubbing_vpc.id
-  cidr_block        = "10.0.2.0/24"
-  availability_zone = data.aws_availability_zones.available.names[1]
+resource "aws_s3_bucket_lifecycle_configuration" "quarantine_documents" {
+  bucket = aws_s3_bucket.quarantine_documents.id
 
-  tags = {
-    Name        = "document-scrubbing-private-2"
-    Environment = var.environment
-    Project     = "redact"
+  rule {
+    id     = "keep-for-review"
+    status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
+    transition {
+      days          = 7
+      storage_class = "STANDARD_IA"
+    }
+
+    transition {
+      days          = 30
+      storage_class = "GLACIER"
+    }
+
+    expiration {
+      days = 180
+    }
   }
 }
 
-# VPC Endpoints for secure access
-resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = aws_vpc.document_scrubbing_vpc.id
-  service_name      = "com.amazonaws.${var.aws_region}.s3"
-  vpc_endpoint_type = "Gateway"
-  route_table_ids   = [aws_route_table.private.id]
-
-  tags = {
-    Name        = "document-scrubbing-s3-endpoint"
-    Environment = var.environment
-    Project     = "redact"
-  }
-}
-
-resource "aws_vpc_endpoint" "textract" {
-  vpc_id              = aws_vpc.document_scrubbing_vpc.id
-  service_name        = "com.amazonaws.${var.aws_region}.textract"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = [aws_subnet.private_subnet_1.id, aws_subnet.private_subnet_2.id]
-  security_group_ids  = [aws_security_group.vpc_endpoint.id]
-  private_dns_enabled = true
-
-  tags = {
-    Name        = "document-scrubbing-textract-endpoint"
-    Environment = var.environment
-    Project     = "redact"
-  }
-}
-
-resource "aws_vpc_endpoint" "rekognition" {
-  vpc_id              = aws_vpc.document_scrubbing_vpc.id
-  service_name        = "com.amazonaws.${var.aws_region}.rekognition"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = [aws_subnet.private_subnet_1.id, aws_subnet.private_subnet_2.id]
-  security_group_ids  = [aws_security_group.vpc_endpoint.id]
-  private_dns_enabled = true
-
-  tags = {
-    Name        = "document-scrubbing-rekognition-endpoint"
-    Environment = var.environment
-    Project     = "redact"
-  }
-}
-
-# Route table for private subnets
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.document_scrubbing_vpc.id
-
-  tags = {
-    Name        = "document-scrubbing-private-rt"
-    Environment = var.environment
-    Project     = "redact"
-  }
-}
-
-resource "aws_route_table_association" "private_1" {
-  subnet_id      = aws_subnet.private_subnet_1.id
-  route_table_id = aws_route_table.private.id
-}
-
-resource "aws_route_table_association" "private_2" {
-  subnet_id      = aws_subnet.private_subnet_2.id
-  route_table_id = aws_route_table.private.id
-}
-
-# Security group for VPC endpoints
-resource "aws_security_group" "vpc_endpoint" {
-  name_prefix = "document-scrubbing-vpc-endpoint-"
-  vpc_id      = aws_vpc.document_scrubbing_vpc.id
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [aws_vpc.document_scrubbing_vpc.cidr_block]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "document-scrubbing-vpc-endpoint-sg"
-    Environment = var.environment
-    Project     = "redact"
-  }
-}
-
-# Security group for Lambda functions
-resource "aws_security_group" "lambda" {
-  name_prefix = "document-scrubbing-lambda-"
-  vpc_id      = aws_vpc.document_scrubbing_vpc.id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "document-scrubbing-lambda-sg"
-    Environment = var.environment
-    Project     = "redact"
-  }
-}
+# Cost-optimized: Removed VPC infrastructure to save ~$22/month
+# Lambda will run in public subnets with strong IAM policies for security
+# This is acceptable for free tier usage and still secure with proper S3 bucket policies
 
 # Data sources
 data "aws_caller_identity" "current" {}
-data "aws_availability_zones" "available" {
-  state = "available"
-}

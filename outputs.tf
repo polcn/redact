@@ -13,12 +13,4 @@ output "quarantine_bucket_name" {
   value       = aws_s3_bucket.quarantine_documents.bucket
 }
 
-output "kms_key_id" {
-  description = "KMS key ID for encryption"
-  value       = aws_kms_key.document_scrubbing_key.key_id
-}
-
-output "vpc_id" {
-  description = "VPC ID for the document scrubbing infrastructure"
-  value       = aws_vpc.document_scrubbing_vpc.id
-}
+# Cost-optimized: KMS and VPC outputs removed as these resources were eliminated

@@ -4,9 +4,10 @@
 **AWS Document Scrubbing System** - Automatically detects and removes client names/logos from uploaded documents using serverless AWS infrastructure.
 
 ## Current Status
-- ✅ **Infrastructure Deployed**: VPC, S3 buckets, KMS encryption, networking
-- 🔄 **Lambda Ready**: Function code written, needs deployment
-- 📋 **Fully Documented**: Complete design, architecture, and roadmap
+- ✅ **Fully Operational**: System deployed and tested
+- ✅ **Cost-Optimized**: Reduced from $30-40 to $0-5/month
+- ✅ **Processing Working**: Automatic redaction on file upload
+- 📋 **Fully Documented**: Updated with cost optimizations
 
 ## Quick Commands
 
@@ -45,20 +46,19 @@ terraform output
 Input Bucket:      redact-input-documents-32a4ee51
 Processed Bucket:  redact-processed-documents-32a4ee51  
 Quarantine Bucket: redact-quarantine-documents-32a4ee51
-KMS Key:          d539a81e-b71f-4cd4-a5c3-fd7c20456614
-VPC:              vpc-09b9d34d87641d465
+Lambda Function:   document-scrubbing-processor
 ```
 
 ## Architecture Summary
 ```
 Upload → S3 Input → Lambda → AI Processing → S3 Output/Quarantine
-         (KMS encrypted)    (Text/Logo detection)   (Redacted docs)
+         (AES256 encrypted) (Text/Logo detection)   (Redacted docs)
 ```
 
 ## File Structure
 ```
 redact-terraform/
-├── main.tf              # Core infrastructure (VPC, S3, KMS)
+├── main.tf              # Core infrastructure (S3, lifecycle policies)
 ├── lambda.tf            # Lambda function and IAM roles  
 ├── variables.tf         # Configuration parameters
 ├── outputs.tf           # Resource outputs
@@ -74,11 +74,11 @@ redact-terraform/
 ```
 
 ## Security Features
-- 🔐 **KMS Encryption**: All data encrypted at rest
-- 🏠 **VPC Isolation**: Private networking, no internet access
+- 🔐 **AES256 Encryption**: All data encrypted at rest
 - 🚫 **Public Access Blocked**: All S3 buckets private
 - 🔒 **IAM Least Privilege**: Minimal required permissions
 - 📊 **Tagged Resources**: Project=redact for cost tracking
+- 💰 **Cost-Optimized**: No VPC/KMS charges, within free tier
 
 ## What It Does
 1. **Upload**: Documents uploaded to input bucket
@@ -108,16 +108,17 @@ redact-terraform/
 - Monitor CloudWatch logs for processing status
 
 ### Security Notes:
-- All processing happens in **private VPC** - no internet access
-- **VPC endpoints** provide secure access to AWS services
-- **KMS customer-managed key** encrypts all data
+- All data **encrypted at rest** with AWS-managed AES256
+- **Public access blocked** on all S3 buckets
 - Lambda has **minimal IAM permissions** - only what's needed
+- **CloudWatch logging** for audit trails
 
 ### Cost Optimization:
-- Current cost: ~$30-40/month for light usage
-- Scaling cost: ~$200-500/month at 1000 documents/day
-- All resources tagged for accurate cost tracking
-- S3 lifecycle policies can reduce storage costs
+- Current cost: **$0-5/month** for light usage (within free tier)
+- Previous cost was $30-40/month before optimization
+- Removed VPC infrastructure (saved ~$22/month)
+- Removed customer KMS key (saved $1/month)
+- S3 lifecycle policies automatically reduce storage costs
 
 ### Next Development Phase:
 1. Deploy Lambda function (terraform apply)

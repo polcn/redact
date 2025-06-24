@@ -42,15 +42,6 @@ resource "aws_iam_role_policy" "lambda_policy" {
       {
         Effect = "Allow"
         Action = [
-          "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
           "s3:GetObject",
           "s3:PutObject",
           "s3:DeleteObject"
@@ -77,15 +68,6 @@ resource "aws_iam_role_policy" "lambda_policy" {
         ]
         Resource = "*"
       },
-      {
-        Effect = "Allow"
-        Action = [
-          "kms:Decrypt",
-          "kms:Encrypt",
-          "kms:GenerateDataKey"
-        ]
-        Resource = aws_kms_key.document_scrubbing_key.arn
-      }
     ]
   })
 }
@@ -105,7 +87,6 @@ resource "aws_lambda_function" "document_processor" {
       INPUT_BUCKET      = aws_s3_bucket.input_documents.bucket
       OUTPUT_BUCKET     = aws_s3_bucket.processed_documents.bucket
       QUARANTINE_BUCKET = aws_s3_bucket.quarantine_documents.bucket
-      KMS_KEY_ID        = aws_kms_key.document_scrubbing_key.key_id
     }
   }
 

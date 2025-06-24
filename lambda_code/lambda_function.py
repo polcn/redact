@@ -16,7 +16,6 @@ s3 = boto3.client('s3')
 INPUT_BUCKET = os.environ['INPUT_BUCKET']
 OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET']
 QUARANTINE_BUCKET = os.environ['QUARANTINE_BUCKET']
-KMS_KEY_ID = os.environ['KMS_KEY_ID']
 
 # Client patterns to scrub
 CLIENT_PATTERNS = [
@@ -109,8 +108,7 @@ def upload_processed_document(key, content):
             Bucket=OUTPUT_BUCKET,
             Key=processed_key,
             Body=content,
-            ServerSideEncryption='aws:kms',
-            SSEKMSKeyId=KMS_KEY_ID,
+            ServerSideEncryption='AES256',
             Metadata={
                 'processing-status': 'completed',
                 'original-key': key
@@ -134,8 +132,7 @@ def quarantine_document(bucket, key, reason):
             CopySource=copy_source,
             Bucket=QUARANTINE_BUCKET,
             Key=quarantine_key,
-            ServerSideEncryption='aws:kms',
-            SSEKMSKeyId=KMS_KEY_ID,
+            ServerSideEncryption='AES256',
             Metadata={
                 'quarantine-reason': reason,
                 'original-bucket': bucket,
