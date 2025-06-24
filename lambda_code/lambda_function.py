@@ -455,7 +455,7 @@ def process_text_file(bucket, key, config):
         raise
 
 def process_pdf_file(bucket, key, config):
-    """Process PDF files - remove images and redact text"""
+    """Process PDF files - extract text and output as redacted text file"""
     if not pypdf:
         raise ImportError("pypdf library not available")
     
@@ -467,39 +467,28 @@ def process_pdf_file(bucket, key, config):
             temp_file.write(document_content)
             temp_file.flush()
             
-            # Read PDF
+            # Read PDF and extract all text
             reader = pypdf.PdfReader(temp_file.name)
-            writer = pypdf.PdfWriter()
             
-            redacted = False
-            
+            all_text = []
             for page in reader.pages:
                 # Extract text from page
                 text = page.extract_text()
-                
-                # Apply redaction rules to text
-                processed_text, page_redacted = apply_redaction_rules(text, config)
-                redacted = redacted or page_redacted
-                
-                # Remove images (simplified - removes all image objects)
-                if '/XObject' in page['/Resources']:
-                    x_objects = page['/Resources']['/XObject'].get_object()
-                    to_remove = []
-                    for obj_name in x_objects:
-                        if x_objects[obj_name]['/Subtype'] == '/Image':
-                            to_remove.append(obj_name)
-                    for obj_name in to_remove:
-                        del x_objects[obj_name]
-                
-                writer.add_page(page)
+                if text.strip():
+                    all_text.append(text)
             
-            # Save processed PDF
-            output_buffer = BytesIO()
-            writer.write(output_buffer)
-            output_buffer.seek(0)
+            # Combine all text
+            full_text = '\n\n'.join(all_text)
             
-            upload_processed_document(key, output_buffer, 
-                                    {'redacted': str(redacted), 'images_removed': 'true'})
+            # Apply redaction rules
+            processed_text, redacted = apply_redaction_rules(full_text, config)
+            
+            # Save as text file (change extension to .txt)
+            text_key = key.rsplit('.', 1)[0] + '.txt'
+            
+            # Upload processed document as text
+            upload_processed_document(text_key, processed_text.encode('utf-8'), 
+                                    {'redacted': str(redacted), 'converted_from': 'pdf'})
             
             return True
             
