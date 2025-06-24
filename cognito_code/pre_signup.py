@@ -16,6 +16,9 @@ def lambda_handler(event, context):
     allowed_domains = os.environ.get('ALLOWED_DOMAINS', '').split(',')
     auto_confirm = os.environ.get('AUTO_CONFIRM', 'false').lower() == 'true'
     
+    logger.info(f"AUTO_CONFIRM env var: {os.environ.get('AUTO_CONFIRM', 'not set')}")
+    logger.info(f"auto_confirm flag: {auto_confirm}")
+    
     try:
         # Extract user attributes
         user_attributes = event['request']['userAttributes']
@@ -33,12 +36,10 @@ def lambda_handler(event, context):
         if auto_confirm:
             event['response']['autoConfirmUser'] = True
             event['response']['autoVerifyEmail'] = True
+            event['response']['autoVerifyPhone'] = False
         
-        # Set default user role
-        if 'custom:role' not in user_attributes:
-            event['response']['userAttributes'] = {
-                'custom:role': 'user'  # Default role
-            }
+        # Don't modify userAttributes in response - this causes issues
+        # The response should only contain autoConfirm flags
         
         logger.info(f"User {email} allowed to register")
         return event

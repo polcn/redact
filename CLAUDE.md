@@ -54,20 +54,27 @@ React Frontend → Cognito Auth → API Gateway → Lambda
 
 ## Live Resources
 ```
-Frontend:    redact.9thcube.com (CloudFront + S3)
+Frontend:    redact.9thcube.com (CloudFront: EOG2DS78ES8MD)
 API:         https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production
-Cognito:     User pool with email verification
+Cognito:     us-east-1_4Uv3seGwS (allowed domains: gmail.com, outlook.com, yahoo.com, 9thcube.com)
 Buckets:     redact-{input,processed,quarantine,config}-32a4ee51
-Lambdas:     document-scrubbing-processor, redact-api-handler
+Lambdas:     document-scrubbing-processor, redact-api-handler, redact-cognito-pre-signup
+Frontend S3: redact-frontend-9thcube-12476920
 ```
 
 ## User Flows
 
 ### Regular User
-1. Sign up at redact.9thcube.com (requires email verification)
+1. Sign up at redact.9thcube.com (use allowed email domains)
 2. Upload documents via drag-drop
 3. View processing status in real-time
 4. Download redacted .txt files
+
+**Note**: Email verification temporarily bypassed. For manual user confirmation:
+```bash
+aws cognito-idp admin-confirm-sign-up --user-pool-id us-east-1_4Uv3seGwS --username EMAIL
+aws cognito-idp admin-set-user-password --user-pool-id us-east-1_4Uv3seGwS --username EMAIL --password PASSWORD --permanent
+```
 
 ### Admin User
 1. Access /config page
@@ -90,10 +97,11 @@ Lambdas:     document-scrubbing-processor, redact-api-handler
 
 ### Frontend Environment
 ```bash
-REACT_APP_USER_POOL_ID=us-east-1_xxxxx
-REACT_APP_CLIENT_ID=xxxxxxxxxxxxx
+REACT_APP_USER_POOL_ID=us-east-1_4Uv3seGwS
+REACT_APP_CLIENT_ID=130fh2g7iqc04oa6d2p55sf61o
 REACT_APP_AWS_REGION=us-east-1
-REACT_APP_API_URL=https://xxxxx.execute-api.us-east-1.amazonaws.com/production
+REACT_APP_API_URL=https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production
+REACT_APP_DOMAIN=redact.9thcube.com
 ```
 
 ### Key Files
@@ -108,19 +116,28 @@ REACT_APP_API_URL=https://xxxxx.execute-api.us-east-1.amazonaws.com/production
 ### Frontend Issues
 ```bash
 # Check CloudFront distribution
-aws cloudfront get-distribution --id DISTRIBUTION_ID
+aws cloudfront get-distribution --id EOG2DS78ES8MD
 
 # Invalidate cache
-aws cloudfront create-invalidation --distribution-id DISTRIBUTION_ID --paths "/*"
+aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
+
+# Check frontend deployment
+aws s3 ls s3://redact-frontend-9thcube-12476920/
 ```
 
 ### Auth Issues
 ```bash
 # Check Cognito user pool
-aws cognito-idp list-users --user-pool-id USER_POOL_ID
+aws cognito-idp list-users --user-pool-id us-east-1_4Uv3seGwS
 
 # Manually confirm user
-aws cognito-idp admin-confirm-sign-up --user-pool-id USER_POOL_ID --username EMAIL
+aws cognito-idp admin-confirm-sign-up --user-pool-id us-east-1_4Uv3seGwS --username EMAIL
+
+# Set permanent password
+aws cognito-idp admin-set-user-password --user-pool-id us-east-1_4Uv3seGwS --username EMAIL --password PASSWORD --permanent
+
+# Check pre-signup Lambda logs
+aws logs tail /aws/lambda/redact-cognito-pre-signup --follow
 ```
 
 ### Processing Issues

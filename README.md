@@ -11,8 +11,8 @@ A secure, automated document processing system that removes sensitive informatio
 - **Processed Bucket**: `redact-processed-documents-32a4ee51` 
 - **Quarantine Bucket**: `redact-quarantine-documents-32a4ee51`
 - **Config Bucket**: `redact-config-32a4ee51`
-- **Lambda Functions**: `document-scrubbing-processor`, `redact-api-handler`
-- **Authentication**: AWS Cognito with invite-only registration
+- **Lambda Functions**: `document-scrubbing-processor`, `redact-api-handler`, `redact-cognito-pre-signup`
+- **Authentication**: AWS Cognito (User Pool: `us-east-1_4Uv3seGwS`)
 
 ### Key Features
 - **🌐 Web Interface**: Secure React frontend at redact.9thcube.com
@@ -57,9 +57,11 @@ npm run build
 
 ### 3. Access the Application
 - Visit https://redact.9thcube.com
-- Sign up with your email (requires approval)
+- Sign up with an allowed email domain (gmail.com, outlook.com, yahoo.com, 9thcube.com)
 - Upload documents for redaction
 - Download processed files
+
+**Note**: Email verification can be bypassed for testing. Use `aws cognito-idp admin-confirm-sign-up` to manually confirm users.
 
 ## Security Features (Production-Hardened)
 
