@@ -49,7 +49,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Resource = [
           "${aws_s3_bucket.input_documents.arn}/*",
           "${aws_s3_bucket.processed_documents.arn}/*",
-          "${aws_s3_bucket.quarantine_documents.arn}/*"
+          "${aws_s3_bucket.quarantine_documents.arn}/*",
+          "${aws_s3_bucket.config_bucket.arn}/*"
         ]
       },
       {
@@ -87,6 +88,7 @@ resource "aws_lambda_function" "document_processor" {
       INPUT_BUCKET      = aws_s3_bucket.input_documents.bucket
       OUTPUT_BUCKET     = aws_s3_bucket.processed_documents.bucket
       QUARANTINE_BUCKET = aws_s3_bucket.quarantine_documents.bucket
+      CONFIG_BUCKET     = aws_s3_bucket.config_bucket.bucket
     }
   }
 

@@ -13,4 +13,9 @@ output "quarantine_bucket_name" {
   value       = aws_s3_bucket.quarantine_documents.bucket
 }
 
+output "config_bucket_name" {
+  description = "Name of the config S3 bucket"
+  value       = aws_s3_bucket.config_bucket.bucket
+}
+
 # Cost-optimized: KMS and VPC outputs removed as these resources were eliminated

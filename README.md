@@ -2,20 +2,24 @@
 
 A secure, automated document processing system that removes client names and logos from uploaded documents using AWS services.
 
-## Current Status: Cost-Optimized & Deployed ✅
+## Current Status: Enhanced Multi-Format Processing ✅
 
 - **Input Bucket**: `redact-input-documents-32a4ee51`
 - **Processed Bucket**: `redact-processed-documents-32a4ee51` 
 - **Quarantine Bucket**: `redact-quarantine-documents-32a4ee51`
+- **Config Bucket**: `redact-config-32a4ee51`
 - **Lambda Function**: `document-scrubbing-processor` (512MB, 60s timeout)
-- **Encryption**: AWS-managed AES256 (cost-optimized)
+- **Supported Formats**: TXT, PDF, DOCX, XLSX with image removal
+- **Configuration**: Flexible S3-based redaction rules
 
 ## Architecture
 
 ```
-Documents → S3 Input → Lambda → Text Processing → S3 Output
-                     ↓
-              S3 Quarantine (if sensitive)
+Documents → S3 Input → Lambda → Multi-Format Processing → S3 Output
+(.txt/.pdf/.docx/.xlsx)  ↓        (Text + Image Removal)
+                    S3 Config → Redaction Rules
+                         ↓
+                  S3 Quarantine (if errors)
 ```
 
 ## Security Features (Cost-Optimized)
@@ -39,11 +43,13 @@ Documents → S3 Input → Lambda → Text Processing → S3 Output
 - 365 days → Delete (input/processed)
 - 180 days → Delete (quarantine)
 
-### Processing (Optimized for Free Tier)
+### Enhanced Processing
 - Lambda: 512MB memory, 60s timeout
-- Python 3.11 runtime
-- Text files: Direct regex processing
-- PDFs/Images: Quarantined (Textract/Rekognition ready)
+- Python 3.11 runtime with document processing libraries
+- **Multi-Format Support**: TXT, PDF, DOCX, XLSX
+- **Image Removal**: Automatic stripping from PDFs/DOCX
+- **Configurable Redaction**: S3-based rules (no code changes needed)
+- **Structured Logging**: JSON format to CloudWatch
 - Automatic S3 event triggers
 
 ### Cost Savings
@@ -55,20 +61,33 @@ Documents → S3 Input → Lambda → Text Processing → S3 Output
 
 ## Usage
 
-1. Upload documents to input bucket:
+1. **Configure redaction rules** (optional - defaults provided):
+   ```bash
+   cat > config.json << 'EOF'
+   {
+     "replacements": [
+       {"find": "REPLACE_CLIENT_NAME", "replace": "Company X"},
+       {"find": "ACME Corporation", "replace": "[REDACTED]"},
+       {"find": "Confidential", "replace": "[REDACTED]"}
+     ],
+     "case_sensitive": false
+   }
+   EOF
+   aws s3 cp config.json s3://redact-config-32a4ee51/
+   ```
+
+2. **Upload documents** (supports TXT, PDF, DOCX, XLSX):
    ```bash
    aws s3 cp document.pdf s3://redact-input-documents-32a4ee51/
    ```
 
-2. Processing automatically triggers on upload
-
-3. Check results:
+3. **Check results** (processing triggers automatically):
    ```bash
    # Clean documents
-   aws s3 ls s3://redact-processed-documents-32a4ee51/
+   aws s3 ls s3://redact-processed-documents-32a4ee51/processed/
    
-   # Quarantined documents
-   aws s3 ls s3://redact-quarantine-documents-32a4ee51/
+   # Error quarantine
+   aws s3 ls s3://redact-quarantine-documents-32a4ee51/quarantine/
    ```
 
 ## Cost Management
@@ -107,14 +126,15 @@ redact-terraform/
 └── new-test.txt        # Test file
 ```
 
-## Security Patterns Detected
+## Redaction Capabilities
 
-The system automatically detects and redacts:
+The system supports configurable redaction via `config.json`:
 
-- Company names with suffixes (Inc, LLC, Corp, etc.)
-- Technology company patterns
-- Acronym-based company names
-- Logos and brand imagery
+- **Text Replacement**: Find/replace specific patterns
+- **Case Control**: Sensitive or insensitive matching
+- **Image Removal**: Automatic stripping from PDF/DOCX files
+- **Multi-Format**: TXT, PDF, DOCX, XLSX processing
+- **No Downtime**: Update rules without redeployment
 
 ## Monitoring
 

@@ -48,6 +48,17 @@ resource "aws_s3_bucket" "quarantine_documents" {
   }
 }
 
+resource "aws_s3_bucket" "config_bucket" {
+  bucket = "${var.project_name}-config-${random_id.bucket_suffix.hex}"
+
+  tags = {
+    Name        = "config-bucket"
+    Environment = var.environment
+    Purpose     = "document-scrubbing"
+    Project     = "redact"
+  }
+}
+
 resource "random_id" "bucket_suffix" {
   byte_length = 4
 }
@@ -75,6 +86,16 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "processed_documen
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "quarantine_documents" {
   bucket = aws_s3_bucket.quarantine_documents.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "config_bucket" {
+  bucket = aws_s3_bucket.config_bucket.id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -119,6 +140,15 @@ resource "aws_s3_bucket_public_access_block" "processed_documents" {
 
 resource "aws_s3_bucket_public_access_block" "quarantine_documents" {
   bucket = aws_s3_bucket.quarantine_documents.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_public_access_block" "config_bucket" {
+  bucket = aws_s3_bucket.config_bucket.id
 
   block_public_acls       = true
   block_public_policy     = true

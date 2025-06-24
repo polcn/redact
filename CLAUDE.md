@@ -17,6 +17,24 @@ cd redact-terraform
 terraform apply -auto-approve
 ```
 
+### Configure Redaction Rules
+```bash
+# Create config file
+cat > config.json << 'EOF'
+{
+  "replacements": [
+    {"find": "REPLACE_CLIENT_NAME", "replace": "Company X"},
+    {"find": "ACME Corporation", "replace": "[REDACTED]"},
+    {"find": "Confidential", "replace": "[REDACTED]"}
+  ],
+  "case_sensitive": false
+}
+EOF
+
+# Upload config to S3
+aws s3 cp config.json s3://redact-config-32a4ee51/
+```
+
 ### Test Document Processing
 ```bash
 # Upload test document
@@ -46,6 +64,7 @@ terraform output
 Input Bucket:      redact-input-documents-32a4ee51
 Processed Bucket:  redact-processed-documents-32a4ee51  
 Quarantine Bucket: redact-quarantine-documents-32a4ee51
+Config Bucket:     redact-config-32a4ee51
 Lambda Function:   document-scrubbing-processor
 ```
 
@@ -81,11 +100,18 @@ redact-terraform/
 - 💰 **Cost-Optimized**: No VPC/KMS charges, within free tier
 
 ## What It Does
-1. **Upload**: Documents uploaded to input bucket
-2. **Trigger**: S3 event automatically triggers Lambda
-3. **Process**: AI services detect client names/logos
-4. **Redact**: Replace sensitive content with [REDACTED]
-5. **Output**: Clean documents → processed bucket, sensitive → quarantine
+1. **Upload**: Documents (.txt, .pdf, .docx, .xlsx) uploaded to input bucket
+2. **Config**: Lambda reads redaction rules from config.json in config bucket
+3. **Process**: Extract text and remove images from documents
+4. **Redact**: Replace configured text patterns with specified replacements
+5. **Output**: Clean documents → processed bucket, errors → quarantine
+
+## Configuration System
+- **Flexible Rules**: Define find/replace patterns in config.json
+- **No Code Changes**: Update redaction rules without redeploying
+- **Multi-Format**: Supports text, PDF, DOCX, and XLSX files
+- **Image Removal**: Automatically strips images from documents
+- **Case Control**: Configure case-sensitive or case-insensitive matching
 
 ## Development Context for Claude
 
@@ -96,10 +122,22 @@ redact-terraform/
 - Processing logic is in `lambda_code/lambda_function.py`
 
 ### Common Tasks:
+- **Update redaction rules**: Modify and upload `config.json` to config bucket
 - **Add new file types**: Update `lambda_function.py` processing logic
-- **Add client patterns**: Modify `CLIENT_PATTERNS` array in Lambda code
 - **Scale resources**: Adjust variables in `variables.tf`
 - **Monitor costs**: Filter AWS billing by `Project = "redact"` tag
+
+### Config File Format:
+```json
+{
+  "replacements": [
+    {"find": "CLIENT_NAME", "replace": "Company X"},
+    {"find": "John Smith", "replace": "[NAME REDACTED]"},
+    {"find": "555-123-4567", "replace": "[PHONE REDACTED]"}
+  ],
+  "case_sensitive": false
+}
+```
 
 ### Testing Strategy:
 - Upload documents with known client names (ACME Corporation, TechnoSoft LLC)
@@ -120,12 +158,12 @@ redact-terraform/
 - Removed customer KMS key (saved $1/month)
 - S3 lifecycle policies automatically reduce storage costs
 
-### Next Development Phase:
-1. Deploy Lambda function (terraform apply)
-2. Test with various document types
-3. Add PDF/image processing capabilities
-4. Implement advanced AI detection
-5. Add monitoring dashboards
+### Current Capabilities (Enhanced):
+1. ✅ Multi-format processing (TXT, PDF, DOCX, XLSX)
+2. ✅ Configurable redaction rules via S3 config
+3. ✅ Automatic image removal from documents
+4. ✅ Structured JSON logging
+5. ✅ Error handling with quarantine system
 
 ### Emergency Procedures:
 - **Stop processing**: Disable S3 bucket notifications
@@ -134,6 +172,7 @@ redact-terraform/
 - **Backup**: All code in git, infrastructure as code
 
 ### Key Files to Modify:
+- `config.json` in S3 - Redaction rules (no deployment needed)
 - `lambda_function.py` - Processing logic
 - `variables.tf` - Configuration changes
 - `main.tf` - Infrastructure changes
