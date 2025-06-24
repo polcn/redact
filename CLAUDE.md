@@ -57,7 +57,7 @@ Upload → API Gateway/S3 → Lambda (Batch) → Text Extraction → Redaction �
 ## Key Features
 - **LLM-Optimized**: All formats → clean text output (90% size reduction)
 - **Perfect Redaction**: 100% reliable text replacement
-- **Multi-Format**: TXT, PDF, DOCX, XLSX support
+- **Multi-Format**: TXT, PDF, DOCX, XLSX support (all working)
 - **Configurable**: S3-based rules, no code changes needed
 - **Secure**: AES256 encryption, private buckets, IAM least privilege
 - **Cost-Optimized**: $0-5/month (down from $30-40/month)

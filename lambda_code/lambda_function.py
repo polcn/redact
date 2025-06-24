@@ -9,26 +9,35 @@ from io import BytesIO
 import time
 from botocore.exceptions import ClientError
 
-# Document processing libraries
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Document processing libraries with better error handling
 try:
     from docx import Document
     from docx.shared import Inches
-except ImportError:
+    DOCX_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"DOCX import failed: {str(e)}")
     Document = None
+    DOCX_AVAILABLE = False
 
 try:
     import pypdf
-except ImportError:
+    PYPDF_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"pypdf import failed: {str(e)}")
     pypdf = None
+    PYPDF_AVAILABLE = False
 
 try:
     from openpyxl import load_workbook
-except ImportError:
+    OPENPYXL_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"openpyxl import failed: {str(e)}")
     load_workbook = None
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+    OPENPYXL_AVAILABLE = False
 
 # Initialize AWS clients
 s3 = boto3.client('s3')
@@ -498,10 +507,56 @@ def process_pdf_file(bucket, key, config):
         logger.error(f"Error processing PDF file {key}: {str(e)}")
         raise
 
+def process_docx_as_text(bucket, key, config):
+    """Fallback: Extract text from DOCX using ZIP structure"""
+    try:
+        import zipfile
+        import xml.etree.ElementTree as ET
+        
+        # Download document
+        document_content = download_document(bucket, key)
+        
+        # Extract text from document.xml
+        text_content = []
+        
+        with zipfile.ZipFile(BytesIO(document_content)) as docx_zip:
+            # Get main document content
+            with docx_zip.open('word/document.xml') as xml_file:
+                tree = ET.parse(xml_file)
+                root = tree.getroot()
+                
+                # Extract all text elements
+                for elem in root.iter():
+                    if elem.tag.endswith('}t'):  # Text elements
+                        if elem.text:
+                            text_content.append(elem.text)
+        
+        # Join all text with spaces
+        full_text = ' '.join(text_content)
+        
+        # Apply redaction rules
+        processed_text, redacted = apply_redaction_rules(full_text, config)
+        
+        # Save as text file (change extension to .txt)
+        text_key = key.rsplit('.', 1)[0] + '.txt'
+        
+        # Upload processed document as text
+        upload_processed_document(text_key, processed_text.encode('utf-8'), 
+                                {'redacted': str(redacted), 'converted_from': 'docx', 'fallback_method': 'true'})
+        
+        logger.info(f"Processed DOCX as text using fallback method: {key} -> {text_key}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error in DOCX text extraction fallback for {key}: {str(e)}")
+        raise
+
 def process_docx_file(bucket, key, config):
-    """Process DOCX files - remove images and redact text"""
-    if not Document:
-        raise ImportError("python-docx library not available")
+    """Process DOCX files - convert to text and redact"""
+    # If docx library isn't available, use text extraction fallback
+    if not DOCX_AVAILABLE:
+        logger.warning(f"DOCX library not available, using text extraction for {key}")
+        return process_docx_as_text(bucket, key, config)
     
     try:
         # Download document
