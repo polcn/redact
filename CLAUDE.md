@@ -95,12 +95,13 @@ All document types are converted to optimized text files with redacted filenames
 - **Testing**: Complete coverage with real document validation
 - **Emergency**: `terraform destroy` removes all resources
 
-## Recent Fixes ✅
+## Recent Updates ✅
 - **DOCX Processing**: Resolved lxml dependency issue with ZIP/XML fallback
 - **PDF Redaction**: Fixed text extraction and redaction application  
 - **Cache Bug**: Fixed configuration update logic
 - **Text Optimization**: All formats convert to clean .txt output
 - **Filename Redaction**: Added support for applying redaction rules to output filenames
+- **Frontend Plan**: Created React UI implementation plan with auth, file management, and config UI
 
 ## MCP Configuration
 **Active MCPs**: AWS Documentation, CDK, Core, Serverless

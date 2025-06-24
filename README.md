@@ -208,6 +208,7 @@ redact-terraform/
 ├── IMPROVEMENTS.md            # Recent enhancements summary
 ├── NEXT_STEPS.md             # Implementation roadmap
 ├── DEPLOYMENT.md             # Detailed deployment guide
+├── FRONTEND_PLAN.md          # React frontend implementation plan
 └── README.md                  # This file
 ```
 
