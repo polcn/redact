@@ -78,6 +78,13 @@ resource "aws_api_gateway_resource" "api_config" {
   path_part   = "config"
 }
 
+# API Gateway Resource - /documents/{id} for DELETE
+resource "aws_api_gateway_resource" "documents_id" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.documents.id
+  path_part   = "{id}"
+}
+
 # POST /documents/upload - Upload document for redaction
 resource "aws_api_gateway_method" "upload_post" {
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
@@ -140,6 +147,19 @@ resource "aws_api_gateway_method" "api_config_put" {
   
   request_parameters = {
     "method.request.header.Content-Type" = true
+  }
+}
+
+# DELETE /documents/{id} - Delete document
+resource "aws_api_gateway_method" "documents_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.documents_id.id
+  http_method   = "DELETE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+  
+  request_parameters = {
+    "method.request.path.id" = true
   }
 }
 
@@ -302,6 +322,16 @@ resource "aws_api_gateway_integration" "api_config_put_integration" {
   uri                    = aws_lambda_function.api_handler.invoke_arn
 }
 
+resource "aws_api_gateway_integration" "documents_delete_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.documents_id.id
+  http_method = aws_api_gateway_method.documents_delete.http_method
+  
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = aws_lambda_function.api_handler.invoke_arn
+}
+
 # Lambda permissions for API Gateway
 resource "aws_lambda_permission" "api_gateway_invoke" {
   statement_id  = "AllowExecutionFromAPIGateway"
@@ -320,11 +350,13 @@ resource "aws_api_gateway_deployment" "redact_api_deployment" {
     aws_api_gateway_integration.user_files_integration,
     aws_api_gateway_integration.api_config_get_integration,
     aws_api_gateway_integration.api_config_put_integration,
+    aws_api_gateway_integration.documents_delete_integration,
     # CORS integrations
     aws_api_gateway_integration_response.upload_options_integration_response,
     aws_api_gateway_integration_response.status_id_options_integration_response,
     aws_api_gateway_integration_response.user_files_options_integration_response,
     aws_api_gateway_integration_response.api_config_options_integration_response,
+    aws_api_gateway_integration_response.documents_id_options_integration_response,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
@@ -444,6 +476,17 @@ resource "aws_api_gateway_method_response" "api_config_put_200" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.api_config.id
   http_method = aws_api_gateway_method.api_config_put.http_method
+  status_code = "200"
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Origin" = true
+  }
+}
+
+resource "aws_api_gateway_method_response" "documents_delete_200" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.documents_id.id
+  http_method = aws_api_gateway_method.documents_delete.http_method
   status_code = "200"
   
   response_parameters = {

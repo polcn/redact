@@ -141,6 +141,13 @@ REACT_APP_DOMAIN=redact.9thcube.com
 
 ### ✅ Recent Updates (2025-06-25)
 
+#### Session 6
+- **Delete Functionality Fix**: Fixed critical issue where file deletion wasn't working
+- **API Gateway Enhancement**: Added missing DELETE endpoint for `/documents/{id}`
+- **CORS Configuration**: Added proper CORS support for DELETE operations
+- **Infrastructure Update**: Deployed new API Gateway configuration with delete support
+- **Batch Operations**: Both single file delete and batch delete now fully functional
+
 #### Session 5
 - **Pattern Redaction Fix**: Implemented user-specific configuration storage
 - **Security Enhancement**: Fixed critical vulnerability where all users shared global config

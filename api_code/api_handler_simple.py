@@ -460,16 +460,16 @@ def handle_list_user_files(event, headers, context, user_context):
 def handle_document_delete(event, headers, context, user_context):
     """Handle DELETE /documents/{id} endpoint"""
     try:
-        # Extract document ID from path
-        path_parts = event['path'].split('/')
-        if len(path_parts) < 3:
+        # Extract document ID from path parameters
+        path_params = event.get('pathParameters', {})
+        document_id = path_params.get('id') if path_params else None
+        
+        if not document_id:
             return {
                 'statusCode': 400,
                 'headers': headers,
                 'body': json.dumps({'error': 'Document ID required'})
             }
-        
-        document_id = path_parts[2]
         user_prefix = get_user_s3_prefix(user_context['user_id'])
         
         deleted_files = []
