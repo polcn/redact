@@ -479,7 +479,76 @@ def apply_redaction_rules(text, config):
                     processed_text = re.sub(pattern, replace, processed_text)
                     logger.info(f"Applied PII pattern '{pattern_name}': {pii_config['description']}")
     
+    # Normalize text output for better compatibility
+    processed_text = normalize_text_output(processed_text)
+    
     return processed_text, redacted
+
+def normalize_text_output(text):
+    """Normalize text for better compatibility with external tools like ChatGPT
+    
+    This function:
+    1. Converts Windows line endings (\r\n) to Unix line endings (\n)
+    2. Replaces special UTF-8 characters with ASCII equivalents
+    3. Ensures consistent UTF-8 encoding
+    """
+    if not text:
+        return text
+    
+    # Convert Windows line endings to Unix
+    text = text.replace('\r\n', '\n')
+    
+    # Replace common special characters that cause issues
+    replacements = {
+        # Curly quotes to straight quotes
+        '\u2018': "'",  # Left single quotation mark
+        '\u2019': "'",  # Right single quotation mark
+        '\u201C': '"',  # Left double quotation mark
+        '\u201D': '"',  # Right double quotation mark
+        
+        # Dashes and hyphens
+        '\u2013': '-',  # En dash
+        '\u2014': '--', # Em dash
+        '\u2015': '--', # Horizontal bar
+        
+        # Other common problematic characters
+        '\u2026': '...', # Horizontal ellipsis
+        '\u00A0': ' ',   # Non-breaking space
+        '\u2022': '*',   # Bullet point
+        '\u2023': '>',   # Triangular bullet
+        '\u25CF': '*',   # Black circle
+        '\u25CB': 'o',   # White circle
+        '\u2192': '->',  # Rightwards arrow
+        '\u2190': '<-',  # Leftwards arrow
+        '\u2194': '<->', # Left right arrow
+        
+        # Mathematical symbols
+        '\u00D7': 'x',   # Multiplication sign
+        '\u00F7': '/',   # Division sign
+        '\u00B1': '+/-', # Plus-minus sign
+        '\u2264': '<=',  # Less than or equal to
+        '\u2265': '>=',  # Greater than or equal to
+        '\u2260': '!=',  # Not equal to
+        
+        # Other quotation marks
+        '\u00AB': '<<',  # Left-pointing double angle quotation mark
+        '\u00BB': '>>',  # Right-pointing double angle quotation mark
+        '\u201A': ',',   # Single low-9 quotation mark
+        '\u201E': ',,',  # Double low-9 quotation mark
+    }
+    
+    for old_char, new_char in replacements.items():
+        text = text.replace(old_char, new_char)
+    
+    # Remove any remaining non-printable characters (except newlines and tabs)
+    # This preserves ASCII 32-126, plus newline (10) and tab (9)
+    cleaned_text = ''.join(
+        char if (32 <= ord(char) <= 126) or char in '\n\t' 
+        else ' ' if ord(char) > 126 else ''
+        for char in text
+    )
+    
+    return cleaned_text
 
 def apply_filename_redaction(filename, config):
     """Apply redaction rules to file names and ensure .txt extension"""

@@ -149,10 +149,11 @@ REACT_APP_DOMAIN=redact.9thcube.com
 - **Fixed Output Format**: All files now correctly output as `.txt` regardless of input format
   - Modified `apply_filename_redaction()` to always append `.txt` extension
   - `document.pdf` → `document.txt`, `spreadsheet.xlsx` → `spreadsheet.txt`, etc.
-- **Identified ChatGPT Upload Issue**: Processed files may fail to upload to ChatGPT due to:
-  - Windows line endings (`\r\n`) in output files
-  - Special characters (curly quotes, em-dashes) from PDF extraction
-  - **Solution Required**: Update Lambda to normalize text output with Unix line endings and clean special characters
+- **Fixed ChatGPT Upload Compatibility**: Resolved issue where processed files failed to upload to ChatGPT
+  - Added `normalize_text_output()` function to clean text output
+  - Converts Windows line endings to Unix format
+  - Replaces special UTF-8 characters with ASCII equivalents
+  - All processed files now upload successfully to ChatGPT and other tools
 
 #### Session 6
 - **Delete Functionality Fix**: Fixed critical issue where file deletion wasn't working
@@ -261,27 +262,25 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 
 ## Known Issues & Fixes
 
-### ChatGPT File Upload Compatibility
-**Issue**: Processed `.txt` files may fail to upload to ChatGPT with "unknown error occurred"
+### ✅ ChatGPT File Upload Compatibility (Fixed 2025-06-25)
+**Issue**: Processed `.txt` files were failing to upload to ChatGPT with "unknown error occurred"
 
-**Cause**: Output files contain:
+**Cause**: Output files contained:
 - Windows line endings (`\r\n`) instead of Unix (`\n`)
 - Special UTF-8 characters (curly quotes `'`, em-dashes `—`) from PDF extraction
 
-**Temporary Workaround**:
-```bash
-# Convert file to Unix format before uploading
-tr -d '\r' < downloaded_file.txt > cleaned_file.txt
+**Fix Implemented**: 
+Added `normalize_text_output()` function in `lambda_function_v2.py` that:
+1. Converts all Windows line endings (`\r\n`) to Unix (`\n`)
+2. Replaces special UTF-8 characters with ASCII equivalents:
+   - Curly quotes → straight quotes
+   - Em/en dashes → regular dashes
+   - Special bullets → asterisks
+   - Mathematical symbols → ASCII equivalents
+3. Removes non-printable characters while preserving newlines and tabs
+4. Ensures clean UTF-8 encoding
 
-# Or if you have dos2unix installed
-dos2unix downloaded_file.txt
-```
-
-**Permanent Fix Required**: 
-Update `lambda_function_v2.py` to:
-1. Replace `\r\n` with `\n` in all text output
-2. Normalize special characters (convert curly quotes to straight quotes, etc.)
-3. Ensure consistent UTF-8 encoding without BOM
+The normalization is automatically applied to all redacted text output, ensuring compatibility with ChatGPT and other text processing tools.
 
 ## Troubleshooting
 
