@@ -572,10 +572,13 @@ def normalize_text_output(text, windows_mode=None):
     for old_char, new_char in replacements.items():
         text = text.replace(old_char, new_char)
     
-    # Remove any remaining non-printable characters (except newlines and tabs)
-    # This preserves ASCII 32-126, plus newline (10) and tab (9)
+    # Convert tabs to spaces for better compatibility
+    text = text.replace('\t', '    ')
+    
+    # Remove any remaining non-printable characters (except newlines)
+    # This preserves ASCII 32-126, plus newline (10)
     cleaned_text = ''.join(
-        char if (32 <= ord(char) <= 126) or char in '\n\t' 
+        char if (32 <= ord(char) <= 126) or char == '\n' 
         else ' ' if ord(char) > 126 else ''
         for char in text
     )
@@ -939,7 +942,8 @@ def process_xlsx_file(bucket, key, config, user_info=None):
                     if cell.value is not None:
                         row_values.append(str(cell.value))
                 if row_values:
-                    sheet_text.append('\t'.join(row_values))
+                    # Use comma separation instead of tabs for better ChatGPT compatibility
+                    sheet_text.append(', '.join(row_values))
             if len(sheet_text) > 1:  # Has content beyond title
                 all_text.append('\n'.join(sheet_text))
         
