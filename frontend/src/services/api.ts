@@ -69,6 +69,12 @@ export const updateConfig = async (config: any): Promise<any> => {
   return response.data;
 };
 
+// Delete file
+export const deleteFile = async (documentId: string): Promise<any> => {
+  const response = await api.delete(`/documents/${documentId}`);
+  return response.data;
+};
+
 // Health check
 export const healthCheck = async (): Promise<any> => {
   const response = await api.get('/health');

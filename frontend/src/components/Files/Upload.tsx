@@ -5,11 +5,18 @@ interface UploadProps {
   onUploadComplete: () => void;
 }
 
+interface UploadProgress {
+  filename: string;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  message?: string;
+}
+
 export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -35,50 +42,113 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
 
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      handleFileUpload(files[0]);
+      handleMultipleFileUpload(files);
     }
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      handleFileUpload(files[0]);
+      handleMultipleFileUpload(Array.from(files));
     }
   };
 
-  const handleFileUpload = async (file: File) => {
-    setError('');
-    setSuccess('');
-    setUploading(true);
-
-    // Validate file type
+  const validateFile = (file: File): string | null => {
     const allowedTypes = ['txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls'];
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     
     if (!fileExt || !allowedTypes.includes(fileExt)) {
-      setError(`Invalid file type. Allowed: ${allowedTypes.join(', ')}`);
-      setUploading(false);
-      return;
+      return `Invalid file type. Allowed: ${allowedTypes.join(', ')}`;
     }
 
     // Validate file size (50MB max)
     if (file.size > 50 * 1024 * 1024) {
-      setError('File too large. Maximum size is 50MB.');
-      setUploading(false);
-      return;
+      return 'File too large. Maximum size is 50MB.';
     }
 
-    try {
-      const response = await uploadFile(file);
-      setSuccess(`File uploaded successfully! Document ID: ${response.document_id}`);
+    return null;
+  };
+
+  const handleMultipleFileUpload = async (files: File[]) => {
+    setError('');
+    setSuccess('');
+    setUploading(true);
+    setUploadProgress([]);
+
+    // Validate all files first
+    const validFiles: File[] = [];
+    const progress: UploadProgress[] = [];
+
+    files.forEach(file => {
+      const error = validateFile(file);
+      if (error) {
+        progress.push({ filename: file.name, status: 'error', message: error });
+      } else {
+        validFiles.push(file);
+        progress.push({ filename: file.name, status: 'pending' });
+      }
+    });
+
+    setUploadProgress(progress);
+
+    // Upload valid files
+    let successCount = 0;
+    let errorCount = progress.filter(p => p.status === 'error').length;
+
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+      const progressIndex = progress.findIndex(p => p.filename === file.name);
+      
+      // Update progress to uploading
+      setUploadProgress(prev => {
+        const newProgress = [...prev];
+        newProgress[progressIndex].status = 'uploading';
+        return newProgress;
+      });
+
+      try {
+        const response = await uploadFile(file);
+        successCount++;
+        
+        // Update progress to success
+        setUploadProgress(prev => {
+          const newProgress = [...prev];
+          newProgress[progressIndex].status = 'success';
+          newProgress[progressIndex].message = `ID: ${response.document_id}`;
+          return newProgress;
+        });
+      } catch (err: any) {
+        errorCount++;
+        
+        // Update progress to error
+        setUploadProgress(prev => {
+          const newProgress = [...prev];
+          newProgress[progressIndex].status = 'error';
+          newProgress[progressIndex].message = err.response?.data?.error || 'Upload failed';
+          return newProgress;
+        });
+      }
+    }
+
+    setUploading(false);
+
+    // Show summary
+    if (successCount > 0 && errorCount === 0) {
+      setSuccess(`Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}`);
       setTimeout(() => {
         setSuccess('');
+        setUploadProgress([]);
         onUploadComplete();
       }, 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Upload failed');
-    } finally {
-      setUploading(false);
+    } else if (successCount > 0 && errorCount > 0) {
+      setSuccess(`Uploaded ${successCount} file${successCount > 1 ? 's' : ''}, ${errorCount} failed`);
+      setTimeout(() => {
+        setSuccess('');
+        setUploadProgress([]);
+        onUploadComplete();
+      }, 5000);
+    } else if (errorCount > 0 && successCount === 0) {
+      setError(`Failed to upload ${errorCount} file${errorCount > 1 ? 's' : ''}`);
     }
   };
 
@@ -116,6 +186,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
           accept=".txt,.pdf,.docx,.doc,.xlsx,.xls"
           onChange={handleFileSelect}
           disabled={uploading}
+          multiple
         />
         
         <label
@@ -152,6 +223,41 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
           color: '#52A373'
         }}>
           {success}
+        </div>
+      )}
+
+      {uploadProgress.length > 0 && (
+        <div className="mt-lg p-md" style={{
+          background: 'var(--color-background)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)'
+        }}>
+          <h4 className="text-sm font-medium mb-sm">Upload Progress:</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
+            {uploadProgress.map((file, index) => (
+              <div key={index} className="flex items-center justify-between text-xs">
+                <span style={{ 
+                  maxWidth: '200px', 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {file.filename}
+                </span>
+                <span style={{
+                  color: file.status === 'success' ? '#52A373' : 
+                         file.status === 'error' ? '#D64545' : 
+                         file.status === 'uploading' ? '#CC785C' : '#6B7280',
+                  fontSize: 'var(--font-size-xs)'
+                }}>
+                  {file.status === 'pending' && 'Waiting...'}
+                  {file.status === 'uploading' && 'Uploading...'}
+                  {file.status === 'success' && '✓ Success'}
+                  {file.status === 'error' && `✗ ${file.message || 'Failed'}`}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

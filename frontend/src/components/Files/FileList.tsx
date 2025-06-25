@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { listUserFiles } from '../../services/api';
+import { listUserFiles, deleteFile } from '../../services/api';
 import { FileItem } from './FileItem';
 
 export interface FileData {
@@ -15,6 +15,8 @@ export const FileList: React.FC = () => {
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadFiles = async () => {
     try {
@@ -65,11 +67,141 @@ export const FileList: React.FC = () => {
     );
   }
 
+  const handleSelectAll = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map(f => f.id)));
+    }
+  };
+
+  const handleSelectFile = (fileId: string) => {
+    const newSelected = new Set(selectedFiles);
+    if (newSelected.has(fileId)) {
+      newSelected.delete(fileId);
+    } else {
+      newSelected.add(fileId);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedFiles.size === 0) return;
+    
+    if (!window.confirm(`Are you sure you want to delete ${selectedFiles.size} file(s)?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setError('');
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    const fileIds = Array.from(selectedFiles);
+    for (const fileId of fileIds) {
+      try {
+        await deleteFile(fileId);
+        successCount++;
+      } catch (err) {
+        errorCount++;
+      }
+    }
+
+    setIsDeleting(false);
+    setSelectedFiles(new Set());
+
+    if (errorCount > 0) {
+      setError(`Deleted ${successCount} files, ${errorCount} failed`);
+    }
+
+    // Refresh the list
+    await loadFiles();
+  };
+
+  const handleDownloadSelected = () => {
+    const selectedFileData = files.filter(f => selectedFiles.has(f.id) && f.download_url);
+    selectedFileData.forEach(file => {
+      if (file.download_url) {
+        const link = document.createElement('a');
+        link.href = file.download_url;
+        link.download = file.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    });
+  };
+
+  const selectedCount = selectedFiles.size;
+  const hasCompletedFiles = files.some(f => f.status === 'completed' && selectedFiles.has(f.id));
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-      {files.map((file) => (
-        <FileItem key={file.id} file={file} />
-      ))}
+    <div>
+      {files.length > 0 && (
+        <div className="mb-md flex items-center justify-between" style={{
+          padding: '0.75rem',
+          background: 'var(--color-background)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)'
+        }}>
+          <div className="flex items-center gap-md">
+            <input
+              type="checkbox"
+              checked={selectedFiles.size === files.length && files.length > 0}
+              onChange={handleSelectAll}
+              style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
+            />
+            <span className="text-secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
+              {selectedCount === 0 ? 'Select all' : `${selectedCount} selected`}
+            </span>
+          </div>
+          
+          {selectedCount > 0 && (
+            <div className="flex items-center gap-sm">
+              {hasCompletedFiles && (
+                <button
+                  onClick={handleDownloadSelected}
+                  className="btn-anthropic btn-anthropic-accent"
+                  style={{ padding: '0.5rem 1rem' }}
+                >
+                  Download Selected
+                </button>
+              )}
+              <button
+                onClick={handleBatchDelete}
+                disabled={isDeleting}
+                className="btn-anthropic btn-anthropic-secondary"
+                style={{ 
+                  padding: '0.5rem 1rem',
+                  opacity: isDeleting ? 0.5 : 1,
+                  cursor: isDeleting ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Selected'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+        {files.map((file) => (
+          <div key={file.id} className="relative">
+            <div className="flex items-center gap-sm">
+              <input
+                type="checkbox"
+                checked={selectedFiles.has(file.id)}
+                onChange={() => handleSelectFile(file.id)}
+                style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
+              />
+              <div style={{ flex: 1 }}>
+                <FileItem file={file} onDelete={loadFiles} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

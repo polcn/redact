@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileData } from './FileList';
+import { deleteFile } from '../../services/api';
 
 interface FileItemProps {
   file: FileData;
+  onDelete?: () => void;
 }
 
-export const FileItem: React.FC<FileItemProps> = ({ file }) => {
+export const FileItem: React.FC<FileItemProps> = ({ file, onDelete }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -48,6 +52,27 @@ export const FileItem: React.FC<FileItemProps> = ({ file }) => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete "${file.filename}"?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      await deleteFile(file.id);
+      if (onDelete) {
+        onDelete();
+      }
+    } catch (err: any) {
+      setDeleteError(err.response?.data?.error || 'Failed to delete file');
+      setTimeout(() => setDeleteError(''), 3000);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="card-anthropic card-anthropic-hover flex items-center justify-between">
       <div className="flex items-center gap-md">
@@ -83,7 +108,37 @@ export const FileItem: React.FC<FileItemProps> = ({ file }) => {
             Download
           </a>
         )}
+        
+        <button
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="btn-anthropic btn-anthropic-secondary"
+          style={{ 
+            padding: '0.5rem 1rem',
+            opacity: isDeleting ? 0.5 : 1,
+            cursor: isDeleting ? 'not-allowed' : 'pointer'
+          }}
+          title="Delete file"
+        >
+          {isDeleting ? 'Deleting...' : 'Delete'}
+        </button>
       </div>
+      
+      {deleteError && (
+        <div style={{
+          position: 'absolute',
+          bottom: '-30px',
+          right: '0',
+          background: 'rgba(214, 69, 69, 0.9)',
+          color: 'white',
+          padding: '0.25rem 0.5rem',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 'var(--font-size-xs)',
+          whiteSpace: 'nowrap'
+        }}>
+          {deleteError}
+        </div>
+      )}
     </div>
   );
 };

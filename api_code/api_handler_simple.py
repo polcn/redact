@@ -113,6 +113,9 @@ def lambda_handler(event, context):
         elif path == '/api/config' and method == 'PUT':
             return handle_update_config(event, headers, user_context)
             
+        elif path.startswith('/documents/') and method == 'DELETE':
+            return handle_document_delete(event, headers, context, user_context)
+            
         else:
             return {
                 'statusCode': 404,
@@ -452,6 +455,101 @@ def handle_list_user_files(event, headers, context, user_context):
             'statusCode': 500,
             'headers': headers,
             'body': json.dumps({'error': 'Failed to list files'})
+        }
+
+def handle_document_delete(event, headers, context, user_context):
+    """Handle DELETE /documents/{id} endpoint"""
+    try:
+        # Extract document ID from path
+        path_parts = event['path'].split('/')
+        if len(path_parts) < 3:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Document ID required'})
+            }
+        
+        document_id = path_parts[2]
+        user_prefix = get_user_s3_prefix(user_context['user_id'])
+        
+        deleted_files = []
+        errors = []
+        
+        # Delete from input bucket
+        try:
+            input_response = s3.list_objects_v2(
+                Bucket=INPUT_BUCKET,
+                Prefix=f"{user_prefix}/{document_id}"
+            )
+            
+            for obj in input_response.get('Contents', []):
+                try:
+                    s3.delete_object(Bucket=INPUT_BUCKET, Key=obj['Key'])
+                    deleted_files.append(f"input/{obj['Key']}")
+                except Exception as e:
+                    errors.append(f"Failed to delete {obj['Key']} from input: {str(e)}")
+        except ClientError:
+            pass
+        
+        # Delete from processed bucket
+        try:
+            processed_response = s3.list_objects_v2(
+                Bucket=PROCESSED_BUCKET,
+                Prefix=f"processed/{user_prefix}/{document_id}"
+            )
+            
+            for obj in processed_response.get('Contents', []):
+                try:
+                    s3.delete_object(Bucket=PROCESSED_BUCKET, Key=obj['Key'])
+                    deleted_files.append(f"processed/{obj['Key']}")
+                except Exception as e:
+                    errors.append(f"Failed to delete {obj['Key']} from processed: {str(e)}")
+        except ClientError:
+            pass
+        
+        # Delete from quarantine bucket
+        try:
+            quarantine_response = s3.list_objects_v2(
+                Bucket=QUARANTINE_BUCKET,
+                Prefix=f"quarantine/{user_prefix}/{document_id}"
+            )
+            
+            for obj in quarantine_response.get('Contents', []):
+                try:
+                    s3.delete_object(Bucket=QUARANTINE_BUCKET, Key=obj['Key'])
+                    deleted_files.append(f"quarantine/{obj['Key']}")
+                except Exception as e:
+                    errors.append(f"Failed to delete {obj['Key']} from quarantine: {str(e)}")
+        except ClientError:
+            pass
+        
+        if not deleted_files and not errors:
+            return {
+                'statusCode': 404,
+                'headers': headers,
+                'body': json.dumps({'error': 'Document not found'})
+            }
+        
+        if errors:
+            logger.error(f"Errors during deletion: {errors}")
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'message': 'Document deleted',
+                'document_id': document_id,
+                'deleted_files': deleted_files,
+                'errors': errors if errors else None
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error deleting document: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to delete document'})
         }
 
 def handle_get_config(headers, user_context):
