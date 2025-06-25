@@ -40,7 +40,7 @@ export const Home: React.FC = () => {
 
       <main>
         {/* Hero Section */}
-        <section className="bg-primary text-white" style={{ paddingTop: 'var(--space-3xl)', paddingBottom: 'var(--space-3xl)' }}>
+        <section className="bg-primary text-white" style={{ paddingTop: 'var(--space-2xl)', paddingBottom: 'var(--space-2xl)' }}>
           <div className="container-anthropic">
             <div className="fade-in text-center">
               <h2 style={{ fontSize: 'var(--font-size-2xl)', marginBottom: 'var(--space-lg)' }}>
@@ -68,7 +68,7 @@ export const Home: React.FC = () => {
         </section>
 
         {/* Configuration Section */}
-        <section className="container-anthropic" style={{ paddingTop: 'var(--space-3xl)', paddingBottom: 'var(--space-3xl)' }}>
+        <section className="container-anthropic" style={{ paddingTop: 'var(--space-2xl)', paddingBottom: 'var(--space-3xl)' }}>
           <div className="fade-in">
             <div className="text-center" style={{ marginBottom: 'var(--space-2xl)' }}>
               <h3 style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--space-md)' }}>
@@ -84,10 +84,10 @@ export const Home: React.FC = () => {
         </section>
 
         {/* Features Section */}
-        <section className="bg-secondary" style={{ paddingTop: 'var(--space-3xl)', paddingBottom: 'var(--space-3xl)' }}>
+        <section className="bg-secondary" style={{ paddingTop: 'var(--space-2xl)', paddingBottom: 'var(--space-2xl)' }}>
           <div className="container-anthropic">
             <div className="fade-in">
-              <h3 className="text-center" style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--space-2xl)' }}>
+              <h3 className="text-center" style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--space-xl)' }}>
                 Key Features
               </h3>
               <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-xl)' }}>
@@ -124,7 +124,7 @@ export const Home: React.FC = () => {
         </section>
 
         {/* CTA Section */}
-        <section className="text-center" style={{ paddingTop: 'var(--space-3xl)', paddingBottom: 'var(--space-3xl)' }}>
+        <section className="text-center" style={{ paddingTop: 'var(--space-2xl)', paddingBottom: 'var(--space-3xl)' }}>
           <div className="container-anthropic">
             <div className="fade-in">
               <h3 style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--space-lg)' }}>

@@ -12,7 +12,7 @@ from datetime import datetime
 
 # Test configuration
 API_URL = "https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production"
-TEST_USER_EMAIL = "test@gmail.com"  # Should be an allowed domain
+TEST_USER_EMAIL = "testuser@gmail.com"  # Should be an allowed domain
 TEST_USER_PASSWORD = "TestPassword123!"
 
 # Test document with various PII patterns
