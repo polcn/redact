@@ -609,18 +609,20 @@ def normalize_text_output(text, windows_mode=None):
     return final_text
 
 def apply_filename_redaction(filename, config):
-    """Apply redaction rules to file names and ensure .md extension for ChatGPT compatibility"""
+    """Apply redaction rules to file names, preserving the file extension"""
     try:
-        # Extract base name (remove extension)
-        base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
+        # Extract base name and extension
+        if '.' in filename:
+            base_name, extension = filename.rsplit('.', 1)
+        else:
+            base_name = filename
+            extension = 'md'  # Default to .md if no extension
         
         # Apply redaction to base name only
         processed_name, redacted = apply_redaction_rules(base_name, config)
         
-        # Always output as .md file (confirmed working with ChatGPT uploads)
-        # Markdown files upload reliably while .txt and .log files have issues
-        # .md is plain text and works with all text editors
-        processed_filename = f"{processed_name}.md"
+        # Preserve the original extension (already set by file type processors)
+        processed_filename = f"{processed_name}.{extension}"
             
         if redacted:
             logger.info(f"Applied filename redaction: {filename} -> {processed_filename}")
