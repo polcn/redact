@@ -553,23 +553,55 @@ def handle_document_delete(event, headers, context, user_context):
         }
 
 def handle_get_config(headers, user_context):
-    """Handle GET /api/config endpoint"""
+    """Handle GET /api/config endpoint with user-specific configuration"""
     try:
-        # Get current config from S3
-        response = s3.get_object(
-            Bucket=CONFIG_BUCKET,
-            Key='config.json'
-        )
-        config = json.loads(response['Body'].read())
+        user_id = user_context.get('user_id', 'anonymous')
         
-        return {
-            'statusCode': 200,
-            'headers': headers,
-            'body': json.dumps(config)
-        }
+        # Try to get user-specific config first
+        user_config_key = f'configs/users/{user_id}/config.json'
         
-    except s3.exceptions.NoSuchKey:
-        # Return default config if not found
+        try:
+            response = s3.get_object(
+                Bucket=CONFIG_BUCKET,
+                Key=user_config_key
+            )
+            config = json.loads(response['Body'].read())
+            logger.info(f"Loaded user-specific config for user {user_id}")
+            
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(config)
+            }
+        except s3.exceptions.NoSuchKey:
+            # Try global config as fallback
+            try:
+                response = s3.get_object(
+                    Bucket=CONFIG_BUCKET,
+                    Key='config.json'
+                )
+                config = json.loads(response['Body'].read())
+                logger.info(f"Using global config for user {user_id} (no user-specific config found)")
+                
+                # Copy global config to user-specific location for future use
+                s3.put_object(
+                    Bucket=CONFIG_BUCKET,
+                    Key=user_config_key,
+                    Body=json.dumps(config, indent=2),
+                    ContentType='application/json',
+                    ServerSideEncryption='AES256'
+                )
+                logger.info(f"Copied global config to user-specific location for user {user_id}")
+                
+                return {
+                    'statusCode': 200,
+                    'headers': headers,
+                    'body': json.dumps(config)
+                }
+            except s3.exceptions.NoSuchKey:
+                pass
+        
+        # Return default config if nothing found
         default_config = {
             'replacements': [],
             'case_sensitive': False,
@@ -582,11 +614,23 @@ def handle_get_config(headers, user_context):
                 'drivers_license': False
             }
         }
+        
+        # Save default config for user
+        s3.put_object(
+            Bucket=CONFIG_BUCKET,
+            Key=user_config_key,
+            Body=json.dumps(default_config, indent=2),
+            ContentType='application/json',
+            ServerSideEncryption='AES256'
+        )
+        logger.info(f"Created default config for user {user_id}")
+        
         return {
             'statusCode': 200,
             'headers': headers,
             'body': json.dumps(default_config)
         }
+        
     except Exception as e:
         logger.error(f"Error getting config: {str(e)}")
         return {
@@ -596,10 +640,9 @@ def handle_get_config(headers, user_context):
         }
 
 def handle_update_config(event, headers, user_context):
-    """Handle PUT /api/config endpoint"""
+    """Handle PUT /api/config endpoint with user-specific configuration"""
     try:
-        # Allow all authenticated users to update config
-        # Note: In production, you may want to restrict this to admins only
+        user_id = user_context.get('user_id', 'anonymous')
         
         # Parse request body
         body = event.get('body', '')
@@ -633,19 +676,26 @@ def handle_update_config(event, headers, user_context):
                         'body': json.dumps({'error': f'Pattern {pattern_name} must be true or false'})
                     }
         
-        # Save config to S3
+        # Save user-specific config to S3
+        user_config_key = f'configs/users/{user_id}/config.json'
         s3.put_object(
             Bucket=CONFIG_BUCKET,
-            Key='config.json',
+            Key=user_config_key,
             Body=json.dumps(config, indent=2),
             ContentType='application/json',
-            ServerSideEncryption='AES256'
+            ServerSideEncryption='AES256',
+            Metadata={
+                'user-id': user_id,
+                'user-email': user_context.get('email', ''),
+                'updated-at': str(int(time.time()))
+            }
         )
         
         logger.info(json.dumps({
-            'event': 'CONFIG_UPDATED',
+            'event': 'USER_CONFIG_UPDATED',
             'user_id': user_context['user_id'],
-            'user_email': user_context['email']
+            'user_email': user_context['email'],
+            'config_key': user_config_key
         }))
         
         return {

@@ -150,40 +150,108 @@ def validate_file(bucket, key):
         logger.error(f"File validation error: {str(e)}")
         raise
 
-def get_redaction_config():
-    """Load configuration from S3 bucket with caching"""
+def get_redaction_config(user_id=None):
+    """Load user-specific configuration from S3 bucket with caching"""
     global _config_cache, _config_last_modified
     
+    # Determine config key
+    if user_id:
+        config_key = f'configs/users/{user_id}/config.json'
+    else:
+        config_key = 'config.json'  # Fallback to global config
+    
     try:
-        # Check if config exists and get last modified time
-        response = s3.head_object(Bucket=CONFIG_BUCKET, Key='config.json')
-        last_modified = response['LastModified']
+        # Try user-specific config first
+        if user_id:
+            try:
+                response = s3.head_object(Bucket=CONFIG_BUCKET, Key=config_key)
+                last_modified = response['LastModified']
+                
+                # Use cached config if available and not modified
+                cache_key = f"user_{user_id}"
+                if isinstance(_config_cache, dict) and cache_key in _config_cache:
+                    if _config_last_modified and _config_last_modified.get(cache_key) == last_modified:
+                        logger.info(f"Using cached configuration for user {user_id}")
+                        return _config_cache[cache_key]
+                
+                # Load fresh user config
+                response = s3.get_object(Bucket=CONFIG_BUCKET, Key=config_key)
+                config_content = response['Body'].read()
+                
+                # Validate size
+                if len(config_content) > MAX_CONFIG_SIZE:
+                    raise ValueError(f"Configuration file too large: {len(config_content)} bytes")
+                
+                config = json.loads(config_content)
+                
+                # Update cache
+                if not isinstance(_config_cache, dict):
+                    _config_cache = {}
+                if not isinstance(_config_last_modified, dict):
+                    _config_last_modified = {}
+                
+                _config_cache[cache_key] = config
+                _config_last_modified[cache_key] = last_modified
+                
+                logger.info(f"Loaded user-specific configuration for {user_id} with {len(config.get('replacements', []))} rules")
+                return config
+                
+            except s3.exceptions.NoSuchKey:
+                logger.info(f"No user-specific config for {user_id}, trying global config")
+                # Fall through to try global config
         
-        # Use cached config if available and not modified
-        if _config_cache and _config_last_modified == last_modified:
-            logger.info("Using cached configuration")
-            return _config_cache
+        # Try global config as fallback
+        try:
+            response = s3.head_object(Bucket=CONFIG_BUCKET, Key='config.json')
+            last_modified = response['LastModified']
+            
+            # Check global cache
+            cache_key = "global"
+            if isinstance(_config_cache, dict) and cache_key in _config_cache:
+                if _config_last_modified and _config_last_modified.get(cache_key) == last_modified:
+                    logger.info("Using cached global configuration")
+                    return _config_cache[cache_key]
+            
+            # Load fresh global config
+            response = s3.get_object(Bucket=CONFIG_BUCKET, Key='config.json')
+            config_content = response['Body'].read()
+            
+            if len(config_content) > MAX_CONFIG_SIZE:
+                raise ValueError(f"Configuration file too large: {len(config_content)} bytes")
+            
+            config = json.loads(config_content)
+            
+            # Update cache
+            if not isinstance(_config_cache, dict):
+                _config_cache = {}
+            if not isinstance(_config_last_modified, dict):
+                _config_last_modified = {}
+                
+            _config_cache[cache_key] = config
+            _config_last_modified[cache_key] = last_modified
+            
+            logger.info(f"Loaded global configuration with {len(config.get('replacements', []))} rules")
+            return config
+            
+        except s3.exceptions.NoSuchKey:
+            pass
         
-        # Load fresh config
-        response = s3.get_object(Bucket=CONFIG_BUCKET, Key='config.json')
-        config_content = response['Body'].read()
-        
-        # Validate size
-        if len(config_content) > MAX_CONFIG_SIZE:
-            raise ValueError(f"Configuration file too large: {len(config_content)} bytes")
-        
-        config = json.loads(config_content)
-        
-        # Update cache
-        _config_cache = config
-        _config_last_modified = last_modified
-        
-        logger.info(f"Loaded configuration with {len(config.get('replacements', []))} rules")
-        return config
-        
-    except s3.exceptions.NoSuchKey:
+        # No config found, use defaults
         logger.warning("No configuration found, using defaults")
-        return {"replacements": DEFAULT_REPLACEMENTS, "case_sensitive": False}
+        default_config = {
+            "replacements": DEFAULT_REPLACEMENTS, 
+            "case_sensitive": False,
+            "patterns": {
+                "ssn": False,
+                "credit_card": False,
+                "phone": False,
+                "email": False,
+                "ip_address": False,
+                "drivers_license": False
+            }
+        }
+        return default_config
+        
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in configuration: {str(e)}")
         return {"replacements": DEFAULT_REPLACEMENTS, "case_sensitive": False}
@@ -199,10 +267,6 @@ def lambda_handler(event, context):
     start_time = time.time()
     
     try:
-        # Load configuration once for the entire batch
-        config = get_redaction_config()
-        validate_config(config)
-        
         # Get files to process
         files_to_process = []
         for record in event['Records']:
@@ -233,8 +297,8 @@ def lambda_handler(event, context):
                 }))
                 break
             
-            # Process batch
-            batch_results = process_file_batch(batch, config, context)
+            # Process batch (config will be loaded per user)
+            batch_results = process_file_batch(batch, None, context)
             results.extend(batch_results)
             processed_count += len(batch_results)
         
@@ -283,17 +347,31 @@ def lambda_handler(event, context):
         }
 
 def process_file_batch(batch, config, context):
-    """Process a batch of files with error isolation"""
+    """Process a batch of files with error isolation and user-specific configs"""
     results = []
     
     for bucket, key in batch:
         try:
-            # Process individual file
-            result = process_single_file(bucket, key, config)
+            # Extract user info from key
+            user_info = get_user_info_from_key(key)
+            
+            # Load user-specific config for this file
+            if user_info:
+                user_config = get_redaction_config(user_info['user_id'])
+            else:
+                # Fall back to global config for non-user files
+                user_config = get_redaction_config()
+            
+            # Validate config
+            validate_config(user_config)
+            
+            # Process individual file with user-specific config
+            result = process_single_file(bucket, key, user_config)
             results.append({
                 'key': key,
                 'status': 'success',
-                'result': result
+                'result': result,
+                'user_id': user_info['user_id'] if user_info else 'global'
             })
             
         except Exception as e:

@@ -118,44 +118,39 @@ Build on the existing `test_pattern_checkboxes.js` to create a full UI test suit
 
 Reference `TEST_PLAN.md` for complete test scenarios.
 
-## Issue #12: CRITICAL - Pattern-Based Redaction Not Working
-**Title**: Regex pattern matching fails for all PII types  
-**Labels**: `bug`, `critical`, `backend`, `security`  
+## Issue #12: FIXED - Pattern-Based Redaction Security Vulnerability
+**Title**: Regex pattern matching fails due to global config sharing  
+**Labels**: `bug`, `critical`, `backend`, `security`, `fixed`  
+**Status**: ✅ FIXED (2025-06-25)
+
 **Description**:
-Pattern-based redaction is not functioning despite checkboxes being enabled. Testing shows that none of the PII patterns are being detected or redacted.
+Pattern-based redaction was not functioning because all users shared a single global configuration file, creating both a security vulnerability and functional failure.
 
-**Root Cause Identified:**
-The system is using a GLOBAL configuration file (`config.json`) instead of user-specific configs. This creates two critical issues:
-1. **Security/Privacy Issue**: All users share the same redaction configuration
-2. **Functionality Issue**: Pattern detection may not work correctly due to config conflicts
+**Root Cause:**
+The system was using a GLOBAL configuration file (`config.json`) instead of user-specific configs:
+1. **Security/Privacy Issue**: All users shared the same redaction configuration
+2. **Functionality Issue**: Pattern detection failed due to config conflicts
 
-**Code Analysis:**
-- `api_handler_simple.py` saves/loads config from global `config.json` (lines 559-639)
-- `lambda_function_v2.py` loads config from global `config.json` (lines 153-169)
-- No user isolation for configurations
+**Fix Implemented:**
+1. ✅ Updated `api_handler_simple.py` to use user-specific configs at `configs/users/{user_id}/config.json`
+2. ✅ Modified `handle_get_config()` to load user-specific config with fallback to global
+3. ✅ Modified `handle_update_config()` to save user-specific config
+4. ✅ Updated `lambda_function_v2.py` to load config based on file owner's user ID
+5. ✅ Added automatic migration from global to user-specific config on first access
+6. ✅ Maintained backward compatibility with global config fallback
 
-**Failed patterns tested:**
-- SSN (various formats)
-- Phone numbers (multiple formats)
-- Email addresses
-- Driver's license numbers
+**Code Changes:**
+- `api_handler_simple.py`: Lines 555-672 updated for user-specific config handling
+- `lambda_function_v2.py`: Lines 153-192 and 285-325 updated for per-user config loading
 
-**Required Fix:**
-1. Implement user-specific configuration storage (e.g., `configs/users/{userId}/config.json`)
-2. Update API handler to save/load user-specific configs
-3. Update Lambda function to load config based on file owner's user ID
-4. Ensure proper user isolation for security
+**Test Verification:**
+- Created `test_pattern_fix.py` to verify pattern matching with user isolation
+- All PII patterns now correctly redact when enabled
+- Each user has isolated configuration
 
-**Test case:**
-```
-Input text:
-SSN: 123-45-6789
-Phone: (555) 123-4567
-Email: test@example.com
-DL: D1234567
+**Security Impact:**
+- Users can no longer see or affect each other's redaction rules
+- Each user's PII patterns are private and isolated
+- No shared state between users
 
-Expected: All should be redacted when patterns enabled
-Actual: None are redacted
-```
-
-**Priority**: CRITICAL - Core feature not working + security vulnerability
+**Priority**: CRITICAL - RESOLVED
