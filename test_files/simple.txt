@@ -1,2 +1,0 @@
-This is a simple test file.
-It should output as simple.log

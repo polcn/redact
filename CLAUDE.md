@@ -271,39 +271,34 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 
 ## Known Issues & Fixes
 
-### ✅ ChatGPT File Upload Compatibility (Fixed with .md Extension 2025-06-25)
-**Issue**: Processed `.txt` and `.log` files were failing to upload to ChatGPT with "unknown error occurred"
+### ✅ ChatGPT File Upload Compatibility (Fixed 2025-06-25)
+**Issue**: Processed files were failing to upload to ChatGPT with "unknown error occurred"
 
-**Root Cause**: ChatGPT has a known bug since May 31, 2025, that prevents `.txt` file uploads. The `.log` and `.csv` extensions were also tested with mixed results.
+**Root Cause**: ChatGPT has a known bug since May 31, 2025, that prevents `.txt` file uploads.
 
 **Final Solution Implemented**: 
-1. **Changed file extension to `.md` (Markdown)**
-   - All processed files now use `.md` extension
-   - Files contain plain text only (no markdown formatting)
-   - `.md` files are explicitly supported by ChatGPT and upload reliably
-   - Works with all text editors (Notepad, TextEdit, etc.)
+1. **Different extensions by file type**:
+   - PDF/DOCX/TXT → `.md` (markdown format, plain text)
+   - XLSX → `.csv` (proper CSV format, first sheet only)
+   - Each file type gets the most appropriate format that ChatGPT accepts
 
-2. **Windows compatibility mode**
-   - Files output with Windows line endings (CRLF) by default
-   - Set `WINDOWS_MODE=true` environment variable (default)
-   - Ensures maximum compatibility for all platforms
+2. **XLSX special handling**:
+   - Converts only the first worksheet to CSV format
+   - Adds header comments showing total sheets and omitted sheet names
+   - Proper CSV escaping for values with commas, quotes, or newlines
+   - Example header: `# Workbook contains 6 sheets. Showing sheet 1 of 6: 'Sales Data'`
 
-3. **Enhanced text normalization**
-   - Converts special UTF-8 characters to ASCII equivalents
-   - Removes non-printable characters
-   - Ensures clean output for all platforms
+3. **Enhanced compatibility**:
+   - Windows line endings (CRLF) by default
+   - Pure ASCII text output
+   - Tab characters converted to spaces
+   - Special UTF-8 characters replaced with ASCII equivalents
 
-**How to Use**:
-- Upload the `.md` files to ChatGPT - they work perfectly
-- Files open normally in any text editor
-- No special markdown viewer needed - it's just plain text
+**How it works**:
+- All file types now upload successfully to ChatGPT
+- XLSX limitation documented in output (first sheet only)
+- Files open correctly in any text editor
 - To disable Windows mode: Set Lambda environment variable `WINDOWS_MODE=false`
-
-**Technical Details**:
-- Files processed after 20:00 UTC on 2025-06-25 will have `.md` extension
-- Pure ASCII text with configurable line endings (CRLF for Windows, LF for Unix)
-- Based on extensive research confirming `.md` is the most reliable extension
-- Alternative extensions tested: .csv, .py, .js (work but less appropriate)
 
 ## Troubleshooting
 

@@ -1,7 +1,0 @@
-Document Title
-
-This simulates content extracted from a Word document.
-Output filename should be docx_content.log
-
-Paragraph 2
-More content here.

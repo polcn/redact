@@ -1,9 +1,0 @@
---- Page 1 ---
-PDF Document Title
-
-This simulates content extracted from a PDF file.
-It should output as pdf_content.log
-
---- Page 2 ---
-More content here.
-The file extension should be .log, not .txt

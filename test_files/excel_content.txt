@@ -1,7 +1,0 @@
-Sheet: Data
-Name	Email	Phone
-John Smith	john@example.com	555-1234
-Jane Doe	jane@example.com	555-5678
-
-This simulates content from an Excel file.
-Output should be excel_content.log
