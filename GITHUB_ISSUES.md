@@ -117,3 +117,45 @@ Build on the existing `test_pattern_checkboxes.js` to create a full UI test suit
 - Accessibility compliance tests
 
 Reference `TEST_PLAN.md` for complete test scenarios.
+
+## Issue #12: CRITICAL - Pattern-Based Redaction Not Working
+**Title**: Regex pattern matching fails for all PII types  
+**Labels**: `bug`, `critical`, `backend`, `security`  
+**Description**:
+Pattern-based redaction is not functioning despite checkboxes being enabled. Testing shows that none of the PII patterns are being detected or redacted.
+
+**Root Cause Identified:**
+The system is using a GLOBAL configuration file (`config.json`) instead of user-specific configs. This creates two critical issues:
+1. **Security/Privacy Issue**: All users share the same redaction configuration
+2. **Functionality Issue**: Pattern detection may not work correctly due to config conflicts
+
+**Code Analysis:**
+- `api_handler_simple.py` saves/loads config from global `config.json` (lines 559-639)
+- `lambda_function_v2.py` loads config from global `config.json` (lines 153-169)
+- No user isolation for configurations
+
+**Failed patterns tested:**
+- SSN (various formats)
+- Phone numbers (multiple formats)
+- Email addresses
+- Driver's license numbers
+
+**Required Fix:**
+1. Implement user-specific configuration storage (e.g., `configs/users/{userId}/config.json`)
+2. Update API handler to save/load user-specific configs
+3. Update Lambda function to load config based on file owner's user ID
+4. Ensure proper user isolation for security
+
+**Test case:**
+```
+Input text:
+SSN: 123-45-6789
+Phone: (555) 123-4567
+Email: test@example.com
+DL: D1234567
+
+Expected: All should be redacted when patterns enabled
+Actual: None are redacted
+```
+
+**Priority**: CRITICAL - Core feature not working + security vulnerability

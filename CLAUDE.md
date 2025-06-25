@@ -130,6 +130,13 @@ REACT_APP_DOMAIN=redact.9thcube.com
 
 ## Implementation Notes
 
+### ⚠️ CRITICAL ISSUE DISCOVERED
+**Pattern-Based Redaction Not Working** - The system uses a global configuration file instead of user-specific configs:
+- All users share the same redaction configuration (security vulnerability)
+- Pattern detection fails because config is not properly isolated
+- Both `api_handler_simple.py` and `lambda_function_v2.py` use global `config.json`
+- See GitHub Issue #12 for detailed analysis and required fixes
+
 ### ✅ Recent Updates (2025-06-25)
 
 #### Session 4
@@ -139,6 +146,7 @@ REACT_APP_DOMAIN=redact.9thcube.com
 - **Test Automation**: Added Puppeteer test script for automated UI testing
 - **MCP Verification**: Confirmed all MCP servers (AWS, Cloudflare, Brightdata) are operational
 - **Manual Testing**: Created MANUAL_TEST_CHECKLIST.md for quick verification
+- **Critical Bug Found**: Discovered pattern redaction not working due to global config issue
 
 #### Session 3
 - **Pattern-Based Redaction**: Added automatic PII detection for SSN, credit cards, phones, emails, IPs, driver's licenses
