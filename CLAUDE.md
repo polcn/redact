@@ -262,7 +262,7 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 
 ## Known Issues & Fixes
 
-### ✅ ChatGPT File Upload Compatibility (Fixed 2025-06-25)
+### ⚠️ ChatGPT File Upload Compatibility (Investigated 2025-06-25)
 **Issue**: Processed `.txt` files were failing to upload to ChatGPT with "unknown error occurred"
 
 **Cause**: Output files contained:
@@ -286,6 +286,16 @@ Enhanced `normalize_text_output()` function in `lambda_function_v2.py` with aggr
 6. Ensures pure ASCII output compatible with all tools
 
 The normalization is automatically applied to all redacted text output, ensuring compatibility with ChatGPT and other text processing tools.
+
+**Current Status**: 
+- Files are now output as pure ASCII with Unix line endings
+- Verified files processed after 18:41 UTC on 2025-06-25 are correctly formatted
+- However, ChatGPT still returns "unknown error occurred" when uploading
+- The issue appears to be on ChatGPT's side, not with our file format
+- All files are valid ASCII text files that work correctly with other tools
+
+**Workaround**: 
+If you need to use the content with ChatGPT, copy and paste the text content rather than uploading the file.
 
 ## Troubleshooting
 

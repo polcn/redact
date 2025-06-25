@@ -495,8 +495,16 @@ def normalize_text_output(text):
     if not text:
         return text
     
+    # Log that normalization is running
+    logger.info("Running text normalization - input length: %d", len(text))
+    
     # Convert Windows line endings to Unix
     text = text.replace('\r\n', '\n')
+    
+    # Remove BOM if present
+    if text.startswith('\ufeff'):
+        text = text[1:]
+        logger.info("Removed BOM from text")
     
     # Replace common special characters that cause issues
     replacements = {
@@ -561,17 +569,19 @@ def normalize_text_output(text):
     )
     
     # Final pass: ensure absolutely no non-ASCII characters remain
-    # This is more aggressive and will catch any edge cases
-    final_text = cleaned_text.encode('ascii', 'replace').decode('ascii')
-    
-    # Replace any replacement characters (?) with spaces
-    final_text = final_text.replace('?', ' ')
+    # Use 'ignore' instead of 'replace' to avoid question marks
+    final_text = cleaned_text.encode('ascii', 'ignore').decode('ascii')
     
     # Clean up multiple spaces
     import re
     final_text = re.sub(r' +', ' ', final_text)
     final_text = re.sub(r'\n +', '\n', final_text)
     final_text = re.sub(r' +\n', '\n', final_text)
+    
+    # Log completion
+    logger.info("Text normalization complete - output length: %d, is ASCII: %s", 
+                len(final_text), 
+                all(ord(c) < 128 for c in final_text))
     
     return final_text
 
