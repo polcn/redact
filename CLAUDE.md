@@ -281,29 +281,9 @@ terraform destroy             # Remove all infrastructure
 aws s3 rm s3://BUCKET --recursive  # Clear bucket before destroy
 ```
 
-## CI/CD Pipeline (Currently Disabled)
+## CI/CD Pipeline
 
-**Status**: ⚠️ GitHub Actions workflows are currently disabled to prevent failure notifications.
-
-### Required Setup for CI/CD:
-1. **Missing Files**:
-   - `requirements-test.txt` - Test dependencies
-   - `tests/test_lambda_function.py` - Unit tests
-   - `tests/test_integration.py` - Integration tests
-   - `monitoring-dashboard.json` - CloudWatch dashboard config
-
-2. **GitHub Configuration**:
-   - AWS credentials secrets (AWS_ACCESS_KEY_ID_STAGING, AWS_SECRET_ACCESS_KEY_STAGING, etc.)
-   - GitHub environments (staging, production)
-   - Create `develop` branch for staging deployments
-
-3. **To Re-enable**:
-   ```bash
-   mv .github/workflows/ci-cd.yml.disabled .github/workflows/ci-cd.yml
-   mv .github/workflows/pr-validation.yml.disabled .github/workflows/pr-validation.yml
-   ```
-
-See GitHub Issue #[TBD] for full CI/CD implementation tracking.
+**Status**: ⚠️ Disabled - See `docs/CI_CD_IMPLEMENTATION_GUIDE.md` for setup instructions.
 
 ## MCP Servers Configuration
 
