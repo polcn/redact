@@ -48,7 +48,7 @@ React Frontend → Cognito Auth → API Gateway → Lambda
 - **🌐 Web UI**: Drag-drop upload, real-time status, secure downloads
 - **🔐 Authentication**: AWS Cognito with invite-only registration  
 - **👤 User Isolation**: Each user only sees their files (users/{userId}/*)
-- **📁 Multi-Format**: TXT, PDF, DOCX, XLSX → redacted .txt
+- **📁 Multi-Format**: TXT, PDF, DOCX → .md | XLSX → .csv (first sheet only)
 - **⚙️ Config UI**: User-configurable redaction rules integrated into home page
 - **🔍 Pattern Detection**: Automatic PII detection (SSN, credit cards, phones, emails, IPs, driver's licenses)
 - **🔄 Real-time**: Status updates via polling
@@ -140,6 +140,13 @@ REACT_APP_DOMAIN=redact.9thcube.com
 - See GitHub Issue #12 for detailed analysis and implementation
 
 ### ✅ Recent Updates (2025-06-25)
+
+#### Session 8
+- **Fixed XLSX Upload to ChatGPT**: Resolved issue where XLSX conversions failed to upload
+  - Changed approach: XLSX files now convert to proper CSV format (first sheet only)
+  - Added metadata showing sheet count and omitted sheets for multi-sheet workbooks
+  - CSV format with proper escaping and quoting for reliable ChatGPT uploads
+  - Updated documentation to clarify XLSX limitations
 
 #### Session 7
 - **Fixed Multi-File Upload**: Resolved Lambda dependency issues preventing PDF/DOCX/XLSX processing

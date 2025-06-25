@@ -802,12 +802,18 @@ def process_pdf_file(bucket, key, config, user_info=None):
         # Save as markdown file (change extension to .md for ChatGPT compatibility)
         file_path = user_info['file_path'] if user_info else key
         text_key = file_path.rsplit('.', 1)[0] + '.md'
+        
+        # Update user_info with the new filename for proper handling
         if user_info:
+            updated_user_info = user_info.copy()
+            updated_user_info['file_path'] = text_key
             text_key = f"users/{user_info['user_id']}/{text_key}"
+        else:
+            updated_user_info = None
         
         # Upload processed document as text
         upload_processed_document(text_key, processed_text.encode('utf-8'), 
-                                {'redacted': str(redacted), 'converted_from': 'pdf'}, config, user_info)
+                                {'redacted': str(redacted), 'converted_from': 'pdf'}, config, updated_user_info)
         
         return True
         
@@ -841,12 +847,18 @@ def process_docx_file(bucket, key, config, user_info=None):
         # Save as markdown file
         file_path = user_info['file_path'] if user_info else key
         text_key = file_path.rsplit('.', 1)[0] + '.md'
+        
+        # Update user_info with the new filename for proper handling
         if user_info:
+            updated_user_info = user_info.copy()
+            updated_user_info['file_path'] = text_key
             text_key = f"users/{user_info['user_id']}/{text_key}"
+        else:
+            updated_user_info = None
         
         # Upload processed document
         upload_processed_document(text_key, processed_text.encode('utf-8'), 
-                                {'redacted': str(redacted), 'converted_from': 'docx'}, config, user_info)
+                                {'redacted': str(redacted), 'converted_from': 'docx'}, config, updated_user_info)
         
         return True
         
@@ -916,7 +928,7 @@ def extract_docx_text_library(docx_content):
         return None
 
 def process_xlsx_file(bucket, key, config, user_info=None):
-    """Process XLSX files by extracting all text content"""
+    """Process XLSX files by converting first sheet to CSV format"""
     if not OPENPYXL_AVAILABLE:
         raise ImportError("openpyxl library not available for XLSX processing")
     
@@ -931,37 +943,70 @@ def process_xlsx_file(bucket, key, config, user_info=None):
         # Load workbook
         workbook = load_workbook(BytesIO(xlsx_content), read_only=True, data_only=True)
         
-        all_text = []
+        # Get sheet count and names
+        sheet_count = len(workbook.worksheets)
+        sheet_names = [sheet.title for sheet in workbook.worksheets]
         
-        # Process all worksheets
-        for sheet in workbook.worksheets:
-            sheet_text = [f"Sheet: {sheet.title}"]
-            for row in sheet.iter_rows():
-                row_values = []
-                for cell in row:
-                    if cell.value is not None:
-                        row_values.append(str(cell.value))
-                if row_values:
-                    # Use comma separation instead of tabs for better ChatGPT compatibility
-                    sheet_text.append(', '.join(row_values))
-            if len(sheet_text) > 1:  # Has content beyond title
-                all_text.append('\n'.join(sheet_text))
+        # Process only the first worksheet
+        if sheet_count == 0:
+            raise ValueError("Workbook has no sheets")
+            
+        first_sheet = workbook.worksheets[0]
+        csv_rows = []
         
-        # Combine all text
-        full_text = '\n\n'.join(all_text)
+        # Add header comment about sheet count if multiple sheets
+        if sheet_count > 1:
+            csv_rows.append(f"# Workbook contains {sheet_count} sheets. Showing sheet 1 of {sheet_count}: '{first_sheet.title}'")
+            csv_rows.append(f"# Other sheets: {', '.join(sheet_names[1:])}")
+            csv_rows.append("")  # Empty line after comments
+        
+        # Convert first sheet to CSV format
+        for row in first_sheet.iter_rows():
+            row_values = []
+            for cell in row:
+                value = cell.value if cell.value is not None else ""
+                # Escape values that contain commas, quotes, or newlines
+                value_str = str(value)
+                if ',' in value_str or '"' in value_str or '\n' in value_str:
+                    # Escape quotes by doubling them
+                    value_str = value_str.replace('"', '""')
+                    # Wrap in quotes
+                    value_str = f'"{value_str}"'
+                row_values.append(value_str)
+            if row_values:
+                csv_rows.append(','.join(row_values))
+        
+        # Combine all rows
+        full_text = '\n'.join(csv_rows)
         
         # Apply redaction rules
         processed_text, redacted = apply_redaction_rules(full_text, config)
         
-        # Save as markdown file
+        # Save as CSV file
         file_path = user_info['file_path'] if user_info else key
-        text_key = file_path.rsplit('.', 1)[0] + '.md'
-        if user_info:
-            text_key = f"users/{user_info['user_id']}/{text_key}"
+        text_key = file_path.rsplit('.', 1)[0] + '.csv'
         
-        # Upload processed document as text
+        # Update user_info with the new filename for proper handling
+        if user_info:
+            updated_user_info = user_info.copy()
+            updated_user_info['file_path'] = text_key
+            text_key = f"users/{user_info['user_id']}/{text_key}"
+        else:
+            updated_user_info = None
+        
+        # Upload processed document as CSV
+        metadata = {
+            'redacted': str(redacted), 
+            'converted_from': 'xlsx',
+            'sheet_count': str(sheet_count),
+            'sheets_included': '1',
+            'first_sheet_name': first_sheet.title
+        }
+        if sheet_count > 1:
+            metadata['omitted_sheets'] = ', '.join(sheet_names[1:])
+            
         upload_processed_document(text_key, processed_text.encode('utf-8'), 
-                                {'redacted': str(redacted), 'converted_from': 'xlsx'}, config, user_info)
+                                metadata, config, updated_user_info)
         
         return True
         

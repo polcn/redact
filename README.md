@@ -18,7 +18,7 @@ A secure, automated document processing system that removes sensitive informatio
 - **🌐 Web Interface**: Secure React frontend at redact.9thcube.com
 - **🏠 Landing Page**: Welcome page with integrated configuration
 - **🔐 User Authentication**: AWS Cognito with email verification
-- **📁 Multi-Format Support**: TXT, PDF, DOCX, XLSX → redacted .csv output (ChatGPT compatible)
+- **📁 Multi-Format Support**: TXT, PDF, DOCX → .md output | XLSX → .csv output (first sheet only)
 - **📤 Multi-File Upload**: Upload multiple files at once with progress tracking
 - **🗑️ File Management**: Delete files, batch operations, multi-select
 - **🔄 Real-time Processing**: Status updates and notifications
@@ -87,6 +87,7 @@ npm run build
 - **File Upload**: Working for all supported formats (TXT, PDF, DOCX, XLSX)
 - **Authentication**: Auto-confirm enabled for gmail.com, outlook.com, yahoo.com, 9thcube.com
 - **API**: All endpoints operational with proper JWT authentication
+- **XLSX Limitation**: Only the first worksheet is processed due to ChatGPT's file upload constraints. Multi-sheet workbooks will show a header indicating omitted sheets.
 
 ### 🔧 Notes
 
