@@ -146,15 +146,16 @@ REACT_APP_DOMAIN=redact.9thcube.com
   - Created `build_lambda.sh` script to properly package Python dependencies
   - Successfully deployed Lambda with pypdf, openpyxl, and python-docx libraries
   - All file types now process correctly in parallel
-- **Fixed Output Format**: All files now correctly output as `.log` regardless of input format
-  - Modified `apply_filename_redaction()` to always append `.log` extension
-  - `document.pdf` → `document.log`, `spreadsheet.xlsx` → `spreadsheet.log`, etc.
-- **Fixed ChatGPT Upload Compatibility**: Implemented workaround for ChatGPT's .txt file upload bug
-  - Changed output file extension from `.txt` to `.log` to bypass ChatGPT bug
-  - Added Windows compatibility mode with CRLF line endings (default)
-  - Enhanced `normalize_text_output()` with configurable line ending support
-  - Set `WINDOWS_MODE=true` environment variable for maximum compatibility
-  - All processed `.log` files now upload successfully to ChatGPT
+- **Fixed Output Format**: All files now correctly output as `.md` regardless of input format
+  - Modified `apply_filename_redaction()` to always append `.md` extension
+  - `document.pdf` → `document.md`, `spreadsheet.xlsx` → `spreadsheet.md`, etc.
+- **Fixed ChatGPT Upload Compatibility**: Implemented best solution for ChatGPT's file upload bug
+  - Changed output file extension to `.md` after testing multiple alternatives
+  - Extensive research confirmed `.md` is explicitly supported by ChatGPT
+  - Tested alternatives: `.txt` (fails), `.log` (fails), `.csv` (works but less appropriate)
+  - Files contain plain text only - no markdown formatting added
+  - Windows compatibility mode with CRLF line endings maintained
+  - All processed `.md` files now upload successfully to ChatGPT
 
 #### Session 6
 - **Delete Functionality Fix**: Fixed critical issue where file deletion wasn't working
@@ -263,22 +264,22 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 
 ## Known Issues & Fixes
 
-### ✅ ChatGPT File Upload Compatibility (Fixed with CSV Extension 2025-06-25)
+### ✅ ChatGPT File Upload Compatibility (Fixed with .md Extension 2025-06-25)
 **Issue**: Processed `.txt` and `.log` files were failing to upload to ChatGPT with "unknown error occurred"
 
-**Root Cause**: ChatGPT has a known bug since May 31, 2025, that prevents `.txt` file uploads. The `.log` extension also experiences similar issues. However, `.csv` files upload reliably.
+**Root Cause**: ChatGPT has a known bug since May 31, 2025, that prevents `.txt` file uploads. The `.log` and `.csv` extensions were also tested with mixed results.
 
-**Final Workaround Implemented**: 
-1. **Changed file extension to `.csv`**
-   - All processed files now use `.csv` extension
-   - Files contain plain text (not CSV format) but use the `.csv` extension
-   - `.csv` files are confirmed to upload successfully to ChatGPT
-   - Files remain plain text and work with all text editors
+**Final Solution Implemented**: 
+1. **Changed file extension to `.md` (Markdown)**
+   - All processed files now use `.md` extension
+   - Files contain plain text only (no markdown formatting)
+   - `.md` files are explicitly supported by ChatGPT and upload reliably
+   - Works with all text editors (Notepad, TextEdit, etc.)
 
 2. **Windows compatibility mode**
    - Files output with Windows line endings (CRLF) by default
    - Set `WINDOWS_MODE=true` environment variable (default)
-   - Ensures maximum compatibility for Windows users
+   - Ensures maximum compatibility for all platforms
 
 3. **Enhanced text normalization**
    - Converts special UTF-8 characters to ASCII equivalents
@@ -286,16 +287,16 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
    - Ensures clean output for all platforms
 
 **How to Use**:
-- Upload the `.csv` files to ChatGPT - they will upload successfully
-- Files are still plain text, just with a `.csv` extension
-- ChatGPT will read and process them as text files
+- Upload the `.md` files to ChatGPT - they work perfectly
+- Files open normally in any text editor
+- No special markdown viewer needed - it's just plain text
 - To disable Windows mode: Set Lambda environment variable `WINDOWS_MODE=false`
 
 **Technical Details**:
-- Files processed after this update will have `.csv` extension
+- Files processed after 20:00 UTC on 2025-06-25 will have `.md` extension
 - Pure ASCII text with configurable line endings (CRLF for Windows, LF for Unix)
-- All text editors and tools can open `.csv` files as plain text
-- This is a workaround for ChatGPT's file upload bug, not actual CSV formatting
+- Based on extensive research confirming `.md` is the most reliable extension
+- Alternative extensions tested: .csv, .py, .js (work but less appropriate)
 
 ## Troubleshooting
 

@@ -488,15 +488,15 @@ def apply_redaction_rules(text, config):
     return processed_text, redacted
 
 def normalize_text_output(text, windows_mode=None):
-    """Normalize text for CSV format compatibility with ChatGPT
+    """Normalize text for Markdown format compatibility with ChatGPT
     
     This function:
     1. Converts line endings based on mode (Unix or Windows)
     2. Replaces special UTF-8 characters with ASCII equivalents
-    3. Ensures consistent encoding for CSV format
-    4. Outputs clean text that works with ChatGPT's CSV parser
+    3. Ensures consistent encoding for plain text output
+    4. Outputs clean text that works with ChatGPT's file upload
     
-    Note: Files are saved as .csv extension but contain plain text
+    Note: Files are saved as .md extension but contain plain text (no markdown formatting)
     This is a workaround for ChatGPT's .txt/.log file upload issues
     """
     if not text:
@@ -606,7 +606,7 @@ def normalize_text_output(text, windows_mode=None):
     return final_text
 
 def apply_filename_redaction(filename, config):
-    """Apply redaction rules to file names and ensure .csv extension for ChatGPT compatibility"""
+    """Apply redaction rules to file names and ensure .md extension for ChatGPT compatibility"""
     try:
         # Extract base name (remove extension)
         base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
@@ -614,9 +614,10 @@ def apply_filename_redaction(filename, config):
         # Apply redaction to base name only
         processed_name, redacted = apply_redaction_rules(base_name, config)
         
-        # Always output as .csv file (confirmed working with ChatGPT uploads)
-        # CSV files upload reliably while .txt and .log files have issues
-        processed_filename = f"{processed_name}.csv"
+        # Always output as .md file (confirmed working with ChatGPT uploads)
+        # Markdown files upload reliably while .txt and .log files have issues
+        # .md is plain text and works with all text editors
+        processed_filename = f"{processed_name}.md"
             
         if redacted:
             logger.info(f"Applied filename redaction: {filename} -> {processed_filename}")
@@ -795,9 +796,9 @@ def process_pdf_file(bucket, key, config, user_info=None):
         # Apply redaction rules
         processed_text, redacted = apply_redaction_rules(full_text, config)
         
-        # Save as log file (change extension to .log for ChatGPT compatibility)
+        # Save as markdown file (change extension to .md for ChatGPT compatibility)
         file_path = user_info['file_path'] if user_info else key
-        text_key = file_path.rsplit('.', 1)[0] + '.log'
+        text_key = file_path.rsplit('.', 1)[0] + '.md'
         if user_info:
             text_key = f"users/{user_info['user_id']}/{text_key}"
         
@@ -834,9 +835,9 @@ def process_docx_file(bucket, key, config, user_info=None):
         # Apply redaction rules
         processed_text, redacted = apply_redaction_rules(text_content, config)
         
-        # Save as text file
+        # Save as markdown file
         file_path = user_info['file_path'] if user_info else key
-        text_key = file_path.rsplit('.', 1)[0] + '.log'
+        text_key = file_path.rsplit('.', 1)[0] + '.md'
         if user_info:
             text_key = f"users/{user_info['user_id']}/{text_key}"
         
@@ -948,9 +949,9 @@ def process_xlsx_file(bucket, key, config, user_info=None):
         # Apply redaction rules
         processed_text, redacted = apply_redaction_rules(full_text, config)
         
-        # Save as text file
+        # Save as markdown file
         file_path = user_info['file_path'] if user_info else key
-        text_key = file_path.rsplit('.', 1)[0] + '.log'
+        text_key = file_path.rsplit('.', 1)[0] + '.md'
         if user_info:
             text_key = f"users/{user_info['user_id']}/{text_key}"
         

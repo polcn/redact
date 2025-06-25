@@ -1,0 +1,8 @@
+{
+  "document_type": "redacted_text",
+  "content": "Document Redaction Test Output\n==============================\n\nThis is a test document to evaluate file extension compatibility with ChatGPT.\n\nOriginal Information:\n- Company Name: [COMPANY]\n- Contact: [NAME] \n- Email: [EMAIL]\n- Phone: [PHONE]\n- SSN: [SSN]\n- Credit Card: [CREDIT_CARD]\n\nProcessing Details:\n- Processed Date: 2025-06-25 19:54:58\n- Original File: test_document.pdf\n- Redaction Rules Applied: 15\n- Patterns Detected: 6\n\nSummary:\nThis document has been processed and sensitive information has been redacted.\nAll personal identifiable information (PII) has been replaced with placeholders.\n\nNote: This is plain text content that should work with any text editor.\n",
+  "metadata": {
+    "processed_date": "2025-06-25T19:54:58.209688",
+    "redactions_applied": 15
+  }
+}
