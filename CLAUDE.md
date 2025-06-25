@@ -186,3 +186,29 @@ aws s3 ls s3://redact-processed-documents-32a4ee51/processed/users/USER_ID/
 terraform destroy             # Remove all infrastructure
 aws s3 rm s3://BUCKET --recursive  # Clear bucket before destroy
 ```
+
+## MCP Servers Configuration
+
+Claude Code has been configured with the following MCP (Model Context Protocol) servers for enhanced functionality:
+
+### Available MCP Servers
+1. **AWS Documentation** - Access AWS service documentation
+2. **AWS CDK** - AWS CDK utilities and helpers
+3. **AWS Core** - Core AWS operations and services
+4. **AWS Serverless** - Serverless framework support
+5. **Puppeteer** - Browser automation capabilities
+6. **Bright Data** - Web scraping and data collection (API key configured)
+
+### Setup
+MCP servers are configured in `~/.claude/settings.json` and will start automatically with new Claude Code sessions.
+
+To manually start Claude with MCP servers:
+```bash
+./start-claude-with-mcps.sh
+```
+
+### MCP Server Management
+```bash
+claude mcp list              # List configured MCP servers
+claude mcp get <server-name> # Get details about a specific server
+```
