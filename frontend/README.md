@@ -4,6 +4,7 @@ A secure React frontend for the AWS Document Redaction System.
 
 ## Features
 
+- 🏠 Landing page with hero section and integrated configuration
 - 🔐 AWS Cognito authentication with email verification
 - 📁 Drag-and-drop file upload (TXT, PDF, DOCX, XLSX)
 - 📤 Multi-file upload with individual progress tracking

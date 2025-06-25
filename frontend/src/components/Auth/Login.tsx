@@ -30,7 +30,7 @@ export const Login: React.FC = () => {
         setNeedsConfirmation(true);
       } else {
         await signIn(email, password);
-        navigate('/dashboard');
+        navigate('/');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');

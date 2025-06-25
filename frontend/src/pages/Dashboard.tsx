@@ -35,10 +35,10 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="flex items-center gap-md">
               <button
-                onClick={() => navigate('/config')}
+                onClick={() => navigate('/')}
                 className="btn-anthropic btn-anthropic-secondary"
               >
-                ← Back to Config
+                ← Back to Home
               </button>
               <span className="text-secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
                 {user?.signInDetails?.loginId}

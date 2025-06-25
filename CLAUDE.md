@@ -49,7 +49,7 @@ React Frontend → Cognito Auth → API Gateway → Lambda
 - **🔐 Authentication**: AWS Cognito with invite-only registration  
 - **👤 User Isolation**: Each user only sees their files (users/{userId}/*)
 - **📁 Multi-Format**: TXT, PDF, DOCX, XLSX → redacted .txt
-- **⚙️ Config UI**: User-configurable redaction rules (now default page)
+- **⚙️ Config UI**: User-configurable redaction rules integrated into home page
 - **🔄 Real-time**: Status updates via polling
 - **📤 Multi-File Upload**: Upload multiple files at once with progress tracking
 - **🗑️ File Management**: Delete files, batch operations, multi-select
@@ -68,12 +68,13 @@ Frontend S3: redact-frontend-9thcube-12476920
 
 ### Regular User
 1. Sign up at redact.9thcube.com (use allowed email domains)
-2. Configure redaction rules on the config page (default landing)
-3. Click "Proceed to Upload" to go to document upload
-4. Upload documents via drag-drop or file selection (supports multiple files)
-5. View processing status in real-time
-6. Manage files: download, delete, or batch operations
-7. Download redacted .txt files individually or in batch
+2. Land on Home page with welcome message and config section
+3. Configure redaction rules directly on the home page
+4. Click "Upload Documents" to proceed to document upload
+5. Upload documents via drag-drop or file selection (supports multiple files)
+6. View processing status in real-time
+7. Manage files: download, delete, or batch operations
+8. Download redacted .txt files individually or in batch
 
 **Note**: Email verification temporarily bypassed. For manual user confirmation:
 ```bash
@@ -82,9 +83,9 @@ aws cognito-idp admin-set-user-password --user-pool-id us-east-1_4Uv3seGwS --use
 ```
 
 ### All Users
-1. Config page is now the default landing page
+1. Home page is now the default landing page with integrated config
 2. All authenticated users can manage redaction rules
-3. Set case sensitivity toggle
+3. Set case sensitivity toggle directly on home page
 4. Changes apply immediately to their documents
 5. Example rules button available for quick setup
 
@@ -112,6 +113,7 @@ REACT_APP_DOMAIN=redact.9thcube.com
 
 ### Key Files
 - `frontend/src/App.tsx` - Main app router
+- `frontend/src/pages/Home.tsx` - Landing page with integrated config
 - `frontend/src/contexts/AuthContext.tsx` - Authentication
 - `frontend/src/services/api.ts` - API client
 - `api_code/api_handler_simple.py` - Current API handler (simplified for Lambda compatibility)
@@ -120,6 +122,7 @@ REACT_APP_DOMAIN=redact.9thcube.com
 ## Implementation Notes
 
 ### ✅ Recent Updates (2025-06-25)
+- **Home Page**: Created new landing page with integrated config functionality
 - **File Management**: Complete implementation of multi-file upload, delete, and batch operations
 - **API Enhancement**: Added DELETE endpoint for file removal
 - **UI Improvements**: Added checkboxes, batch selection, and progress tracking
@@ -127,7 +130,7 @@ REACT_APP_DOMAIN=redact.9thcube.com
 
 ### ✅ Previous Updates (2025-06-24)
 - **Anthropic Design**: Complete UI redesign with clean, minimalist aesthetic
-- **Config First**: Config page is now the default landing page
+- **Home Page First**: New home page with hero section and integrated config
 - **User Access**: All users can configure their own redaction rules
 - **Improved UX**: Clear flow from config → upload with navigation buttons
 - **Example Rules**: Added quick-start button with sample redaction patterns

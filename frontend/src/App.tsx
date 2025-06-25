@@ -5,6 +5,7 @@ import { Login } from './components/Auth/Login';
 import { PrivateRoute } from './components/Auth/PrivateRoute';
 import { Dashboard } from './pages/Dashboard';
 import { Config } from './pages/Config';
+import { Home } from './pages/Home';
 import './aws-config';
 import './anthropic-theme.css';
 
@@ -14,6 +15,14 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Home />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={
@@ -30,7 +39,6 @@ function App() {
               </PrivateRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/config" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
