@@ -50,6 +50,7 @@ React Frontend → Cognito Auth → API Gateway → Lambda
 - **👤 User Isolation**: Each user only sees their files (users/{userId}/*)
 - **📁 Multi-Format**: TXT, PDF, DOCX, XLSX → redacted .txt
 - **⚙️ Config UI**: User-configurable redaction rules integrated into home page
+- **🔍 Pattern Detection**: Automatic PII detection (SSN, credit cards, phones, emails, IPs, driver's licenses)
 - **🔄 Real-time**: Status updates via polling
 - **📤 Multi-File Upload**: Upload multiple files at once with progress tracking
 - **🗑️ File Management**: Delete files, batch operations, multi-select
@@ -96,7 +97,15 @@ aws cognito-idp admin-set-user-password --user-pool-id us-east-1_4Uv3seGwS --use
     {"find": "ACME Corp", "replace": "[COMPANY]"},
     {"find": "John Smith", "replace": "[NAME]"}
   ],
-  "case_sensitive": false
+  "case_sensitive": false,
+  "patterns": {
+    "ssn": true,
+    "credit_card": false,
+    "phone": true,
+    "email": true,
+    "ip_address": false,
+    "drivers_license": false
+  }
 }
 ```
 
@@ -122,6 +131,14 @@ REACT_APP_DOMAIN=redact.9thcube.com
 ## Implementation Notes
 
 ### ✅ Recent Updates (2025-06-25)
+
+#### Session 3
+- **Pattern-Based Redaction**: Added automatic PII detection for SSN, credit cards, phones, emails, IPs, driver's licenses
+- **Enhanced Config UI**: Updated frontend with pattern toggles for each PII type
+- **Backend Support**: Confirmed Lambda already had pattern detection; frontend now exposes this feature
+- **Documentation**: Created comprehensive CI/CD setup guide and TODO list
+- **Branch Strategy**: Created `develop` branch for staging deployments
+- **Testing**: Verified pattern detection works correctly with test documents
 
 #### Session 2
 - **Home Page**: Created new landing page with hero section and integrated config

@@ -24,6 +24,7 @@ A secure, automated document processing system that removes sensitive informatio
 - **🔄 Real-time Processing**: Status updates and notifications
 - **👤 User Isolation**: Each user only sees their own files
 - **⚙️ Configuration UI**: User-configurable redaction rules
+- **🔍 Pattern Detection**: Automatic PII detection (SSN, credit cards, phones, emails, IPs, driver's licenses)
 - **💰 Cost-Optimized**: $0-5/month serverless architecture
 
 ## Architecture
@@ -68,15 +69,17 @@ npm run build
 
 ### ✅ Recent Updates (as of 2025-06-25)
 
-1. **Home Page**: New landing page with hero section and integrated configuration
-2. **File Management**: Multi-file upload, delete functionality, batch operations
-3. **Anthropic-Inspired Design**: Complete UI redesign with clean, minimalist aesthetic
-4. **User Access**: All authenticated users can now update redaction rules (not just admins)
-5. **Improved Flow**: Home → Upload workflow with clear navigation
-6. **Example Rules**: Added button to populate sample redaction rules
-7. **File Upload**: Fixed API authorization - now using simplified handler that works with Cognito
-8. **Email Auto-Confirm**: Fixed - users from allowed domains are now auto-confirmed
-9. **CORS Configuration**: Added complete CORS support for all API endpoints
+1. **Pattern-Based Redaction**: Added automatic PII detection with toggles for SSN, credit cards, phones, emails, IPs, and driver's licenses
+2. **Enhanced Config UI**: Frontend now includes pattern configuration checkboxes alongside text-based rules
+3. **Home Page**: New landing page with hero section and integrated configuration
+4. **File Management**: Multi-file upload, delete functionality, batch operations
+5. **Anthropic-Inspired Design**: Complete UI redesign with clean, minimalist aesthetic
+6. **User Access**: All authenticated users can now update redaction rules (not just admins)
+7. **Improved Flow**: Home → Upload workflow with clear navigation
+8. **Example Rules**: Added button to populate sample redaction rules
+9. **File Upload**: Fixed API authorization - now using simplified handler that works with Cognito
+10. **Email Auto-Confirm**: Fixed - users from allowed domains are now auto-confirmed
+11. **CORS Configuration**: Added complete CORS support for all API endpoints
 
 ### ⚠️ Current Status
 
@@ -173,7 +176,15 @@ curl -X GET "$API_URL/health"
        {"find": "ACME Corporation", "replace": "[REDACTED]"},
        {"find": "Confidential", "replace": "[REDACTED]"}
      ],
-     "case_sensitive": false
+     "case_sensitive": false,
+     "patterns": {
+       "ssn": true,
+       "credit_card": true,
+       "phone": true,
+       "email": true,
+       "ip_address": false,
+       "drivers_license": false
+     }
    }
    EOF
    aws s3 cp config.json s3://redact-config-32a4ee51/

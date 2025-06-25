@@ -72,6 +72,40 @@ DEFAULT_REPLACEMENTS = [
     {"find": "TechnoSoft", "replace": "[REDACTED]"}
 ]
 
+# Common PII regex patterns
+PII_PATTERNS = {
+    "ssn": {
+        "pattern": r"\b(?:\d{3}-\d{2}-\d{4}|\d{3}\s\d{2}\s\d{4}|\d{9})\b",
+        "replace": "[SSN]",
+        "description": "Social Security Number"
+    },
+    "credit_card": {
+        "pattern": r"\b(?:\d{4}[\s\-]?){3}\d{4}\b",
+        "replace": "[CREDIT_CARD]",
+        "description": "Credit Card Number"
+    },
+    "phone": {
+        "pattern": r"\b(?:\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}\b",
+        "replace": "[PHONE]",
+        "description": "Phone Number (US/Canada)"
+    },
+    "email": {
+        "pattern": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+        "replace": "[EMAIL]",
+        "description": "Email Address"
+    },
+    "ip_address": {
+        "pattern": r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b",
+        "replace": "[IP_ADDRESS]",
+        "description": "IPv4 Address"
+    },
+    "drivers_license": {
+        "pattern": r"\b[A-Z]{1,2}\d{5,8}\b",
+        "replace": "[DRIVERS_LICENSE]",
+        "description": "Driver's License (various states)"
+    }
+}
+
 def get_user_info_from_key(key):
     """Extract user info from S3 key if it follows user prefix pattern"""
     # Check if key follows pattern: users/{user_id}/...
@@ -322,15 +356,17 @@ def process_single_file(bucket, key, config):
     return {'processed': True, 'file_type': file_ext}
 
 def apply_redaction_rules(text, config):
-    """Apply redaction rules to text content"""
-    if not config or 'replacements' not in config:
+    """Apply redaction rules to text content including pattern-based PII detection"""
+    if not config:
         return text, False
     
     redacted = False
     processed_text = text
     case_sensitive = config.get('case_sensitive', False)
     
-    for replacement in config['replacements']:
+    # Apply text-based replacements
+    replacements = config.get('replacements', [])
+    for replacement in replacements:
         find_text = replacement.get('find', '')
         replace_text = replacement.get('replace', '[REDACTED]')
         
@@ -349,6 +385,21 @@ def apply_redaction_rules(text, config):
             redacted = True
             processed_text = re.sub(pattern, replace_text, processed_text)
             logger.info(f"Applied redaction: '{find_text}' -> '{replace_text}'")
+    
+    # Apply pattern-based PII detection if enabled
+    patterns = config.get('patterns', {})
+    if patterns:
+        for pattern_name, enabled in patterns.items():
+            if enabled and pattern_name in PII_PATTERNS:
+                pii_config = PII_PATTERNS[pattern_name]
+                pattern = pii_config['pattern']
+                replace = pii_config['replace']
+                
+                # Check if pattern exists in text
+                if re.search(pattern, processed_text):
+                    redacted = True
+                    processed_text = re.sub(pattern, replace, processed_text)
+                    logger.info(f"Applied PII pattern '{pattern_name}': {pii_config['description']}")
     
     return processed_text, redacted
 
@@ -382,6 +433,7 @@ def validate_config(config):
     if not isinstance(config, dict):
         raise ValueError("Configuration must be a dictionary")
     
+    # Validate replacements
     replacements = config.get('replacements', [])
     if not isinstance(replacements, list):
         raise ValueError("Replacements must be a list")
@@ -396,6 +448,16 @@ def validate_config(config):
             raise ValueError(f"Replacement {i} missing 'find' field")
         if not replacement['find']:
             raise ValueError(f"Replacement {i} has empty 'find' field")
+    
+    # Validate patterns if present
+    patterns = config.get('patterns', {})
+    if patterns and not isinstance(patterns, dict):
+        raise ValueError("Patterns must be a dictionary")
+    
+    # Validate pattern names
+    for pattern_name in patterns:
+        if pattern_name not in PII_PATTERNS:
+            logger.warning(f"Unknown pattern name: {pattern_name}")
 
 def exponential_backoff_retry(func):
     """Execute function with exponential backoff retry"""

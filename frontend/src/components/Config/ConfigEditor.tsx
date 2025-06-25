@@ -10,12 +10,23 @@ export interface Rule {
 export interface Config {
   replacements: Rule[];
   case_sensitive: boolean;
+  patterns?: {
+    [key: string]: boolean;
+  };
 }
 
 export const ConfigEditor: React.FC = () => {
   const [config, setConfig] = useState<Config>({
     replacements: [],
-    case_sensitive: false
+    case_sensitive: false,
+    patterns: {
+      ssn: false,
+      credit_card: false,
+      phone: false,
+      email: false,
+      ip_address: false,
+      drivers_license: false
+    }
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -183,6 +194,80 @@ export const ConfigEditor: React.FC = () => {
             />
             <span style={{ fontSize: 'var(--font-size-sm)' }}>Case Sensitive</span>
           </label>
+        </div>
+
+        <div className="mt-xl">
+          <h3 className="mb-md" style={{ fontSize: 'var(--font-size-lg)' }}>Pattern-Based Detection</h3>
+          <p className="text-secondary mb-lg" style={{ fontSize: 'var(--font-size-sm)', lineHeight: 'var(--line-height-relaxed)' }}>
+            Enable automatic detection and redaction of common sensitive data patterns.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--space-md)' }}>
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.patterns?.ssn || false}
+                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, ssn: e.target.checked } })}
+                className="input-anthropic"
+                style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
+              />
+              <span style={{ fontSize: 'var(--font-size-sm)' }}>Social Security Numbers</span>
+            </label>
+            
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.patterns?.credit_card || false}
+                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, credit_card: e.target.checked } })}
+                className="input-anthropic"
+                style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
+              />
+              <span style={{ fontSize: 'var(--font-size-sm)' }}>Credit Card Numbers</span>
+            </label>
+            
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.patterns?.phone || false}
+                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, phone: e.target.checked } })}
+                className="input-anthropic"
+                style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
+              />
+              <span style={{ fontSize: 'var(--font-size-sm)' }}>Phone Numbers</span>
+            </label>
+            
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.patterns?.email || false}
+                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, email: e.target.checked } })}
+                className="input-anthropic"
+                style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
+              />
+              <span style={{ fontSize: 'var(--font-size-sm)' }}>Email Addresses</span>
+            </label>
+            
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.patterns?.ip_address || false}
+                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, ip_address: e.target.checked } })}
+                className="input-anthropic"
+                style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
+              />
+              <span style={{ fontSize: 'var(--font-size-sm)' }}>IP Addresses</span>
+            </label>
+            
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.patterns?.drivers_license || false}
+                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, drivers_license: e.target.checked } })}
+                className="input-anthropic"
+                style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
+              />
+              <span style={{ fontSize: 'var(--font-size-sm)' }}>Driver's License Numbers</span>
+            </label>
+          </div>
         </div>
 
         <div className="mt-xl">

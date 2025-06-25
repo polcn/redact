@@ -1,0 +1,104 @@
+# GitHub Issues to Create
+
+The following issues should be created in the GitHub repository to track remaining work:
+
+## Issue #1: Enable CI/CD Pipeline
+**Title**: Enable GitHub Actions CI/CD Pipeline  
+**Labels**: `enhancement`, `infrastructure`  
+**Description**:
+The CI/CD pipeline workflows are currently disabled. To enable them:
+
+1. Create required test files:
+   - `requirements-test.txt`
+   - `tests/test_lambda_function.py`
+   - `tests/test_integration.py`
+   - `monitoring-dashboard.json`
+
+2. Configure GitHub Secrets:
+   - AWS credentials for staging/production
+   - Terraform variables
+
+3. Set up GitHub Environments (staging, production)
+
+4. Enable workflow files:
+   ```bash
+   mv .github/workflows/ci-cd.yml.disabled .github/workflows/ci-cd.yml
+   mv .github/workflows/pr-validation.yml.disabled .github/workflows/pr-validation.yml
+   ```
+
+See `docs/CI_CD_SETUP.md` for detailed instructions.
+
+## Issue #2: Add Unit and Integration Tests
+**Title**: Add comprehensive test suite  
+**Labels**: `testing`, `quality`  
+**Description**:
+Create unit and integration tests for:
+- Lambda functions (document processing, API handler)
+- Frontend components
+- API endpoints
+- Pattern-based redaction logic
+
+## Issue #3: Improve Error Handling and User Feedback
+**Title**: Enhance error handling and user notifications  
+**Labels**: `enhancement`, `ux`  
+**Description**:
+- Add more descriptive error messages for common failures
+- Implement toast notifications for async operations
+- Better handling of network errors
+- Progress indicators for long-running operations
+
+## Issue #4: Add Support for Additional File Formats
+**Title**: Expand supported file formats  
+**Labels**: `enhancement`, `feature`  
+**Description**:
+Consider adding support for:
+- RTF (Rich Text Format)
+- ODT (OpenDocument Text)
+- CSV files
+- JSON/XML with structured data
+
+## Issue #5: Implement User Usage Analytics
+**Title**: Add usage tracking and analytics  
+**Labels**: `enhancement`, `monitoring`  
+**Description**:
+- Track file processing statistics per user
+- Monitor redaction pattern usage
+- Create CloudWatch dashboard for usage metrics
+- Consider implementing usage quotas
+
+## Issue #6: Add Batch Download as ZIP
+**Title**: Implement ZIP download for multiple files  
+**Labels**: `enhancement`, `feature`  
+**Description**:
+When users select multiple files, allow downloading them as a single ZIP file instead of individual downloads.
+
+## Issue #7: Add Dark Mode Support
+**Title**: Implement dark mode theme  
+**Labels**: `enhancement`, `ux`  
+**Description**:
+Add a dark mode toggle to the UI with appropriate color scheme adjustments.
+
+## Issue #8: Optimize Lambda Cold Starts
+**Title**: Reduce Lambda cold start times  
+**Labels**: `performance`, `optimization`  
+**Description**:
+- Consider using Lambda SnapStart for Java runtime
+- Optimize Python imports and dependencies
+- Implement Lambda warmup strategy
+
+## Issue #9: Add Export/Import for Redaction Rules
+**Title**: Allow users to export/import redaction configurations  
+**Labels**: `enhancement`, `feature`  
+**Description**:
+- Export current configuration as JSON file
+- Import configuration from uploaded JSON
+- Share configurations between users (with permissions)
+
+## Issue #10: Implement Redaction History/Audit Log
+**Title**: Add audit logging for redaction operations  
+**Labels**: `enhancement`, `security`, `compliance`  
+**Description**:
+- Log all redaction operations with timestamp
+- Track which rules were applied to which documents
+- Allow users to view their redaction history
+- Consider compliance requirements (GDPR, HIPAA)

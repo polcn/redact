@@ -572,7 +572,15 @@ def handle_get_config(headers, user_context):
         # Return default config if not found
         default_config = {
             'replacements': [],
-            'case_sensitive': False
+            'case_sensitive': False,
+            'patterns': {
+                'ssn': False,
+                'credit_card': False,
+                'phone': False,
+                'email': False,
+                'ip_address': False,
+                'drivers_license': False
+            }
         }
         return {
             'statusCode': 200,
@@ -607,6 +615,23 @@ def handle_update_config(event, headers, user_context):
                 'headers': headers,
                 'body': json.dumps({'error': 'Invalid config format'})
             }
+        
+        # Validate patterns if present
+        if 'patterns' in config:
+            if not isinstance(config['patterns'], dict):
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Invalid config format: patterns must be a dictionary'})
+                }
+            # Validate pattern values are boolean
+            for pattern_name, enabled in config['patterns'].items():
+                if not isinstance(enabled, bool):
+                    return {
+                        'statusCode': 400,
+                        'headers': headers,
+                        'body': json.dumps({'error': f'Pattern {pattern_name} must be true or false'})
+                    }
         
         # Save config to S3
         s3.put_object(
