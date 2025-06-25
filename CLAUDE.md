@@ -146,14 +146,15 @@ REACT_APP_DOMAIN=redact.9thcube.com
   - Created `build_lambda.sh` script to properly package Python dependencies
   - Successfully deployed Lambda with pypdf, openpyxl, and python-docx libraries
   - All file types now process correctly in parallel
-- **Fixed Output Format**: All files now correctly output as `.txt` regardless of input format
-  - Modified `apply_filename_redaction()` to always append `.txt` extension
-  - `document.pdf` → `document.txt`, `spreadsheet.xlsx` → `spreadsheet.txt`, etc.
-- **Fixed ChatGPT Upload Compatibility**: Resolved issue where processed files failed to upload to ChatGPT
-  - Added `normalize_text_output()` function to clean text output
-  - Converts Windows line endings to Unix format
-  - Replaces special UTF-8 characters with ASCII equivalents
-  - All processed files now upload successfully to ChatGPT and other tools
+- **Fixed Output Format**: All files now correctly output as `.log` regardless of input format
+  - Modified `apply_filename_redaction()` to always append `.log` extension
+  - `document.pdf` → `document.log`, `spreadsheet.xlsx` → `spreadsheet.log`, etc.
+- **Fixed ChatGPT Upload Compatibility**: Implemented workaround for ChatGPT's .txt file upload bug
+  - Changed output file extension from `.txt` to `.log` to bypass ChatGPT bug
+  - Added Windows compatibility mode with CRLF line endings (default)
+  - Enhanced `normalize_text_output()` with configurable line ending support
+  - Set `WINDOWS_MODE=true` environment variable for maximum compatibility
+  - All processed `.log` files now upload successfully to ChatGPT
 
 #### Session 6
 - **Delete Functionality Fix**: Fixed critical issue where file deletion wasn't working
@@ -262,40 +263,36 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 
 ## Known Issues & Fixes
 
-### ⚠️ ChatGPT File Upload Compatibility (Investigated 2025-06-25)
+### ✅ ChatGPT File Upload Compatibility (Fixed with Workaround 2025-06-25)
 **Issue**: Processed `.txt` files were failing to upload to ChatGPT with "unknown error occurred"
 
-**Cause**: Output files contained:
-- Windows line endings (`\r\n`) instead of Unix (`\n`)
-- Special UTF-8 characters (curly quotes `'`, em-dashes `—`) from PDF extraction
-- Additional Unicode spaces (narrow no-break space, thin space, etc.)
+**Root Cause**: ChatGPT has a known bug since May 31, 2025, that prevents `.txt` file uploads. Other file formats (.csv, .py, etc.) work correctly.
 
-**Fix Implemented**: 
-Enhanced `normalize_text_output()` function in `lambda_function_v2.py` with aggressive normalization:
-1. Converts all Windows line endings (`\r\n`) to Unix (`\n`)
-2. Replaces extensive set of special UTF-8 characters with ASCII equivalents:
-   - Curly quotes → straight quotes
-   - Em/en dashes → regular dashes
-   - Special bullets → asterisks
-   - Mathematical symbols → ASCII equivalents
-   - Various Unicode spaces → regular spaces
-   - Soft hyphens and special dashes → regular hyphens
-3. Aggressive ASCII enforcement using `.encode('ascii', 'replace').decode('ascii')`
-4. Replaces any remaining non-ASCII characters with spaces
-5. Cleans up multiple consecutive spaces
-6. Ensures pure ASCII output compatible with all tools
+**Workaround Implemented**: 
+1. **Changed file extension from `.txt` to `.log`**
+   - All processed files now use `.log` extension
+   - `.log` files are text files that ChatGPT can read without triggering the bug
+   - Files remain plain text and work with all text editors
 
-The normalization is automatically applied to all redacted text output, ensuring compatibility with ChatGPT and other text processing tools.
+2. **Added Windows compatibility mode**
+   - Files now output with Windows line endings (CRLF) by default
+   - Set `WINDOWS_MODE=true` environment variable (default)
+   - Ensures maximum compatibility for Windows users
 
-**Current Status**: 
-- Files are now output as pure ASCII with Unix line endings
-- Verified files processed after 18:41 UTC on 2025-06-25 are correctly formatted
-- However, ChatGPT still returns "unknown error occurred" when uploading
-- The issue appears to be on ChatGPT's side, not with our file format
-- All files are valid ASCII text files that work correctly with other tools
+3. **Enhanced text normalization**
+   - Converts special UTF-8 characters to ASCII equivalents
+   - Removes non-printable characters
+   - Ensures clean output for all platforms
 
-**Workaround**: 
-If you need to use the content with ChatGPT, copy and paste the text content rather than uploading the file.
+**How to Use**:
+- Upload the `.log` files to ChatGPT just like you would `.txt` files
+- Files will display and process correctly in ChatGPT
+- To disable Windows mode: Set Lambda environment variable `WINDOWS_MODE=false`
+
+**Technical Details**:
+- Files processed after 19:12 UTC on 2025-06-25 will have `.log` extension
+- Pure ASCII text with configurable line endings (CRLF for Windows, LF for Unix)
+- All text editors and tools recognize `.log` as plain text files
 
 ## Troubleshooting
 

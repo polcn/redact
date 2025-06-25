@@ -61,6 +61,9 @@ OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET']
 QUARANTINE_BUCKET = os.environ['QUARANTINE_BUCKET']
 CONFIG_BUCKET = os.environ['CONFIG_BUCKET']
 
+# Windows compatibility mode (for ChatGPT compatibility)
+WINDOWS_MODE = os.environ.get('WINDOWS_MODE', 'true').lower() == 'true'
+
 # Global cache for config
 _config_cache = None
 _config_last_modified = None
@@ -484,22 +487,28 @@ def apply_redaction_rules(text, config):
     
     return processed_text, redacted
 
-def normalize_text_output(text):
+def normalize_text_output(text, windows_mode=None):
     """Normalize text for better compatibility with external tools like ChatGPT
     
     This function:
-    1. Converts Windows line endings (\r\n) to Unix line endings (\n)
+    1. Converts line endings based on mode (Unix or Windows)
     2. Replaces special UTF-8 characters with ASCII equivalents
-    3. Ensures consistent UTF-8 encoding
+    3. Ensures consistent encoding
+    4. Optionally adds UTF-8 BOM for Windows compatibility
     """
     if not text:
         return text
     
-    # Log that normalization is running
-    logger.info("Running text normalization - input length: %d", len(text))
+    # Use global setting if not specified
+    if windows_mode is None:
+        windows_mode = WINDOWS_MODE
     
-    # Convert Windows line endings to Unix
+    # Log that normalization is running
+    logger.info("Running text normalization - input length: %d, windows_mode: %s", len(text), windows_mode)
+    
+    # First normalize to Unix line endings
     text = text.replace('\r\n', '\n')
+    text = text.replace('\r', '\n')
     
     # Remove BOM if present
     if text.startswith('\ufeff'):
@@ -578,15 +587,23 @@ def normalize_text_output(text):
     final_text = re.sub(r'\n +', '\n', final_text)
     final_text = re.sub(r' +\n', '\n', final_text)
     
+    # Convert to Windows line endings if requested
+    if windows_mode:
+        final_text = final_text.replace('\n', '\r\n')
+        # Optionally add UTF-8 BOM for Windows compatibility
+        # Note: BOM is not ASCII, so only add if specifically needed
+        # final_text = '\ufeff' + final_text
+    
     # Log completion
-    logger.info("Text normalization complete - output length: %d, is ASCII: %s", 
+    logger.info("Text normalization complete - output length: %d, is ASCII: %s, line_ending: %s", 
                 len(final_text), 
-                all(ord(c) < 128 for c in final_text))
+                all(ord(c) < 128 for c in final_text),
+                "CRLF" if windows_mode else "LF")
     
     return final_text
 
 def apply_filename_redaction(filename, config):
-    """Apply redaction rules to file names and ensure .txt extension"""
+    """Apply redaction rules to file names and ensure .log extension for ChatGPT compatibility"""
     try:
         # Extract base name (remove extension)
         base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
@@ -594,8 +611,8 @@ def apply_filename_redaction(filename, config):
         # Apply redaction to base name only
         processed_name, redacted = apply_redaction_rules(base_name, config)
         
-        # Always output as .txt file regardless of input format
-        processed_filename = f"{processed_name}.txt"
+        # Always output as .log file (workaround for ChatGPT .txt upload bug)
+        processed_filename = f"{processed_name}.log"
             
         if redacted:
             logger.info(f"Applied filename redaction: {filename} -> {processed_filename}")
@@ -774,9 +791,9 @@ def process_pdf_file(bucket, key, config, user_info=None):
         # Apply redaction rules
         processed_text, redacted = apply_redaction_rules(full_text, config)
         
-        # Save as text file (change extension to .txt)
+        # Save as log file (change extension to .log for ChatGPT compatibility)
         file_path = user_info['file_path'] if user_info else key
-        text_key = file_path.rsplit('.', 1)[0] + '.txt'
+        text_key = file_path.rsplit('.', 1)[0] + '.log'
         if user_info:
             text_key = f"users/{user_info['user_id']}/{text_key}"
         
@@ -815,7 +832,7 @@ def process_docx_file(bucket, key, config, user_info=None):
         
         # Save as text file
         file_path = user_info['file_path'] if user_info else key
-        text_key = file_path.rsplit('.', 1)[0] + '.txt'
+        text_key = file_path.rsplit('.', 1)[0] + '.log'
         if user_info:
             text_key = f"users/{user_info['user_id']}/{text_key}"
         
@@ -929,7 +946,7 @@ def process_xlsx_file(bucket, key, config, user_info=None):
         
         # Save as text file
         file_path = user_info['file_path'] if user_info else key
-        text_key = file_path.rsplit('.', 1)[0] + '.txt'
+        text_key = file_path.rsplit('.', 1)[0] + '.log'
         if user_info:
             text_key = f"users/{user_info['user_id']}/{text_key}"
         
