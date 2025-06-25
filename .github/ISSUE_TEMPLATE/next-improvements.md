@@ -11,9 +11,11 @@ Following the successful implementation of file management features (multi-uploa
 
 ## Completed Features ✅
 - Multi-file upload with progress tracking
-- File deletion functionality
+- File deletion functionality (DELETE /documents/{id})
 - Batch operations (select all, batch delete, batch download)
 - Enhanced UI with checkboxes and confirmation dialogs
+- Home landing page with hero section and integrated config
+- Improved navigation flow (Home → Dashboard)
 
 ## Priority 1: Performance & Scalability 🚀
 

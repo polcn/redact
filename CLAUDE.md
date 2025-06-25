@@ -122,7 +122,14 @@ REACT_APP_DOMAIN=redact.9thcube.com
 ## Implementation Notes
 
 ### ✅ Recent Updates (2025-06-25)
-- **Home Page**: Created new landing page with integrated config functionality
+
+#### Session 2
+- **Home Page**: Created new landing page with hero section and integrated config
+- **Improved Navigation**: Updated routing to make home page the default landing
+- **Better User Flow**: Home → Dashboard navigation with clear CTAs
+- **Documentation**: Updated all docs to reflect new home page flow
+
+#### Session 1
 - **File Management**: Complete implementation of multi-file upload, delete, and batch operations
 - **API Enhancement**: Added DELETE endpoint for file removal
 - **UI Improvements**: Added checkboxes, batch selection, and progress tracking
