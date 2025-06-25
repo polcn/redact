@@ -41,7 +41,19 @@ export const ConfigEditor: React.FC = () => {
     try {
       setError('');
       const data = await getConfig();
-      setConfig(data);
+      // Ensure patterns object exists with defaults
+      setConfig({
+        ...data,
+        patterns: {
+          ssn: false,
+          credit_card: false,
+          phone: false,
+          email: false,
+          ip_address: false,
+          drivers_license: false,
+          ...(data.patterns || {})
+        }
+      });
     } catch (err: any) {
       setError('Failed to load configuration');
       console.error('Error loading config:', err);
@@ -206,7 +218,13 @@ export const ConfigEditor: React.FC = () => {
               <input
                 type="checkbox"
                 checked={config.patterns?.ssn || false}
-                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, ssn: e.target.checked } })}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  patterns: { 
+                    ...(config.patterns || {}), 
+                    ssn: e.target.checked 
+                  } 
+                })}
                 className="input-anthropic"
                 style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
               />
@@ -217,7 +235,13 @@ export const ConfigEditor: React.FC = () => {
               <input
                 type="checkbox"
                 checked={config.patterns?.credit_card || false}
-                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, credit_card: e.target.checked } })}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  patterns: { 
+                    ...(config.patterns || {}), 
+                    credit_card: e.target.checked 
+                  } 
+                })}
                 className="input-anthropic"
                 style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
               />
@@ -228,7 +252,13 @@ export const ConfigEditor: React.FC = () => {
               <input
                 type="checkbox"
                 checked={config.patterns?.phone || false}
-                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, phone: e.target.checked } })}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  patterns: { 
+                    ...(config.patterns || {}), 
+                    phone: e.target.checked 
+                  } 
+                })}
                 className="input-anthropic"
                 style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
               />
@@ -239,7 +269,13 @@ export const ConfigEditor: React.FC = () => {
               <input
                 type="checkbox"
                 checked={config.patterns?.email || false}
-                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, email: e.target.checked } })}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  patterns: { 
+                    ...(config.patterns || {}), 
+                    email: e.target.checked 
+                  } 
+                })}
                 className="input-anthropic"
                 style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
               />
@@ -250,7 +286,13 @@ export const ConfigEditor: React.FC = () => {
               <input
                 type="checkbox"
                 checked={config.patterns?.ip_address || false}
-                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, ip_address: e.target.checked } })}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  patterns: { 
+                    ...(config.patterns || {}), 
+                    ip_address: e.target.checked 
+                  } 
+                })}
                 className="input-anthropic"
                 style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
               />
@@ -261,7 +303,13 @@ export const ConfigEditor: React.FC = () => {
               <input
                 type="checkbox"
                 checked={config.patterns?.drivers_license || false}
-                onChange={(e) => setConfig({ ...config, patterns: { ...config.patterns, drivers_license: e.target.checked } })}
+                onChange={(e) => setConfig({ 
+                  ...config, 
+                  patterns: { 
+                    ...(config.patterns || {}), 
+                    drivers_license: e.target.checked 
+                  } 
+                })}
                 className="input-anthropic"
                 style={{ width: 'auto', marginRight: 'var(--space-sm)' }}
               />
