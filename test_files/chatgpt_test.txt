@@ -1,0 +1,17 @@
+ChatGPT Upload Test File
+========================
+
+This file tests compatibility with ChatGPT's file upload.
+
+Special characters that should be normalized:
+- Smart quotes: "Hello" and 'World'
+- Em dash: Text—more text
+- Bullet: • Point 1
+- Non-breaking space: Hello World
+
+PII to redact:
+- SSN: 123-45-6789
+- Email: test@example.com
+- Phone: (555) 123-4567
+
+Expected output: chatgpt_test.log (not .txt)

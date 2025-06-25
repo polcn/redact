@@ -488,13 +488,16 @@ def apply_redaction_rules(text, config):
     return processed_text, redacted
 
 def normalize_text_output(text, windows_mode=None):
-    """Normalize text for better compatibility with external tools like ChatGPT
+    """Normalize text for CSV format compatibility with ChatGPT
     
     This function:
     1. Converts line endings based on mode (Unix or Windows)
     2. Replaces special UTF-8 characters with ASCII equivalents
-    3. Ensures consistent encoding
-    4. Optionally adds UTF-8 BOM for Windows compatibility
+    3. Ensures consistent encoding for CSV format
+    4. Outputs clean text that works with ChatGPT's CSV parser
+    
+    Note: Files are saved as .csv extension but contain plain text
+    This is a workaround for ChatGPT's .txt/.log file upload issues
     """
     if not text:
         return text
@@ -603,7 +606,7 @@ def normalize_text_output(text, windows_mode=None):
     return final_text
 
 def apply_filename_redaction(filename, config):
-    """Apply redaction rules to file names and ensure .log extension for ChatGPT compatibility"""
+    """Apply redaction rules to file names and ensure .csv extension for ChatGPT compatibility"""
     try:
         # Extract base name (remove extension)
         base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
@@ -611,8 +614,9 @@ def apply_filename_redaction(filename, config):
         # Apply redaction to base name only
         processed_name, redacted = apply_redaction_rules(base_name, config)
         
-        # Always output as .log file (workaround for ChatGPT .txt upload bug)
-        processed_filename = f"{processed_name}.log"
+        # Always output as .csv file (confirmed working with ChatGPT uploads)
+        # CSV files upload reliably while .txt and .log files have issues
+        processed_filename = f"{processed_name}.csv"
             
         if redacted:
             logger.info(f"Applied filename redaction: {filename} -> {processed_filename}")

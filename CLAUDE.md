@@ -263,19 +263,20 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 
 ## Known Issues & Fixes
 
-### ✅ ChatGPT File Upload Compatibility (Fixed with Workaround 2025-06-25)
-**Issue**: Processed `.txt` files were failing to upload to ChatGPT with "unknown error occurred"
+### ✅ ChatGPT File Upload Compatibility (Fixed with CSV Extension 2025-06-25)
+**Issue**: Processed `.txt` and `.log` files were failing to upload to ChatGPT with "unknown error occurred"
 
-**Root Cause**: ChatGPT has a known bug since May 31, 2025, that prevents `.txt` file uploads. Other file formats (.csv, .py, etc.) work correctly.
+**Root Cause**: ChatGPT has a known bug since May 31, 2025, that prevents `.txt` file uploads. The `.log` extension also experiences similar issues. However, `.csv` files upload reliably.
 
-**Workaround Implemented**: 
-1. **Changed file extension from `.txt` to `.log`**
-   - All processed files now use `.log` extension
-   - `.log` files are text files that ChatGPT can read without triggering the bug
+**Final Workaround Implemented**: 
+1. **Changed file extension to `.csv`**
+   - All processed files now use `.csv` extension
+   - Files contain plain text (not CSV format) but use the `.csv` extension
+   - `.csv` files are confirmed to upload successfully to ChatGPT
    - Files remain plain text and work with all text editors
 
-2. **Added Windows compatibility mode**
-   - Files now output with Windows line endings (CRLF) by default
+2. **Windows compatibility mode**
+   - Files output with Windows line endings (CRLF) by default
    - Set `WINDOWS_MODE=true` environment variable (default)
    - Ensures maximum compatibility for Windows users
 
@@ -285,14 +286,16 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
    - Ensures clean output for all platforms
 
 **How to Use**:
-- Upload the `.log` files to ChatGPT just like you would `.txt` files
-- Files will display and process correctly in ChatGPT
+- Upload the `.csv` files to ChatGPT - they will upload successfully
+- Files are still plain text, just with a `.csv` extension
+- ChatGPT will read and process them as text files
 - To disable Windows mode: Set Lambda environment variable `WINDOWS_MODE=false`
 
 **Technical Details**:
-- Files processed after 19:12 UTC on 2025-06-25 will have `.log` extension
+- Files processed after this update will have `.csv` extension
 - Pure ASCII text with configurable line endings (CRLF for Windows, LF for Unix)
-- All text editors and tools recognize `.log` as plain text files
+- All text editors and tools can open `.csv` files as plain text
+- This is a workaround for ChatGPT's file upload bug, not actual CSV formatting
 
 ## Troubleshooting
 

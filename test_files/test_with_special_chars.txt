@@ -1,0 +1,12 @@
+Special Characters Test Document
+
+This document contains "smart quotes" and 'curly apostrophes'.
+It also has em—dashes and en–dashes.
+Some bullet points: • Item 1 • Item 2
+Arrows: → ← ↔
+Math symbols: × ÷ ± ≤ ≥ ≠
+
+Non-breaking spaces: Hello World
+Special quotes: «French» „German"
+
+This should all be normalized to ASCII characters.
