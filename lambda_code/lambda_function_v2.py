@@ -45,7 +45,7 @@ s3 = boto3.client('s3')
 # Configuration constants
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB limit
 MAX_CONFIG_SIZE = 1 * 1024 * 1024  # 1MB limit for config
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv'}
 MAX_REPLACEMENTS = 100  # Maximum number of replacement rules
 BATCH_SIZE = 5  # Maximum files to process in one batch
 BATCH_TIMEOUT = 45  # Maximum seconds for batch processing
@@ -428,6 +428,8 @@ def process_single_file(bucket, key, config):
         process_docx_file(bucket, key, config, user_info)
     elif file_ext in ['xlsx', 'xls']:
         process_xlsx_file(bucket, key, config, user_info)
+    elif file_ext == 'csv':
+        process_csv_file(bucket, key, config, user_info)
     else:
         raise ValueError(f"Unsupported file type: {file_ext}")
     
@@ -928,6 +930,47 @@ def extract_docx_text_library(docx_content):
     except Exception as e:
         logger.warning(f"python-docx extraction failed: {str(e)}")
         return None
+
+def process_csv_file(bucket, key, config, user_info=None):
+    """Process CSV files by reading and applying redaction rules"""
+    try:
+        # Download file
+        response = s3.get_object(Bucket=bucket, Key=key)
+        csv_content = response['Body'].read()
+        
+        # Try to decode with UTF-8, fallback to latin-1
+        try:
+            text = csv_content.decode('utf-8')
+        except UnicodeDecodeError:
+            text = csv_content.decode('latin-1')
+        
+        # Apply redaction rules to the CSV content
+        processed_text, redacted = apply_redaction_rules(text, config)
+        
+        # Normalize text for Windows compatibility
+        processed_text = normalize_text_for_windows(processed_text)
+        
+        # Change file extension to .md for ChatGPT compatibility
+        file_path = user_info['file_path'] if user_info else key
+        text_key = file_path.rsplit('.', 1)[0] + '.md'
+        
+        # Update user_info with the new filename for proper handling
+        if user_info:
+            updated_user_info = user_info.copy()
+            updated_user_info['file_path'] = text_key
+            text_key = f"users/{user_info['user_id']}/{text_key}"
+        else:
+            updated_user_info = None
+        
+        # Upload processed document
+        upload_processed_document(text_key, processed_text.encode('utf-8'), 
+                                {'redacted': str(redacted), 'converted_from': 'csv'}, config, updated_user_info)
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error processing CSV file {key}: {str(e)}")
+        raise
 
 def process_xlsx_file(bucket, key, config, user_info=None):
     """Process XLSX files by converting first sheet to CSV format"""

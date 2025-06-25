@@ -18,7 +18,7 @@ A secure, automated document processing system that removes sensitive informatio
 - **🌐 Web Interface**: Secure React frontend at redact.9thcube.com
 - **🏠 Landing Page**: Welcome page with integrated configuration
 - **🔐 User Authentication**: AWS Cognito with email verification
-- **📁 Multi-Format Support**: TXT, PDF, DOCX → .md output | XLSX → .csv output (first sheet only)
+- **📁 Multi-Format Support**: TXT, PDF, DOCX, CSV → .md output | XLSX → .csv output (first sheet only)
 - **📤 Multi-File Upload**: Upload multiple files at once with progress tracking
 - **🗑️ File Management**: Delete files, batch operations, multi-select
 - **🔄 Real-time Processing**: Status updates and notifications
@@ -68,6 +68,12 @@ npm run build
 **Note**: Email verification can be bypassed for testing. Use `aws cognito-idp admin-confirm-sign-up` to manually confirm users.
 
 ### ✅ Recent Updates (as of 2025-06-25)
+
+#### Session 9
+- **Clean Filenames**: Removed UUID prefixes from uploaded files, now using Windows-style versioning (file.txt, file (1).txt, file (2).txt)
+- **CSV Support**: Added full support for CSV file uploads and processing
+- **Improved Delete**: Fixed file deletion with new document ID system using encoded S3 keys
+- **File Type Fixes**: Resolved "invalid file type" errors and improved validation
 
 1. **Pattern Checkbox Fix**: Fixed state management issue - pattern detection checkboxes now properly maintain state and persist after save
 2. **Enhanced UI Feedback**: Added custom checkbox styling with orange theme, hover states, and visual checkmarks

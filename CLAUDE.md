@@ -48,7 +48,7 @@ React Frontend → Cognito Auth → API Gateway → Lambda
 - **🌐 Web UI**: Drag-drop upload, real-time status, secure downloads
 - **🔐 Authentication**: AWS Cognito with invite-only registration  
 - **👤 User Isolation**: Each user only sees their files (users/{userId}/*)
-- **📁 Multi-Format**: TXT, PDF, DOCX → .md | XLSX → .csv (first sheet only)
+- **📁 Multi-Format**: TXT, PDF, DOCX, CSV → .md | XLSX → .csv (first sheet only)
 - **⚙️ Config UI**: User-configurable redaction rules integrated into home page
 - **🔍 Pattern Detection**: Automatic PII detection (SSN, credit cards, phones, emails, IPs, driver's licenses)
 - **🔄 Real-time**: Status updates via polling
@@ -140,6 +140,23 @@ REACT_APP_DOMAIN=redact.9thcube.com
 - See GitHub Issue #12 for detailed analysis and implementation
 
 ### ✅ Recent Updates (2025-06-25)
+
+#### Session 9
+- **Clean Filenames**: Removed UUID prefixes from uploaded files
+  - Implemented Windows-style versioning: `file.txt`, `file (1).txt`, `file (2).txt`
+  - Much cleaner and user-friendly file management
+  - Automatic collision detection and versioning
+- **CSV Support**: Added full support for CSV file uploads
+  - CSV files are now accepted in upload validation
+  - Processed with redaction rules like other text formats
+  - Output as `.md` files for ChatGPT compatibility
+- **Improved Delete**: Fixed file deletion with new document ID system
+  - Document IDs now use encoded S3 keys
+  - Proper security validation before deletion
+  - Works with both input and processed files
+- **File Type Validation**: Resolved "invalid file type" errors
+  - Added CSV to allowed extensions in both frontend and backend
+  - Improved error messaging for unsupported files
 
 #### Session 8
 - **Fixed XLSX Upload to ChatGPT**: Resolved issue where XLSX conversions failed to upload
@@ -278,7 +295,7 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 
 **Final Solution Implemented**: 
 1. **Different extensions by file type**:
-   - PDF/DOCX/TXT → `.md` (markdown format, plain text)
+   - PDF/DOCX/TXT/CSV → `.md` (markdown format, plain text)
    - XLSX → `.csv` (proper CSV format, first sheet only)
    - Each file type gets the most appropriate format that ChatGPT accepts
 

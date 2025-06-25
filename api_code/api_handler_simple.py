@@ -23,7 +23,7 @@ CONFIG_BUCKET = os.environ['CONFIG_BUCKET']
 
 # Constants
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv'}
 
 def get_user_context(event):
     """Extract user context from API Gateway authorizer"""
@@ -232,9 +232,30 @@ def handle_document_upload(event, headers, context, user_context):
             }
         
         # Generate unique key with user prefix
-        unique_id = str(uuid.uuid4())
         user_prefix = get_user_s3_prefix(user_context['user_id'])
-        s3_key = f"{user_prefix}/{unique_id}_{filename}"
+        
+        # Check for existing files and add version number if needed
+        base_key = f"{user_prefix}/{filename}"
+        s3_key = base_key
+        
+        # Check if file exists and find next available version
+        version = 1
+        while True:
+            try:
+                s3.head_object(Bucket=INPUT_BUCKET, Key=s3_key)
+                # File exists, try next version
+                if '.' in filename:
+                    name, ext = filename.rsplit('.', 1)
+                    s3_key = f"{user_prefix}/{name} ({version}).{ext}"
+                else:
+                    s3_key = f"{user_prefix}/{filename} ({version})"
+                version += 1
+            except ClientError as e:
+                if e.response['Error']['Code'] == '404':
+                    # File doesn't exist, we can use this key
+                    break
+                else:
+                    raise
         
         # Upload to S3
         s3.put_object(
@@ -259,15 +280,20 @@ def handle_document_upload(event, headers, context, user_context):
             'request_id': context.aws_request_id
         }))
         
+        # Generate a document ID for status tracking
+        # Use the S3 key as the document ID (URL encoded)
+        from urllib.parse import quote
+        document_id = quote(s3_key, safe='')
+        
         return {
             'statusCode': 202,
             'headers': headers,
             'body': json.dumps({
                 'message': 'Document uploaded successfully',
-                'document_id': unique_id,
+                'document_id': document_id,
                 'filename': filename,
                 'status': 'processing',
-                'status_url': f'/documents/status/{unique_id}'
+                'status_url': f'/documents/status/{document_id}'
             })
         }
         
@@ -404,7 +430,9 @@ def handle_list_user_files(event, headers, context, user_context):
             for obj in processed_response.get('Contents', []):
                 # Parse filename from key
                 filename = obj['Key'].split('/')[-1]
-                doc_id = filename.split('_')[0] if '_' in filename else filename
+                # Use the full S3 key as the document ID (URL encoded)
+                from urllib.parse import quote
+                doc_id = quote(obj['Key'], safe='')
                 
                 files.append({
                     'id': doc_id,
@@ -426,7 +454,9 @@ def handle_list_user_files(event, headers, context, user_context):
             
             for obj in input_response.get('Contents', []):
                 filename = obj['Key'].split('/')[-1]
-                doc_id = filename.split('_')[0] if '_' in filename else filename
+                # Use the full S3 key as the document ID (URL encoded)
+                from urllib.parse import quote
+                doc_id = quote(obj['Key'], safe='')
                 
                 # Check if already in processed list
                 if not any(f['id'] == doc_id for f in files):
@@ -470,58 +500,50 @@ def handle_document_delete(event, headers, context, user_context):
                 'headers': headers,
                 'body': json.dumps({'error': 'Document ID required'})
             }
+        
+        # Decode the document ID to get the S3 key
+        from urllib.parse import unquote
+        s3_key = unquote(document_id)
+        
+        # Security check: ensure the key belongs to the user
         user_prefix = get_user_s3_prefix(user_context['user_id'])
+        if not s3_key.startswith(f"processed/{user_prefix}/") and not s3_key.startswith(f"{user_prefix}/"):
+            return {
+                'statusCode': 403,
+                'headers': headers,
+                'body': json.dumps({'error': 'Access denied'})
+            }
         
         deleted_files = []
         errors = []
         
-        # Delete from input bucket
-        try:
-            input_response = s3.list_objects_v2(
-                Bucket=INPUT_BUCKET,
-                Prefix=f"{user_prefix}/{document_id}"
-            )
+        # If it's a processed file, also delete the source file
+        if s3_key.startswith("processed/"):
+            # Extract the filename from the processed key
+            filename = s3_key.split('/')[-1]
             
-            for obj in input_response.get('Contents', []):
-                try:
-                    s3.delete_object(Bucket=INPUT_BUCKET, Key=obj['Key'])
-                    deleted_files.append(f"input/{obj['Key']}")
-                except Exception as e:
-                    errors.append(f"Failed to delete {obj['Key']} from input: {str(e)}")
-        except ClientError:
-            pass
-        
-        # Delete from processed bucket
-        try:
-            processed_response = s3.list_objects_v2(
-                Bucket=PROCESSED_BUCKET,
-                Prefix=f"processed/{user_prefix}/{document_id}"
-            )
+            # Delete from processed bucket
+            try:
+                s3.delete_object(Bucket=PROCESSED_BUCKET, Key=s3_key)
+                deleted_files.append(f"processed/{s3_key}")
+            except Exception as e:
+                errors.append(f"Failed to delete {s3_key}: {str(e)}")
             
-            for obj in processed_response.get('Contents', []):
-                try:
-                    s3.delete_object(Bucket=PROCESSED_BUCKET, Key=obj['Key'])
-                    deleted_files.append(f"processed/{obj['Key']}")
-                except Exception as e:
-                    errors.append(f"Failed to delete {obj['Key']} from processed: {str(e)}")
-        except ClientError:
-            pass
-        
-        # Delete from quarantine bucket
-        try:
-            quarantine_response = s3.list_objects_v2(
-                Bucket=QUARANTINE_BUCKET,
-                Prefix=f"quarantine/{user_prefix}/{document_id}"
-            )
-            
-            for obj in quarantine_response.get('Contents', []):
-                try:
-                    s3.delete_object(Bucket=QUARANTINE_BUCKET, Key=obj['Key'])
-                    deleted_files.append(f"quarantine/{obj['Key']}")
-                except Exception as e:
-                    errors.append(f"Failed to delete {obj['Key']} from quarantine: {str(e)}")
-        except ClientError:
-            pass
+            # Also delete from input bucket if exists
+            input_key = f"{user_prefix}/{filename}"
+            try:
+                s3.head_object(Bucket=INPUT_BUCKET, Key=input_key)
+                s3.delete_object(Bucket=INPUT_BUCKET, Key=input_key)
+                deleted_files.append(f"input/{input_key}")
+            except ClientError:
+                pass
+        else:
+            # It's an input file, delete it
+            try:
+                s3.delete_object(Bucket=INPUT_BUCKET, Key=s3_key)
+                deleted_files.append(f"input/{s3_key}")
+            except Exception as e:
+                errors.append(f"Failed to delete {s3_key}: {str(e)}")
         
         if not deleted_files and not errors:
             return {
