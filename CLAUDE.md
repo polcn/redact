@@ -268,17 +268,22 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 **Cause**: Output files contained:
 - Windows line endings (`\r\n`) instead of Unix (`\n`)
 - Special UTF-8 characters (curly quotes `'`, em-dashes `—`) from PDF extraction
+- Additional Unicode spaces (narrow no-break space, thin space, etc.)
 
 **Fix Implemented**: 
-Added `normalize_text_output()` function in `lambda_function_v2.py` that:
+Enhanced `normalize_text_output()` function in `lambda_function_v2.py` with aggressive normalization:
 1. Converts all Windows line endings (`\r\n`) to Unix (`\n`)
-2. Replaces special UTF-8 characters with ASCII equivalents:
+2. Replaces extensive set of special UTF-8 characters with ASCII equivalents:
    - Curly quotes → straight quotes
    - Em/en dashes → regular dashes
    - Special bullets → asterisks
    - Mathematical symbols → ASCII equivalents
-3. Removes non-printable characters while preserving newlines and tabs
-4. Ensures clean UTF-8 encoding
+   - Various Unicode spaces → regular spaces
+   - Soft hyphens and special dashes → regular hyphens
+3. Aggressive ASCII enforcement using `.encode('ascii', 'replace').decode('ascii')`
+4. Replaces any remaining non-ASCII characters with spaces
+5. Cleans up multiple consecutive spaces
+6. Ensures pure ASCII output compatible with all tools
 
 The normalization is automatically applied to all redacted text output, ensuring compatibility with ChatGPT and other text processing tools.
 

@@ -535,6 +535,18 @@ def normalize_text_output(text):
         '\u00BB': '>>',  # Right-pointing double angle quotation mark
         '\u201A': ',',   # Single low-9 quotation mark
         '\u201E': ',,',  # Double low-9 quotation mark
+        
+        # Additional spaces and special characters
+        '\u202F': ' ',   # Narrow no-break space
+        '\u2009': ' ',   # Thin space
+        '\u200A': ' ',   # Hair space
+        '\u2008': ' ',   # Punctuation space
+        '\u205F': ' ',   # Medium mathematical space
+        '\u3000': ' ',   # Ideographic space
+        '\u00AD': '',    # Soft hyphen
+        '\u2011': '-',   # Non-breaking hyphen
+        '\u2212': '-',   # Minus sign
+        '\uFEFF': '',    # Zero-width no-break space (BOM)
     }
     
     for old_char, new_char in replacements.items():
@@ -548,7 +560,20 @@ def normalize_text_output(text):
         for char in text
     )
     
-    return cleaned_text
+    # Final pass: ensure absolutely no non-ASCII characters remain
+    # This is more aggressive and will catch any edge cases
+    final_text = cleaned_text.encode('ascii', 'replace').decode('ascii')
+    
+    # Replace any replacement characters (?) with spaces
+    final_text = final_text.replace('?', ' ')
+    
+    # Clean up multiple spaces
+    import re
+    final_text = re.sub(r' +', ' ', final_text)
+    final_text = re.sub(r'\n +', '\n', final_text)
+    final_text = re.sub(r' +\n', '\n', final_text)
+    
+    return final_text
 
 def apply_filename_redaction(filename, config):
     """Apply redaction rules to file names and ensure .txt extension"""
