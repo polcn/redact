@@ -69,17 +69,17 @@ npm run build
 
 ### ✅ Recent Updates (as of 2025-06-25)
 
-1. **Pattern-Based Redaction**: Added automatic PII detection with toggles for SSN, credit cards, phones, emails, IPs, and driver's licenses
-2. **Enhanced Config UI**: Frontend now includes pattern configuration checkboxes alongside text-based rules
-3. **Home Page**: New landing page with hero section and integrated configuration
-4. **File Management**: Multi-file upload, delete functionality, batch operations
-5. **Anthropic-Inspired Design**: Complete UI redesign with clean, minimalist aesthetic
-6. **User Access**: All authenticated users can now update redaction rules (not just admins)
-7. **Improved Flow**: Home → Upload workflow with clear navigation
-8. **Example Rules**: Added button to populate sample redaction rules
-9. **File Upload**: Fixed API authorization - now using simplified handler that works with Cognito
-10. **Email Auto-Confirm**: Fixed - users from allowed domains are now auto-confirmed
-11. **CORS Configuration**: Added complete CORS support for all API endpoints
+1. **Pattern Checkbox Fix**: Fixed state management issue - pattern detection checkboxes now properly maintain state and persist after save
+2. **Enhanced UI Feedback**: Added custom checkbox styling with orange theme, hover states, and visual checkmarks
+3. **Comprehensive Testing**: Created detailed test plan (TEST_PLAN.md) covering all system components
+4. **Test Automation**: Added Puppeteer test scripts and manual test checklists
+5. **MCP Integration**: Verified all MCP servers (AWS, Cloudflare, Brightdata) are operational
+6. **Pattern-Based Redaction**: Automatic PII detection for SSN, credit cards, phones, emails, IPs, and driver's licenses
+7. **Home Page**: Landing page with hero section and integrated configuration
+8. **File Management**: Multi-file upload, delete functionality, batch operations
+9. **User Access**: All authenticated users can configure their own redaction rules
+10. **Email Auto-Confirm**: Users from allowed domains are auto-confirmed
+11. **CORS Configuration**: Complete CORS support for all API endpoints
 
 ### ⚠️ Current Status
 
@@ -242,13 +242,40 @@ aws budgets create-budget \
 ```
 
 ### Testing & Development
-```bash
-# Run comprehensive test suite
-./run-tests.sh
 
-# Run specific test categories
-python -m pytest tests/test_lambda_function.py -v
-python -m pytest tests/test_integration.py -v
+#### Manual Testing
+```bash
+# Quick verification checklist
+cat MANUAL_TEST_CHECKLIST.md
+
+# Comprehensive test plan
+cat TEST_PLAN.md
+```
+
+#### Automated Testing
+```bash
+# Test MCP server connectivity
+python3 test_mcp_servers.py
+
+# Automated UI testing with Puppeteer (requires npm install puppeteer)
+node test_pattern_checkboxes.js
+
+# Run test suite (when available)
+./run-tests.sh
+```
+
+#### Test Documents
+Create test files to verify pattern detection:
+```bash
+# Create test file with all PII patterns
+cat > test_patterns.txt << 'EOF'
+SSN: 123-45-6789
+Credit Card: 4532-1234-5678-9012
+Phone: (555) 123-4567
+Email: test@example.com
+IP: 192.168.1.100
+Driver's License: D1234567
+EOF
 ```
 
 ## File Structure
