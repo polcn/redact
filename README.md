@@ -18,7 +18,7 @@ A secure, automated document processing system that removes sensitive informatio
 - **🌐 Web Interface**: Secure React frontend at redact.9thcube.com
 - **🏠 Landing Page**: Welcome page with integrated configuration
 - **🔐 User Authentication**: AWS Cognito with email verification
-- **📁 Multi-Format Support**: TXT, PDF, DOCX, XLSX → redacted .txt output
+- **📁 Multi-Format Support**: TXT, PDF, DOCX, XLSX → redacted .log output (ChatGPT compatible)
 - **📤 Multi-File Upload**: Upload multiple files at once with progress tracking
 - **🗑️ File Management**: Delete files, batch operations, multi-select
 - **🔄 Real-time Processing**: Status updates and notifications
