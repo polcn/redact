@@ -482,20 +482,16 @@ def apply_redaction_rules(text, config):
     return processed_text, redacted
 
 def apply_filename_redaction(filename, config):
-    """Apply redaction rules to file names"""
+    """Apply redaction rules to file names and ensure .txt extension"""
     try:
-        # Extract base name and extension
+        # Extract base name (remove extension)
         base_name = filename.rsplit('.', 1)[0] if '.' in filename else filename
-        extension = filename.rsplit('.', 1)[1] if '.' in filename else ''
         
-        # Apply redaction to base name only (preserve extension)
+        # Apply redaction to base name only
         processed_name, redacted = apply_redaction_rules(base_name, config)
         
-        # Reconstruct filename with extension
-        if extension:
-            processed_filename = f"{processed_name}.{extension}"
-        else:
-            processed_filename = processed_name
+        # Always output as .txt file regardless of input format
+        processed_filename = f"{processed_name}.txt"
             
         if redacted:
             logger.info(f"Applied filename redaction: {filename} -> {processed_filename}")

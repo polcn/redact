@@ -141,6 +141,19 @@ REACT_APP_DOMAIN=redact.9thcube.com
 
 ### ✅ Recent Updates (2025-06-25)
 
+#### Session 7
+- **Fixed Multi-File Upload**: Resolved Lambda dependency issues preventing PDF/DOCX/XLSX processing
+  - Created `build_lambda.sh` script to properly package Python dependencies
+  - Successfully deployed Lambda with pypdf, openpyxl, and python-docx libraries
+  - All file types now process correctly in parallel
+- **Fixed Output Format**: All files now correctly output as `.txt` regardless of input format
+  - Modified `apply_filename_redaction()` to always append `.txt` extension
+  - `document.pdf` → `document.txt`, `spreadsheet.xlsx` → `spreadsheet.txt`, etc.
+- **Identified ChatGPT Upload Issue**: Processed files may fail to upload to ChatGPT due to:
+  - Windows line endings (`\r\n`) in output files
+  - Special characters (curly quotes, em-dashes) from PDF extraction
+  - **Solution Required**: Update Lambda to normalize text output with Unix line endings and clean special characters
+
 #### Session 6
 - **Delete Functionality Fix**: Fixed critical issue where file deletion wasn't working
 - **API Gateway Enhancement**: Added missing DELETE endpoint for `/documents/{id}`
@@ -245,6 +258,30 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 - Real-time status updates
 - Confirmation dialogs for destructive actions
 - Progress indicators for uploads and operations
+
+## Known Issues & Fixes
+
+### ChatGPT File Upload Compatibility
+**Issue**: Processed `.txt` files may fail to upload to ChatGPT with "unknown error occurred"
+
+**Cause**: Output files contain:
+- Windows line endings (`\r\n`) instead of Unix (`\n`)
+- Special UTF-8 characters (curly quotes `'`, em-dashes `—`) from PDF extraction
+
+**Temporary Workaround**:
+```bash
+# Convert file to Unix format before uploading
+tr -d '\r' < downloaded_file.txt > cleaned_file.txt
+
+# Or if you have dos2unix installed
+dos2unix downloaded_file.txt
+```
+
+**Permanent Fix Required**: 
+Update `lambda_function_v2.py` to:
+1. Replace `\r\n` with `\n` in all text output
+2. Normalize special characters (convert curly quotes to straight quotes, etc.)
+3. Ensure consistent UTF-8 encoding without BOM
 
 ## Troubleshooting
 

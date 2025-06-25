@@ -144,7 +144,7 @@ resource "aws_lambda_function" "document_processor" {
   depends_on = [
     aws_iam_role_policy.lambda_policy,
     aws_cloudwatch_log_group.lambda_logs,
-    data.archive_file.document_processor_zip
+    null_resource.build_lambda
   ]
 
   tags = {
@@ -187,9 +187,18 @@ resource "aws_lambda_permission" "allow_s3_invoke" {
   source_arn    = aws_s3_bucket.input_documents.arn
 }
 
-# Create Lambda deployment package
-data "archive_file" "document_processor_zip" {
-  type        = "zip"
-  output_path = "document_processor.zip"
-  source_dir  = "lambda_code"
+# Build Lambda deployment package with dependencies
+resource "null_resource" "build_lambda" {
+  triggers = {
+    # Rebuild when any Lambda code or requirements change
+    lambda_code_hash = sha256(join("", [
+      for f in fileset("${path.module}/lambda_code", "**")
+      : filesha256("${path.module}/lambda_code/${f}")
+    ]))
+  }
+
+  provisioner "local-exec" {
+    command = "${path.module}/build_lambda.sh"
+    working_dir = path.module
+  }
 }
