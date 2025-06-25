@@ -18,9 +18,11 @@ A secure, automated document processing system that removes sensitive informatio
 - **🌐 Web Interface**: Secure React frontend at redact.9thcube.com
 - **🔐 User Authentication**: AWS Cognito with email verification
 - **📁 Multi-Format Support**: TXT, PDF, DOCX, XLSX → redacted .txt output
+- **📤 Multi-File Upload**: Upload multiple files at once with progress tracking
+- **🗑️ File Management**: Delete files, batch operations, multi-select
 - **🔄 Real-time Processing**: Status updates and notifications
 - **👤 User Isolation**: Each user only sees their own files
-- **⚙️ Configuration UI**: Admin panel for redaction rules
+- **⚙️ Configuration UI**: User-configurable redaction rules
 - **💰 Cost-Optimized**: $0-5/month serverless architecture
 
 ## Architecture

@@ -51,6 +51,8 @@ React Frontend → Cognito Auth → API Gateway → Lambda
 - **📁 Multi-Format**: TXT, PDF, DOCX, XLSX → redacted .txt
 - **⚙️ Config UI**: User-configurable redaction rules (now default page)
 - **🔄 Real-time**: Status updates via polling
+- **📤 Multi-File Upload**: Upload multiple files at once with progress tracking
+- **🗑️ File Management**: Delete files, batch operations, multi-select
 
 ## Live Resources
 ```
@@ -68,9 +70,10 @@ Frontend S3: redact-frontend-9thcube-12476920
 1. Sign up at redact.9thcube.com (use allowed email domains)
 2. Configure redaction rules on the config page (default landing)
 3. Click "Proceed to Upload" to go to document upload
-4. Upload documents via drag-drop
+4. Upload documents via drag-drop or file selection (supports multiple files)
 5. View processing status in real-time
-6. Download redacted .txt files
+6. Manage files: download, delete, or batch operations
+7. Download redacted .txt files individually or in batch
 
 **Note**: Email verification temporarily bypassed. For manual user confirmation:
 ```bash
@@ -116,7 +119,13 @@ REACT_APP_DOMAIN=redact.9thcube.com
 
 ## Implementation Notes
 
-### ✅ Recent Updates (2025-06-24)
+### ✅ Recent Updates (2025-06-25)
+- **File Management**: Complete implementation of multi-file upload, delete, and batch operations
+- **API Enhancement**: Added DELETE endpoint for file removal
+- **UI Improvements**: Added checkboxes, batch selection, and progress tracking
+- **Better UX**: Confirmation dialogs, real-time updates, error handling
+
+### ✅ Previous Updates (2025-06-24)
 - **Anthropic Design**: Complete UI redesign with clean, minimalist aesthetic
 - **Config First**: Config page is now the default landing page
 - **User Access**: All users can configure their own redaction rules
@@ -144,6 +153,38 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 - Auto-confirm is enabled via pre-signup Lambda
 - API Gateway uses Cognito authorizer for all protected endpoints
 - Frontend includes JWT token in Authorization header
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /health | Health check |
+| POST | /documents/upload | Upload single file (base64) |
+| GET | /documents/status/{id} | Check file processing status |
+| DELETE | /documents/{id} | Delete file from all buckets |
+| GET | /user/files | List all user files |
+| GET | /api/config | Get redaction configuration |
+| PUT | /api/config | Update redaction configuration |
+
+## File Management Features
+
+### Multi-File Upload
+- Drag and drop or click to select multiple files
+- Individual progress tracking for each file
+- Validation for file type and size (50MB max)
+- Sequential processing to avoid overwhelming the system
+
+### File Operations
+- **Delete**: Remove single files with confirmation
+- **Batch Delete**: Select multiple files and delete at once
+- **Batch Download**: Download multiple completed files
+- **Select All**: Quick selection of all files
+
+### User Interface
+- Checkbox selection for batch operations
+- Real-time status updates
+- Confirmation dialogs for destructive actions
+- Progress indicators for uploads and operations
 
 ## Troubleshooting
 

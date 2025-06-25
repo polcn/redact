@@ -6,10 +6,13 @@ A secure React frontend for the AWS Document Redaction System.
 
 - 🔐 AWS Cognito authentication with email verification
 - 📁 Drag-and-drop file upload (TXT, PDF, DOCX, XLSX)
+- 📤 Multi-file upload with individual progress tracking
+- 🗑️ File deletion with confirmation dialogs
+- ☑️ Multi-select for batch operations (delete, download)
 - 📊 Real-time processing status updates
 - ⬇️ Secure file downloads with presigned URLs
-- ⚙️ Configuration management UI (admin only)
-- 🎨 Modern UI with Tailwind CSS
+- ⚙️ Configuration management UI (all users)
+- 🎨 Modern UI with Anthropic-inspired design system
 - 🔒 User data isolation
 
 ## Setup
