@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { listUserFiles, deleteFile } from '../../services/api';
+import { listUserFiles, deleteFile, batchDownloadFiles } from '../../services/api';
 import { FileItem } from './FileItem';
 
 export interface FileData {
@@ -119,18 +119,38 @@ export const FileList: React.FC = () => {
     await loadFiles();
   };
 
-  const handleDownloadSelected = () => {
-    const selectedFileData = files.filter(f => selectedFiles.has(f.id) && f.download_url);
-    selectedFileData.forEach(file => {
-      if (file.download_url) {
-        const link = document.createElement('a');
-        link.href = file.download_url;
-        link.download = file.filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+  const handleDownloadSelected = async () => {
+    try {
+      setError('');
+      
+      // Get list of selected files that are completed
+      const selectedFileIds = files
+        .filter(f => selectedFiles.has(f.id) && f.status === 'completed')
+        .map(f => f.id);
+      
+      if (selectedFileIds.length === 0) {
+        setError('No completed files selected');
+        return;
       }
-    });
+      
+      // Call batch download API
+      const response = await batchDownloadFiles(selectedFileIds);
+      
+      // Download the ZIP file
+      const link = document.createElement('a');
+      link.href = response.download_url;
+      link.download = response.filename || 'redacted_documents.zip';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clear selection after download
+      setSelectedFiles(new Set());
+      
+    } catch (err: any) {
+      setError('Failed to download files as ZIP');
+      console.error('Batch download error:', err);
+    }
   };
 
   const selectedCount = selectedFiles.size;
@@ -165,7 +185,7 @@ export const FileList: React.FC = () => {
                   className="btn-anthropic btn-anthropic-accent"
                   style={{ padding: '0.5rem 1rem' }}
                 >
-                  Download Selected
+                  Download as ZIP
                 </button>
               )}
               <button

@@ -81,4 +81,12 @@ export const healthCheck = async (): Promise<any> => {
   return response.data;
 };
 
+// Batch download files as ZIP
+export const batchDownloadFiles = async (documentIds: string[]): Promise<{ download_url: string; filename: string }> => {
+  const response = await api.post('/documents/batch-download', {
+    document_ids: documentIds
+  });
+  return response.data;
+};
+
 export default api;

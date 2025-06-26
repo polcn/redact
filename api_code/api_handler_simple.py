@@ -7,6 +7,9 @@ import time
 from urllib.parse import unquote_plus
 import logging
 from botocore.exceptions import ClientError
+import zipfile
+import io
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +26,7 @@ CONFIG_BUCKET = os.environ['CONFIG_BUCKET']
 
 # Constants
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt'}
 
 def get_user_context(event):
     """Extract user context from API Gateway authorizer"""
@@ -115,6 +118,9 @@ def lambda_handler(event, context):
             
         elif path.startswith('/documents/') and method == 'DELETE':
             return handle_document_delete(event, headers, context, user_context)
+            
+        elif path == '/documents/batch-download' and method == 'POST':
+            return handle_batch_download(event, headers, context, user_context)
             
         else:
             return {
@@ -755,3 +761,136 @@ def generate_presigned_url(bucket, key, expiration=3600):
     except Exception as e:
         logger.error(f"Error generating presigned URL: {str(e)}")
         return None
+
+def handle_batch_download(event, headers, context, user_context):
+    """Handle POST /documents/batch-download endpoint to download multiple files as ZIP"""
+    try:
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+        
+        # Get list of document IDs
+        document_ids = body.get('document_ids', [])
+        if not document_ids:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'No document IDs provided'})
+            }
+        
+        # Limit batch size to prevent timeout
+        max_batch_size = 50
+        if len(document_ids) > max_batch_size:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': f'Maximum batch size is {max_batch_size} files'})
+            }
+        
+        user_prefix = get_user_s3_prefix(user_context['user_id'])
+        
+        # Create in-memory ZIP file
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            files_added = 0
+            errors = []
+            
+            for doc_id in document_ids:
+                try:
+                    # Decode the document ID to get the S3 key
+                    from urllib.parse import unquote
+                    s3_key = unquote(doc_id)
+                    
+                    # Security check: ensure the key belongs to the user
+                    if not s3_key.startswith(f"processed/{user_prefix}/"):
+                        logger.warning(f"Unauthorized access attempt to {s3_key} by user {user_context['user_id']}")
+                        errors.append({'id': doc_id, 'error': 'Unauthorized'})
+                        continue
+                    
+                    # Get the file from S3
+                    try:
+                        response = s3.get_object(Bucket=PROCESSED_BUCKET, Key=s3_key)
+                        file_content = response['Body'].read()
+                        
+                        # Extract filename from S3 key
+                        filename = s3_key.split('/')[-1]
+                        
+                        # Add file to ZIP
+                        zip_file.writestr(filename, file_content)
+                        files_added += 1
+                        
+                    except ClientError as e:
+                        if e.response['Error']['Code'] == 'NoSuchKey':
+                            errors.append({'id': doc_id, 'error': 'File not found'})
+                        else:
+                            errors.append({'id': doc_id, 'error': 'Download failed'})
+                            
+                except Exception as e:
+                    logger.error(f"Error processing document {doc_id}: {str(e)}")
+                    errors.append({'id': doc_id, 'error': 'Processing error'})
+            
+        if files_added == 0:
+            return {
+                'statusCode': 404,
+                'headers': headers,
+                'body': json.dumps({
+                    'error': 'No files could be downloaded',
+                    'errors': errors
+                })
+            }
+        
+        # Generate unique filename for the ZIP
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        zip_filename = f"redacted_documents_{timestamp}.zip"
+        
+        # Upload ZIP to a temporary location in S3
+        zip_key = f"temp/{user_prefix}/{zip_filename}"
+        zip_buffer.seek(0)
+        
+        s3.put_object(
+            Bucket=PROCESSED_BUCKET,
+            Key=zip_key,
+            Body=zip_buffer.getvalue(),
+            ContentType='application/zip',
+            Metadata={
+                'files_count': str(files_added),
+                'created_by': user_context['user_id']
+            }
+        )
+        
+        # Generate presigned URL for the ZIP file (valid for 1 hour)
+        download_url = generate_presigned_url(PROCESSED_BUCKET, zip_key, expiration=3600)
+        
+        # Schedule deletion of the temporary ZIP file after 1 hour
+        # Note: In production, you might want to use S3 lifecycle policies or a cleanup Lambda
+        
+        response_data = {
+            'download_url': download_url,
+            'filename': zip_filename,
+            'files_count': files_added,
+            'expires_in': 3600
+        }
+        
+        if errors:
+            response_data['errors'] = errors
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps(response_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in batch download: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Batch download failed'})
+        }

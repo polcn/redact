@@ -54,7 +54,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
   };
 
   const validateFile = (file: File): string | null => {
-    const allowedTypes = ['txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'md'];
+    const allowedTypes = ['txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'md', 'pptx', 'ppt'];
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     
     if (!fileExt || !allowedTypes.includes(fileExt)) {

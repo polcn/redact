@@ -39,13 +39,21 @@ except ImportError as e:
     load_workbook = None
     OPENPYXL_AVAILABLE = False
 
+try:
+    from pptx import Presentation
+    PPTX_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"python-pptx import failed: {str(e)}")
+    Presentation = None
+    PPTX_AVAILABLE = False
+
 # Initialize AWS clients
 s3 = boto3.client('s3')
 
 # Configuration constants
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB limit
 MAX_CONFIG_SIZE = 1 * 1024 * 1024  # 1MB limit for config
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt'}
 MAX_REPLACEMENTS = 100  # Maximum number of replacement rules
 BATCH_SIZE = 5  # Maximum files to process in one batch
 BATCH_TIMEOUT = 45  # Maximum seconds for batch processing
@@ -430,6 +438,8 @@ def process_single_file(bucket, key, config):
         process_xlsx_file(bucket, key, config, user_info)
     elif file_ext == 'csv':
         process_csv_file(bucket, key, config, user_info)
+    elif file_ext in ['pptx', 'ppt']:
+        process_pptx_file(bucket, key, config, user_info)
     else:
         raise ValueError(f"Unsupported file type: {file_ext}")
     
@@ -1057,6 +1067,92 @@ def process_xlsx_file(bucket, key, config, user_info=None):
         
     except Exception as e:
         logger.error(f"Error processing XLSX file {key}: {str(e)}")
+        raise
+
+def process_pptx_file(bucket, key, config, user_info=None):
+    """Process PowerPoint files by extracting text from all slides"""
+    if not PPTX_AVAILABLE:
+        raise ImportError("python-pptx library not available for PPTX processing")
+    
+    try:
+        # Download file
+        def _download():
+            return s3.get_object(Bucket=bucket, Key=key)
+        
+        response = exponential_backoff_retry(_download)
+        pptx_content = response['Body'].read()
+        
+        # Create a Presentation object
+        with tempfile.NamedTemporaryFile(suffix='.pptx', delete=True) as tmp_file:
+            tmp_file.write(pptx_content)
+            tmp_file.seek(0)
+            
+            presentation = Presentation(tmp_file.name)
+            
+            # Extract text from all slides
+            extracted_text = []
+            slide_count = len(presentation.slides)
+            
+            for idx, slide in enumerate(presentation.slides, 1):
+                slide_text = []
+                slide_text.append(f"--- Slide {idx} ---")
+                
+                # Extract text from all shapes
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text:
+                        slide_text.append(shape.text.strip())
+                    
+                    # Check for tables
+                    if shape.has_table:
+                        table = shape.table
+                        for row_idx, row in enumerate(table.rows):
+                            row_text = []
+                            for cell in row.cells:
+                                if cell.text:
+                                    row_text.append(cell.text.strip())
+                            if row_text:
+                                slide_text.append(" | ".join(row_text))
+                
+                if len(slide_text) > 1:  # More than just the slide header
+                    extracted_text.extend(slide_text)
+                    extracted_text.append("")  # Empty line between slides
+            
+            # Add metadata header
+            header = f"# PowerPoint Document ({slide_count} slides)\n\n"
+            full_text = header + "\n".join(extracted_text)
+            
+            # Apply redaction rules
+            processed_text, redacted = apply_redaction_rules(full_text, config)
+            
+            # Normalize text for Windows compatibility
+            processed_text = normalize_text_for_windows(processed_text)
+            
+            # Change file extension to .md for ChatGPT compatibility
+            file_path = user_info['file_path'] if user_info else key
+            text_key = file_path.rsplit('.', 1)[0] + '.md'
+            
+            # Update user_info with the new filename for proper handling
+            if user_info:
+                updated_user_info = user_info.copy()
+                updated_user_info['file_path'] = text_key
+                text_key = f"users/{user_info['user_id']}/{text_key}"
+            else:
+                updated_user_info = None
+            
+            # Upload processed document
+            metadata = {
+                'redacted': str(redacted),
+                'converted_from': 'pptx',
+                'slide_count': str(slide_count)
+            }
+            
+            upload_processed_document(text_key, processed_text.encode('utf-8'), 
+                                    metadata, config, updated_user_info)
+            
+            return True
+        
+    except Exception as e:
+        logger.error(f"Error processing PPTX file {key}: {str(e)}")
         raise
 
 def quarantine_document(bucket, key, reason):
