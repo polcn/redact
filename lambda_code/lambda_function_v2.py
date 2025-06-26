@@ -1071,8 +1071,49 @@ def process_xlsx_file(bucket, key, config, user_info=None):
 
 def process_pptx_file(bucket, key, config, user_info=None):
     """Process PowerPoint files by extracting text from all slides"""
+    # Use simple extraction if python-pptx is not available
     if not PPTX_AVAILABLE:
-        raise ImportError("python-pptx library not available for PPTX processing")
+        logger.info("Using simple PPTX extraction method")
+        from pptx_handler import process_pptx_simple
+        
+        try:
+            # Download file
+            def _download():
+                return s3.get_object(Bucket=bucket, Key=key)
+            
+            response = exponential_backoff_retry(_download)
+            pptx_content = response['Body'].read()
+            
+            # Process with simple handler
+            processed_text, redacted = process_pptx_simple(pptx_content, config)
+            
+            # Change file extension to .md for ChatGPT compatibility
+            file_path = user_info['file_path'] if user_info else key
+            text_key = file_path.rsplit('.', 1)[0] + '.md'
+            
+            # Update user_info with the new filename for proper handling
+            if user_info:
+                updated_user_info = user_info.copy()
+                updated_user_info['file_path'] = text_key
+                text_key = f"users/{user_info['user_id']}/{text_key}"
+            else:
+                updated_user_info = None
+            
+            # Upload processed document
+            metadata = {
+                'redacted': str(redacted),
+                'converted_from': 'pptx',
+                'extraction_method': 'simple'
+            }
+            
+            upload_processed_document(text_key, processed_text.encode('utf-8'), 
+                                    metadata, config, updated_user_info)
+            
+            logger.info(f"Successfully processed PPTX file using simple method: {key}")
+            return
+        except Exception as e:
+            logger.error(f"Failed to process PPTX with simple method: {str(e)}")
+            raise
     
     try:
         # Download file

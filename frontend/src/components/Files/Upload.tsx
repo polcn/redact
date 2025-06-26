@@ -183,7 +183,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
           type="file"
           className="hidden"
           id="file-upload"
-          accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv"
+          accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv,.pptx,.ppt"
           onChange={handleFileSelect}
           disabled={uploading}
           multiple
@@ -200,7 +200,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
         </label>
         
         <p className="text-secondary mt-sm" style={{ fontSize: 'var(--font-size-xs)' }}>
-          Supported: TXT, PDF, DOCX, XLSX, CSV (max 50MB)
+          Supported: TXT, PDF, DOCX, XLSX, CSV, PPTX (max 50MB)
         </p>
       </div>
 

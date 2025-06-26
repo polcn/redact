@@ -81,13 +81,27 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action = [
           "s3:GetObject",
           "s3:PutObject",
-          "s3:DeleteObject"
+          "s3:DeleteObject",
+          "s3:HeadObject",
+          "s3:CopyObject"
         ]
         Resource = [
           "${aws_s3_bucket.input_documents.arn}/*",
           "${aws_s3_bucket.processed_documents.arn}/*",
           "${aws_s3_bucket.quarantine_documents.arn}/*",
           "${aws_s3_bucket.config_bucket.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.input_documents.arn,
+          aws_s3_bucket.processed_documents.arn,
+          aws_s3_bucket.quarantine_documents.arn,
+          aws_s3_bucket.config_bucket.arn
         ]
       },
       {

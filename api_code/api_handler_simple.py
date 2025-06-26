@@ -204,8 +204,14 @@ def handle_document_upload(event, headers, context, user_context):
         filename = data['filename']
         content = data['content']
         
+        # Log the upload attempt
+        logger.info(f"Upload attempt - Filename: {filename}, User: {user_context['email']}")
+        
         # Validate file extension
         file_ext = filename.lower().split('.')[-1]
+        logger.info(f"Extracted extension: '{file_ext}' from filename: '{filename}'")
+        logger.info(f"Allowed extensions: {ALLOWED_EXTENSIONS}")
+        
         if file_ext not in ALLOWED_EXTENSIONS:
             return {
                 'statusCode': 400,

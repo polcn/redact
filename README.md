@@ -18,7 +18,7 @@ A secure, automated document processing system that removes sensitive informatio
 - **🌐 Web Interface**: Secure React frontend at redact.9thcube.com
 - **🏠 Landing Page**: Welcome page with integrated configuration
 - **🔐 User Authentication**: AWS Cognito with email verification
-- **📁 Multi-Format Support**: TXT, PDF, DOCX, CSV → .md output | XLSX → .csv output (first sheet only)
+- **📁 Multi-Format Support**: TXT, PDF, DOCX, CSV, PPTX → .md output | XLSX → .csv output (first sheet only)
 - **📤 Multi-File Upload**: Upload multiple files at once with progress tracking
 - **🗑️ File Management**: Delete files, batch operations, multi-select
 - **🔄 Real-time Processing**: Status updates and notifications
@@ -67,7 +67,19 @@ npm run build
 
 **Note**: Email verification can be bypassed for testing. Use `aws cognito-idp admin-confirm-sign-up` to manually confirm users.
 
-### ✅ Recent Updates (as of 2025-06-25)
+### ✅ Recent Updates (as of 2025-06-26)
+
+#### Session 11 - PowerPoint Support & IAM Fixes
+- **PowerPoint Support**: Added full PPTX/PPT file support with text extraction from all slides
+- **IAM Permissions Fix**: Fixed Lambda execution role missing S3 permissions (HeadObject, ListBucket, CopyObject)
+- **Simple PPTX Handler**: Implemented fallback PPTX processing without lxml dependencies
+- **Frontend Updates**: Added PPTX to accepted file types in upload component
+- **Documentation**: Updated all docs to reflect PowerPoint support
+
+#### Session 10 - Cleanup
+- **Removed 741MB** of unneeded files (.terraform, Lambda packages, build artifacts)
+- **Documentation Updates**: README.md and CLAUDE.md reflect current state
+- **Ready for Production**: Codebase cleaned and optimized
 
 #### Session 9
 - **Clean Filenames**: Removed UUID prefixes from uploaded files, now using Windows-style versioning (file.txt, file (1).txt, file (2).txt)
@@ -90,7 +102,7 @@ npm run build
 ### ⚠️ Current Status
 
 - **Web UI**: Fully functional at https://redact.9thcube.com
-- **File Upload**: Working for all supported formats (TXT, PDF, DOCX, XLSX)
+- **File Upload**: Working for all supported formats (TXT, PDF, DOCX, XLSX, CSV, PPTX)
 - **Authentication**: Auto-confirm enabled for gmail.com, outlook.com, yahoo.com, 9thcube.com
 - **API**: All endpoints operational with proper JWT authentication
 - **XLSX Limitation**: Only the first worksheet is processed due to ChatGPT's file upload constraints. Multi-sheet workbooks will show a header indicating omitted sheets.
@@ -197,7 +209,7 @@ curl -X GET "$API_URL/health"
    aws s3 cp config.json s3://redact-config-32a4ee51/
    ```
 
-2. **Upload documents** (supports TXT, PDF, DOCX, XLSX):
+2. **Upload documents** (supports TXT, PDF, DOCX, XLSX, CSV, PPTX):
    ```bash
    aws s3 cp document.pdf s3://redact-input-documents-32a4ee51/
    ```

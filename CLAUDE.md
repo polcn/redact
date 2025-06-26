@@ -48,7 +48,7 @@ React Frontend → Cognito Auth → API Gateway → Lambda
 - **🌐 Web UI**: Drag-drop upload, real-time status, secure downloads
 - **🔐 Authentication**: AWS Cognito with invite-only registration  
 - **👤 User Isolation**: Each user only sees their files (users/{userId}/*)
-- **📁 Multi-Format**: TXT, PDF, DOCX, CSV → .md | XLSX → .csv (first sheet only)
+- **📁 Multi-Format**: TXT, PDF, DOCX, CSV, PPTX → .md | XLSX → .csv (first sheet only)
 - **⚙️ Config UI**: User-configurable redaction rules integrated into home page
 - **🔍 Pattern Detection**: Automatic PII detection (SSN, credit cards, phones, emails, IPs, driver's licenses)
 - **🔄 Real-time**: Status updates via polling
@@ -140,6 +140,18 @@ REACT_APP_DOMAIN=redact.9thcube.com
 - See GitHub Issue #12 for detailed analysis and implementation
 
 ### ✅ Recent Updates (2025-06-26)
+
+#### Session 11 - PowerPoint Support & IAM Fixes
+- **PowerPoint Support Added**: Full PPTX/PPT file support implemented
+  - Simple text extraction from all slides without lxml dependencies
+  - Extracts text from tables within slides
+  - Outputs as .md files for ChatGPT compatibility
+  - Shows slide numbers and metadata
+- **IAM Permissions Fixed**: Lambda execution role was missing critical S3 permissions
+  - Added s3:HeadObject, s3:ListBucket, s3:CopyObject permissions
+  - Fixed "403 Forbidden" errors during file processing
+- **Frontend Updates**: Added PPTX to accepted file types in upload component
+- **Simplified Lambda**: Removed problematic lxml dependencies, using simple ZIP/XML parsing for PPTX
 
 #### Session 10
 - **Cleanup Completed**: Removed 741MB of unneeded files
