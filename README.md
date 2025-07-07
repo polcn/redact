@@ -67,7 +67,17 @@ npm run build
 
 **Note**: Email verification can be bypassed for testing. Use `aws cognito-idp admin-confirm-sign-up` to manually confirm users.
 
-### ✅ Recent Updates (as of 2025-06-26)
+### ✅ Recent Updates (as of 2025-07-07)
+
+#### Session 12 - String.com Integration & Content-Based Redaction
+- **Content-Based Conditional Rules**: Added support for applying different redaction rules based on document content
+- **String.com API Integration**: Created dedicated endpoint `/api/string/redact` with Bearer token authentication
+- **API Key Management**: Implemented secure API key storage in AWS Parameter Store
+- **Frontend Enhancements**: 
+  - Added conditional rules UI with trigger word configuration
+  - Created redaction test panel for real-time configuration testing
+  - Enhanced ConfigEditor with nested rule management
+- **Documentation**: Created comprehensive String.com integration guide
 
 #### Session 11 - PowerPoint Support & IAM Fixes
 - **PowerPoint Support**: Added full PPTX/PPT file support with text extraction from all slides

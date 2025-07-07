@@ -289,3 +289,97 @@ resource "aws_api_gateway_integration_response" "documents_id_options_integratio
     "method.response.header.Access-Control-Allow-Origin"  = "'*'"
   }
 }
+
+# OPTIONS method for /api/string/redact
+resource "aws_api_gateway_method" "string_redact_options" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.api_string_redact.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "string_redact_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_string_redact.id
+  http_method = aws_api_gateway_method.string_redact_options.http_method
+  type        = "MOCK"
+  
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_method_response" "string_redact_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_string_redact.id
+  http_method = aws_api_gateway_method.string_redact_options.http_method
+  status_code = "200"
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "string_redact_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_string_redact.id
+  http_method = aws_api_gateway_method.string_redact_options.http_method
+  status_code = aws_api_gateway_method_response.string_redact_options_200.status_code
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+# OPTIONS method for /api/test-redaction
+resource "aws_api_gateway_method" "test_redaction_options" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.api_test_redaction.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "test_redaction_options_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_test_redaction.id
+  http_method = aws_api_gateway_method.test_redaction_options.http_method
+  type        = "MOCK"
+  
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
+resource "aws_api_gateway_method_response" "test_redaction_options_200" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_test_redaction.id
+  http_method = aws_api_gateway_method.test_redaction_options.http_method
+  status_code = "200"
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "test_redaction_options_integration_response" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_test_redaction.id
+  http_method = aws_api_gateway_method.test_redaction_options.http_method
+  status_code = aws_api_gateway_method_response.test_redaction_options_200.status_code
+  
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}

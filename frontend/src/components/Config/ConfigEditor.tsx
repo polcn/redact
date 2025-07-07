@@ -1,10 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { getConfig, updateConfig } from '../../services/api';
 import { RuleRow } from './RuleRow';
+import { ConditionalRuleEditor } from './ConditionalRuleEditor';
+import { RedactionTester } from './RedactionTester';
 
 export interface Rule {
   find: string;
   replace: string;
+}
+
+export interface ConditionalRule {
+  id?: string;
+  name: string;
+  enabled: boolean;
+  trigger: {
+    contains: string[];
+    case_sensitive: boolean;
+  };
+  replacements: Rule[];
 }
 
 export interface Config {
@@ -13,6 +26,7 @@ export interface Config {
   patterns?: {
     [key: string]: boolean;
   };
+  conditional_rules?: ConditionalRule[];
 }
 
 export const ConfigEditor: React.FC = () => {
@@ -26,7 +40,8 @@ export const ConfigEditor: React.FC = () => {
       email: false,
       ip_address: false,
       drivers_license: false
-    }
+    },
+    conditional_rules: []
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -78,6 +93,33 @@ export const ConfigEditor: React.FC = () => {
   const handleDeleteRule = (index: number) => {
     const newReplacements = config.replacements.filter((_, i) => i !== index);
     setConfig({ ...config, replacements: newReplacements });
+  };
+
+  const handleAddConditionalRule = () => {
+    const newRule: ConditionalRule = {
+      name: 'New Rule',
+      enabled: true,
+      trigger: {
+        contains: [],
+        case_sensitive: false
+      },
+      replacements: []
+    };
+    setConfig({
+      ...config,
+      conditional_rules: [...(config.conditional_rules || []), newRule]
+    });
+  };
+
+  const handleUpdateConditionalRule = (index: number, rule: ConditionalRule) => {
+    const newRules = [...(config.conditional_rules || [])];
+    newRules[index] = rule;
+    setConfig({ ...config, conditional_rules: newRules });
+  };
+
+  const handleDeleteConditionalRule = (index: number) => {
+    const newRules = (config.conditional_rules || []).filter((_, i) => i !== index);
+    setConfig({ ...config, conditional_rules: newRules });
   };
 
   const handleSave = async () => {
@@ -318,6 +360,74 @@ export const ConfigEditor: React.FC = () => {
           </div>
         </div>
 
+        <div className="mt-xl pt-xl" style={{ borderTop: '1px solid var(--border-color)' }}>
+          <h3 className="mb-md" style={{ fontSize: 'var(--font-size-lg)' }}>Conditional Rules</h3>
+          <p className="text-secondary mb-lg" style={{ fontSize: 'var(--font-size-sm)', lineHeight: 'var(--line-height-relaxed)' }}>
+            Create rules that apply different redactions based on document content. When specific trigger words are found, apply targeted replacements.
+          </p>
+          
+          <div className="space-y-md">
+            {(config.conditional_rules || []).map((rule, index) => (
+              <ConditionalRuleEditor
+                key={index}
+                rule={rule}
+                onUpdate={(r) => handleUpdateConditionalRule(index, r)}
+                onDelete={() => handleDeleteConditionalRule(index)}
+              />
+            ))}
+          </div>
+          
+          <div className="mt-lg flex gap-sm">
+            <button
+              onClick={handleAddConditionalRule}
+              className="btn-anthropic btn-anthropic-secondary"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Conditional Rule
+            </button>
+            
+            {(!config.conditional_rules || config.conditional_rules.length === 0) && (
+              <button
+                onClick={() => {
+                  setConfig({
+                    ...config,
+                    conditional_rules: [
+                      {
+                        name: 'Choice Hotels Rule',
+                        enabled: true,
+                        trigger: {
+                          contains: ['Choice Hotels', 'Choice'],
+                          case_sensitive: false
+                        },
+                        replacements: [
+                          { find: 'Choice Hotels', replace: 'CH' },
+                          { find: 'Choice', replace: 'CH' }
+                        ]
+                      },
+                      {
+                        name: 'Cronos Rule',
+                        enabled: true,
+                        trigger: {
+                          contains: ['Cronos'],
+                          case_sensitive: false
+                        },
+                        replacements: [
+                          { find: 'Cronos', replace: 'CR' }
+                        ]
+                      }
+                    ]
+                  });
+                }}
+                className="btn-anthropic btn-anthropic-accent"
+              >
+                Add Example Conditional Rules
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="mt-xl">
           <button
             onClick={handleSave}
@@ -327,6 +437,10 @@ export const ConfigEditor: React.FC = () => {
             {saving ? 'Saving...' : 'Save Configuration'}
           </button>
         </div>
+      </div>
+      
+      <div className="mt-xl">
+        <RedactionTester config={config} />
       </div>
     </div>
   );

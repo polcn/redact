@@ -17,6 +17,9 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# Data source for current AWS account ID
+data "aws_caller_identity" "current" {}
+
 # Cost-optimized: Using AWS-managed encryption instead of customer-managed KMS
 # This saves $1/month and is still secure for most use cases
 
@@ -243,6 +246,3 @@ resource "aws_s3_bucket_lifecycle_configuration" "quarantine_documents" {
 # Cost-optimized: Removed VPC infrastructure to save ~$22/month
 # Lambda will run in public subnets with strong IAM policies for security
 # This is acceptable for free tier usage and still secure with proper S3 bucket policies
-
-# Data sources
-data "aws_caller_identity" "current" {}

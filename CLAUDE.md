@@ -139,7 +139,22 @@ REACT_APP_DOMAIN=redact.9thcube.com
 - **Migration**: Global config automatically copied to user-specific on first access
 - See GitHub Issue #12 for detailed analysis and implementation
 
-### ✅ Recent Updates (2025-06-26)
+### ✅ Recent Updates (2025-07-07)
+
+#### Session 12 - String.com Integration & Content-Based Redaction
+- **Content-Based Conditional Rules**: Documents can now trigger specific redaction rules based on content
+  - Example: Documents containing "Choice Hotels" replace with "CH"
+  - Example: Documents containing "Cronos" replace with "CR"
+- **String.com API Integration**: 
+  - New endpoint: `POST /api/string/redact` with Bearer token authentication
+  - API key stored securely in AWS Parameter Store
+  - Returns redacted text with replacement count and processing time
+  - Generated API key: `YOUR_API_KEY`
+- **Frontend Enhancements**:
+  - ConditionalRuleEditor component for managing content-based rules
+  - RedactionTester component for real-time configuration testing
+  - Enhanced ConfigEditor with conditional rules section
+- **Documentation**: Created `docs/STRING_INTEGRATION_GUIDE.md` with full API specification
 
 #### Session 11 - PowerPoint Support & IAM Fixes
 - **PowerPoint Support Added**: Full PPTX/PPT file support implemented

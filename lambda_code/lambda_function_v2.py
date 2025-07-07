@@ -457,7 +457,59 @@ def apply_redaction_rules(text, config):
     processed_text = text
     case_sensitive = config.get('case_sensitive', False)
     
-    # Apply text-based replacements
+    # Apply conditional rules first (content-based redaction)
+    conditional_rules = config.get('conditional_rules', [])
+    for rule in conditional_rules:
+        # Skip disabled rules
+        if not rule.get('enabled', True):
+            continue
+            
+        rule_name = rule.get('name', 'Unnamed Rule')
+        trigger = rule.get('trigger', {})
+        trigger_contains = trigger.get('contains', [])
+        trigger_case_sensitive = trigger.get('case_sensitive', False)
+        
+        # Check if any trigger words exist in the text
+        trigger_matched = False
+        for trigger_word in trigger_contains:
+            if not trigger_word:
+                continue
+                
+            if trigger_case_sensitive:
+                if trigger_word in text:
+                    trigger_matched = True
+                    break
+            else:
+                if trigger_word.lower() in text.lower():
+                    trigger_matched = True
+                    break
+        
+        # If trigger matched, apply the rule's replacements
+        if trigger_matched:
+            logger.info(f"Conditional rule '{rule_name}' triggered")
+            rule_replacements = rule.get('replacements', [])
+            for replacement in rule_replacements:
+                find_text = replacement.get('find', '')
+                replace_text = replacement.get('replace', '[REDACTED]')
+                
+                if not find_text:
+                    continue
+                
+                # Use rule's case sensitivity setting or inherit from trigger
+                rule_case_sensitive = replacement.get('case_sensitive', trigger_case_sensitive)
+                if rule_case_sensitive:
+                    pattern = re.escape(find_text)
+                else:
+                    pattern = re.escape(find_text)
+                    pattern = f"(?i){pattern}"
+                
+                # Apply replacement
+                if re.search(pattern, processed_text):
+                    redacted = True
+                    processed_text = re.sub(pattern, replace_text, processed_text)
+                    logger.info(f"Applied conditional redaction: '{find_text}' -> '{replace_text}'")
+    
+    # Apply global text-based replacements
     replacements = config.get('replacements', [])
     for replacement in replacements:
         find_text = replacement.get('find', '')
@@ -498,6 +550,112 @@ def apply_redaction_rules(text, config):
     processed_text = normalize_text_output(processed_text)
     
     return processed_text, redacted
+
+def apply_redaction_with_count(text, config):
+    """Apply redaction rules and return both the redacted text and count of replacements"""
+    if not config:
+        return text, 0
+    
+    processed_text = text
+    replacement_count = 0
+    case_sensitive = config.get('case_sensitive', False)
+    
+    # Apply conditional rules first (content-based redaction)
+    conditional_rules = config.get('conditional_rules', [])
+    for rule in conditional_rules:
+        # Skip disabled rules
+        if not rule.get('enabled', True):
+            continue
+            
+        rule_name = rule.get('name', 'Unnamed Rule')
+        trigger = rule.get('trigger', {})
+        trigger_contains = trigger.get('contains', [])
+        trigger_case_sensitive = trigger.get('case_sensitive', False)
+        
+        # Check if any trigger words exist in the text
+        trigger_matched = False
+        for trigger_word in trigger_contains:
+            if not trigger_word:
+                continue
+                
+            if trigger_case_sensitive:
+                if trigger_word in text:
+                    trigger_matched = True
+                    break
+            else:
+                if trigger_word.lower() in text.lower():
+                    trigger_matched = True
+                    break
+        
+        # If trigger matched, apply the rule's replacements
+        if trigger_matched:
+            logger.info(f"Conditional rule '{rule_name}' triggered")
+            rule_replacements = rule.get('replacements', [])
+            for replacement in rule_replacements:
+                find_text = replacement.get('find', '')
+                replace_text = replacement.get('replace', '[REDACTED]')
+                
+                if not find_text:
+                    continue
+                
+                # Use rule's case sensitivity setting or inherit from trigger
+                rule_case_sensitive = replacement.get('case_sensitive', trigger_case_sensitive)
+                if rule_case_sensitive:
+                    pattern = re.escape(find_text)
+                else:
+                    pattern = re.escape(find_text)
+                    pattern = f"(?i){pattern}"
+                
+                # Count and apply replacements
+                matches = list(re.finditer(pattern, processed_text))
+                if matches:
+                    replacement_count += len(matches)
+                    processed_text = re.sub(pattern, replace_text, processed_text)
+                    logger.info(f"Applied conditional redaction: '{find_text}' -> '{replace_text}' ({len(matches)} times)")
+    
+    # Apply global text-based replacements
+    replacements = config.get('replacements', [])
+    for replacement in replacements:
+        find_text = replacement.get('find', '')
+        replace_text = replacement.get('replace', '[REDACTED]')
+        
+        if not find_text:
+            continue
+        
+        # Create pattern based on case sensitivity
+        if case_sensitive:
+            pattern = re.escape(find_text)
+        else:
+            pattern = re.escape(find_text)
+            pattern = f"(?i){pattern}"
+        
+        # Count and apply replacements
+        matches = list(re.finditer(pattern, processed_text))
+        if matches:
+            replacement_count += len(matches)
+            processed_text = re.sub(pattern, replace_text, processed_text)
+            logger.info(f"Applied redaction: '{find_text}' -> '{replace_text}' ({len(matches)} times)")
+    
+    # Apply pattern-based PII detection if enabled
+    patterns = config.get('patterns', {})
+    if patterns:
+        for pattern_name, enabled in patterns.items():
+            if enabled and pattern_name in PII_PATTERNS:
+                pii_config = PII_PATTERNS[pattern_name]
+                pattern = pii_config['pattern']
+                replace = pii_config['replace']
+                
+                # Count and apply replacements
+                matches = list(re.finditer(pattern, processed_text))
+                if matches:
+                    replacement_count += len(matches)
+                    processed_text = re.sub(pattern, replace, processed_text)
+                    logger.info(f"Applied PII pattern '{pattern_name}': {pii_config['description']} ({len(matches)} times)")
+    
+    # Normalize text output for better compatibility
+    processed_text = normalize_text_output(processed_text)
+    
+    return processed_text, replacement_count
 
 def normalize_text_output(text, windows_mode=None):
     """Normalize text for Markdown format compatibility with ChatGPT
