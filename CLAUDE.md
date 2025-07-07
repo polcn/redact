@@ -141,7 +141,7 @@ REACT_APP_DOMAIN=redact.9thcube.com
 
 ### ✅ Recent Updates (2025-07-07)
 
-#### Session 12 - String.com Integration & Content-Based Redaction
+#### Session 12 - String.com Integration & Content-Based Redaction (⚠️ In Progress)
 - **Content-Based Conditional Rules**: Documents can now trigger specific redaction rules based on content
   - Example: Documents containing "Choice Hotels" replace with "CH"
   - Example: Documents containing "Cronos" replace with "CR"
@@ -150,10 +150,12 @@ REACT_APP_DOMAIN=redact.9thcube.com
   - API key stored securely in AWS Parameter Store
   - Returns redacted text with replacement count and processing time
   - Generated API key: `YOUR_API_KEY`
+  - **🔴 BLOCKED**: API returning 401 authentication errors despite fixes
 - **Frontend Enhancements**:
   - ConditionalRuleEditor component for managing content-based rules
   - RedactionTester component for real-time configuration testing
   - Enhanced ConfigEditor with conditional rules section
+  - **🟡 Status**: Components ready but not deployed
 - **Documentation**: Created `docs/STRING_INTEGRATION_GUIDE.md` with full API specification
 
 #### Session 11 - PowerPoint Support & IAM Fixes
@@ -294,15 +296,16 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | /health | Health check |
-| POST | /documents/upload | Upload single file (base64) |
-| GET | /documents/status/{id} | Check file processing status |
-| DELETE | /documents/{id} | Delete file from all buckets |
-| GET | /user/files | List all user files |
-| GET | /api/config | Get redaction configuration |
-| PUT | /api/config | Update redaction configuration |
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| GET | /health | Health check | ✅ Working |
+| POST | /documents/upload | Upload single file (base64) | ✅ Working |
+| GET | /documents/status/{id} | Check file processing status | ✅ Working |
+| DELETE | /documents/{id} | Delete file from all buckets | ✅ Working |
+| GET | /user/files | List all user files | ✅ Working |
+| GET | /api/config | Get redaction configuration | ✅ Working |
+| PUT | /api/config | Update redaction configuration | ✅ Working |
+| POST | /api/string/redact | String.com redaction endpoint | 🔴 401 Auth Error |
 
 ## File Management Features
 
@@ -395,6 +398,38 @@ aws s3 ls s3://redact-processed-documents-32a4ee51/processed/users/USER_ID/
 ```bash
 terraform destroy             # Remove all infrastructure
 aws s3 rm s3://BUCKET --recursive  # Clear bucket before destroy
+```
+
+## Current Work Status (Session 12)
+
+### 🔴 Critical Issue
+**String.com API Authentication Failure**
+- Endpoint: `POST /api/string/redact` returns 401
+- Fix attempted: Moved route check before Cognito auth
+- Status: Still failing after deployment
+- Next step: Check CloudWatch logs for Lambda function
+
+### 🟡 Pending Deployment
+- Frontend conditional rules UI components
+- RedactionTester component
+- Enhanced ConfigEditor
+
+### ✅ Completed
+- Lambda processor conditional rules logic
+- API handler String.com endpoint code
+- API key generation and storage
+- Documentation for String.com
+
+### Debug Commands
+```bash
+# Check API handler logs
+aws logs tail /aws/lambda/redact-api-handler --follow
+
+# Test String.com endpoint
+curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/api/string/redact \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Test with Choice Hotels and Cronos"}'
 ```
 
 ## CI/CD Pipeline

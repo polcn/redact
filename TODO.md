@@ -3,20 +3,22 @@
 ## String.com Integration - Work in Progress
 
 ### 🔧 Immediate Fix Needed
-1. **API Gateway String.com Endpoint Issue**
+1. **API Gateway String.com Endpoint Issue** ⚠️ CRITICAL
    - The `/api/string/redact` endpoint is returning 401 "Authentication required"
    - Root cause: API handler is checking for Cognito auth before routing to String.com handler
-   - Fix has been applied but needs testing after deployment
+   - Fix has been applied (moved String.com route check before Cognito auth) but still getting 401
    - API key generated: `REMOVED`
+   - Next steps: Check CloudWatch logs to see if request is reaching Lambda function
 
 ### 📋 Remaining Tasks
 
 #### Backend
-- [ ] Debug and fix String.com API endpoint authentication
+- [ ] **URGENT**: Debug and fix String.com API endpoint authentication (401 error persists)
 - [ ] Add proper logging to API handler for debugging
 - [ ] Test String.com integration end-to-end
 - [ ] Add rate limiting for API key usage
 - [ ] Implement API key rotation mechanism
+- [ ] Verify Lambda deployment includes latest api_handler_simple.py changes
 
 #### Frontend
 - [ ] Deploy frontend with new conditional rules UI
@@ -53,8 +55,11 @@
 
 ## Known Issues
 
-1. **String.com API Authentication** (In Progress)
-   - Status: Fix applied, needs deployment verification
+1. **String.com API Authentication** (In Progress) 🔴
+   - Status: Fix applied and deployed, but still returning 401
+   - Issue: API endpoint not recognizing Bearer token authentication
+   - Attempted fix: Moved String.com route check before Cognito auth check
+   - Current state: Needs CloudWatch log investigation
    - Workaround: None currently
 
 2. **Lambda Cold Start**
@@ -76,3 +81,20 @@ Before next deployment:
 - Default String.com configuration includes Choice Hotels and Cronos rules
 - Frontend deployment: `cd frontend && npm run build && ./deploy.sh`
 - Infrastructure deployment: `terraform apply`
+- String.com API endpoint: `POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/api/string/redact`
+- Authentication header: `Authorization: Bearer REMOVED`
+
+## Work in Progress Summary
+
+### Completed
+- ✅ Lambda processor updated with conditional rules support
+- ✅ API handler updated with String.com endpoint
+- ✅ API key generation and storage in Parameter Store
+- ✅ Frontend UI components for conditional rules
+- ✅ Documentation for String.com integration
+- ✅ Terraform configuration updated
+
+### Blocked
+- 🔴 String.com API endpoint returning 401 despite fix
+- 🟡 Frontend deployment pending (components ready but not deployed)
+- 🟡 End-to-end testing blocked by API authentication issue
