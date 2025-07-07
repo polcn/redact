@@ -85,6 +85,27 @@ resource "aws_api_gateway_resource" "api_config" {
   path_part   = "config"
 }
 
+# API Gateway Resource - /api/string
+resource "aws_api_gateway_resource" "api_string" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.api.id
+  path_part   = "string"
+}
+
+# API Gateway Resource - /api/string/redact
+resource "aws_api_gateway_resource" "api_string_redact" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.api_string.id
+  path_part   = "redact"
+}
+
+# API Gateway Resource - /api/test-redaction
+resource "aws_api_gateway_resource" "api_test_redaction" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.api.id
+  path_part   = "test-redaction"
+}
+
 # API Gateway Resource - /documents/{id} for DELETE
 resource "aws_api_gateway_resource" "documents_id" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
@@ -183,6 +204,32 @@ resource "aws_api_gateway_method" "documents_delete" {
   }
 }
 
+# POST /api/string/redact - String.com redaction endpoint
+resource "aws_api_gateway_method" "string_redact_post" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.api_string_redact.id
+  http_method   = "POST"
+  authorization = "NONE"  # Uses custom API key authentication
+  
+  request_parameters = {
+    "method.request.header.Authorization" = true
+    "method.request.header.Content-Type" = true
+  }
+}
+
+# POST /api/test-redaction - Test redaction endpoint for UI
+resource "aws_api_gateway_method" "test_redaction_post" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.api_test_redaction.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+  
+  request_parameters = {
+    "method.request.header.Content-Type" = true
+  }
+}
+
 # Lambda function for API Gateway integration
 resource "aws_lambda_function" "api_handler" {
   filename         = "api_lambda.zip"
@@ -200,6 +247,7 @@ resource "aws_lambda_function" "api_handler" {
       QUARANTINE_BUCKET = aws_s3_bucket.quarantine_documents.bucket
       CONFIG_BUCKET     = aws_s3_bucket.config_bucket.bucket
       USER_POOL_ID      = aws_cognito_user_pool.redact_users.id
+      STAGE             = var.environment
     }
   }
   
@@ -356,6 +404,26 @@ resource "aws_api_gateway_integration" "documents_delete_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.documents_id.id
   http_method = aws_api_gateway_method.documents_delete.http_method
+  
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = aws_lambda_function.api_handler.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "string_redact_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_string_redact.id
+  http_method = aws_api_gateway_method.string_redact_post.http_method
+  
+  integration_http_method = "POST"
+  type                   = "AWS_PROXY"
+  uri                    = aws_lambda_function.api_handler.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "test_redaction_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_test_redaction.id
+  http_method = aws_api_gateway_method.test_redaction_post.http_method
   
   integration_http_method = "POST"
   type                   = "AWS_PROXY"

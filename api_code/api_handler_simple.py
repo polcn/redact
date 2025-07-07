@@ -10,6 +10,8 @@ from botocore.exceptions import ClientError
 import zipfile
 import io
 from datetime import datetime
+import sys
+import importlib.util
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize AWS clients
 s3 = boto3.client('s3')
+ssm = boto3.client('ssm')
 
 # Environment variables
 INPUT_BUCKET = os.environ['INPUT_BUCKET']
@@ -89,6 +92,10 @@ def lambda_handler(event, context):
         if path == '/health' and method == 'GET':
             return handle_health_check(headers)
         
+        # String.com integration endpoint (uses API key auth, not Cognito)
+        if path == '/api/string/redact' and method == 'POST':
+            return handle_string_redact(event, headers, context)
+        
         # Get user context
         user_context = get_user_context(event)
         
@@ -121,6 +128,10 @@ def lambda_handler(event, context):
             
         elif path == '/documents/batch-download' and method == 'POST':
             return handle_batch_download(event, headers, context, user_context)
+            
+        # Test redaction endpoint
+        elif path == '/api/test-redaction' and method == 'POST':
+            return handle_test_redaction(event, headers, context, user_context)
             
         else:
             return {
@@ -900,3 +911,367 @@ def handle_batch_download(event, headers, context, user_context):
             'headers': headers,
             'body': json.dumps({'error': 'Batch download failed'})
         }
+
+def validate_string_api_key(api_key):
+    """Validate API key from Parameter Store"""
+    try:
+        # Check cache first (simple in-memory cache)
+        cache_key = f"api_key_{api_key[:8]}"  # Use first 8 chars as cache key
+        
+        # Try to get from Parameter Store
+        parameter_name = f"/redact/api-keys/string-{os.environ.get('STAGE', 'prod')}"
+        
+        try:
+            response = ssm.get_parameter(
+                Name=parameter_name,
+                WithDecryption=True
+            )
+            
+            stored_config = json.loads(response['Parameter']['Value'])
+            
+            if stored_config.get('key') == api_key:
+                return {
+                    'user_id': stored_config.get('user_id', 'string-integration'),
+                    'name': stored_config.get('name', 'String.com Integration'),
+                    'permissions': stored_config.get('permissions', ['api:string:redact']),
+                    'config_override': stored_config.get('config_override', {})
+                }
+        except ssm.exceptions.ParameterNotFound:
+            logger.warning(f"API key parameter not found: {parameter_name}")
+        except Exception as e:
+            logger.error(f"Error validating API key: {str(e)}")
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"API key validation error: {str(e)}")
+        return None
+
+def handle_string_redact(event, headers, context):
+    """
+    Handle String.com redaction endpoint
+    POST /api/string/redact
+    """
+    try:
+        # Extract bearer token
+        auth_header = event.get('headers', {}).get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return {
+                'statusCode': 401,
+                'headers': headers,
+                'body': json.dumps({
+                    'success': False,
+                    'error': 'Missing or invalid authorization header',
+                    'error_code': 'AUTH_REQUIRED'
+                })
+            }
+        
+        api_key = auth_header[7:]  # Remove 'Bearer ' prefix
+        
+        # Validate API key
+        api_context = validate_string_api_key(api_key)
+        if not api_context:
+            return {
+                'statusCode': 401,
+                'headers': headers,
+                'body': json.dumps({
+                    'success': False,
+                    'error': 'Invalid API key',
+                    'error_code': 'INVALID_API_KEY'
+                })
+            }
+        
+        # Parse request body
+        try:
+            body = event.get('body', '')
+            if event.get('isBase64Encoded', False):
+                body = base64.b64decode(body).decode('utf-8')
+            
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({
+                    'success': False,
+                    'error': 'Invalid JSON in request body',
+                    'error_code': 'INVALID_JSON'
+                })
+            }
+        
+        # Get text to redact
+        text = data.get('text', '')
+        if not text:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({
+                    'success': False,
+                    'error': 'No text provided',
+                    'error_code': 'MISSING_TEXT'
+                })
+            }
+        
+        # Check text size (1MB limit)
+        if len(text.encode('utf-8')) > 1024 * 1024:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({
+                    'success': False,
+                    'error': 'Text exceeds 1MB limit',
+                    'error_code': 'TEXT_TOO_LARGE'
+                })
+            }
+        
+        # Get configuration
+        inline_config = data.get('config', None)
+        if inline_config:
+            config = inline_config
+        else:
+            # Load user's saved configuration
+            user_id = api_context['user_id']
+            user_config_key = f'configs/users/{user_id}/config.json'
+            
+            try:
+                response = s3.get_object(
+                    Bucket=CONFIG_BUCKET,
+                    Key=user_config_key
+                )
+                config = json.loads(response['Body'].read())
+            except s3.exceptions.NoSuchKey:
+                # Use default String.com config
+                config = {
+                    "conditional_rules": [
+                        {
+                            "name": "Choice Hotels",
+                            "enabled": True,
+                            "trigger": {
+                                "contains": ["Choice Hotels", "Choice"],
+                                "case_sensitive": False
+                            },
+                            "replacements": [
+                                {"find": "Choice Hotels", "replace": "CH"},
+                                {"find": "Choice", "replace": "CH"}
+                            ]
+                        },
+                        {
+                            "name": "Cronos",
+                            "enabled": True,
+                            "trigger": {
+                                "contains": ["Cronos"],
+                                "case_sensitive": False
+                            },
+                            "replacements": [
+                                {"find": "Cronos", "replace": "CR"}
+                            ]
+                        }
+                    ],
+                    "replacements": [],
+                    "case_sensitive": False,
+                    "patterns": {}
+                }
+        
+        # Apply config override from API key if present
+        if api_context.get('config_override'):
+            config.update(api_context['config_override'])
+        
+        # Import and use the Lambda processor's redaction function
+        start_time = time.time()
+        
+        # Since we can't directly import from Lambda, we'll replicate the logic here
+        # In production, you might want to share code via a Lambda layer
+        redacted_text, replacement_count = apply_redaction_for_api(text, config)
+        
+        processing_time = int((time.time() - start_time) * 1000)
+        
+        # Log the redaction for monitoring
+        logger.info(json.dumps({
+            'event': 'STRING_REDACTION',
+            'user_id': api_context['user_id'],
+            'text_length': len(text),
+            'replacements_made': replacement_count,
+            'processing_time_ms': processing_time
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'success': True,
+                'redacted_text': redacted_text,
+                'replacements_made': replacement_count,
+                'processing_time_ms': processing_time
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"String redaction error: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({
+                'success': False,
+                'error': 'Internal server error',
+                'error_code': 'INTERNAL_ERROR'
+            })
+        }
+
+def handle_test_redaction(event, headers, context, user_context):
+    """Handle POST /api/test-redaction endpoint for UI testing"""
+    try:
+        # Parse request body
+        body = event.get('body', '')
+        if event.get('isBase64Encoded', False):
+            body = base64.b64decode(body).decode('utf-8')
+        
+        data = json.loads(body)
+        text = data.get('text', '')
+        config = data.get('config', {})
+        
+        # Apply redaction
+        redacted_text, replacement_count = apply_redaction_for_api(text, config)
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'redacted_text': redacted_text,
+                'replacements_made': replacement_count
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Test redaction error: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Test redaction failed'})
+        }
+
+def apply_redaction_for_api(text, config):
+    """
+    Apply redaction rules to text (simplified version for API)
+    This replicates the Lambda processor logic
+    """
+    import re
+    
+    if not config:
+        return text, 0
+    
+    processed_text = text
+    replacement_count = 0
+    case_sensitive = config.get('case_sensitive', False)
+    
+    # Apply conditional rules first
+    conditional_rules = config.get('conditional_rules', [])
+    for rule in conditional_rules:
+        if not rule.get('enabled', True):
+            continue
+            
+        trigger = rule.get('trigger', {})
+        trigger_contains = trigger.get('contains', [])
+        trigger_case_sensitive = trigger.get('case_sensitive', False)
+        
+        # Check if any trigger words exist
+        trigger_matched = False
+        for trigger_word in trigger_contains:
+            if not trigger_word:
+                continue
+                
+            if trigger_case_sensitive:
+                if trigger_word in text:
+                    trigger_matched = True
+                    break
+            else:
+                if trigger_word.lower() in text.lower():
+                    trigger_matched = True
+                    break
+        
+        # Apply rule's replacements if triggered
+        if trigger_matched:
+            rule_replacements = rule.get('replacements', [])
+            for replacement in rule_replacements:
+                find_text = replacement.get('find', '')
+                replace_text = replacement.get('replace', '[REDACTED]')
+                
+                if not find_text:
+                    continue
+                
+                # Create pattern
+                rule_case_sensitive = replacement.get('case_sensitive', trigger_case_sensitive)
+                if rule_case_sensitive:
+                    pattern = re.escape(find_text)
+                else:
+                    pattern = f"(?i){re.escape(find_text)}"
+                
+                # Count and apply replacements
+                matches = list(re.finditer(pattern, processed_text))
+                if matches:
+                    replacement_count += len(matches)
+                    processed_text = re.sub(pattern, replace_text, processed_text)
+    
+    # Apply global replacements
+    replacements = config.get('replacements', [])
+    for replacement in replacements:
+        find_text = replacement.get('find', '')
+        replace_text = replacement.get('replace', '[REDACTED]')
+        
+        if not find_text:
+            continue
+        
+        # Create pattern
+        if case_sensitive:
+            pattern = re.escape(find_text)
+        else:
+            pattern = f"(?i){re.escape(find_text)}"
+        
+        # Count and apply replacements
+        matches = list(re.finditer(pattern, processed_text))
+        if matches:
+            replacement_count += len(matches)
+            processed_text = re.sub(pattern, replace_text, processed_text)
+    
+    # Apply PII patterns if enabled
+    patterns = config.get('patterns', {})
+    if patterns:
+        # Common PII patterns
+        PII_PATTERNS = {
+            "ssn": {
+                "pattern": r"\b(?:\d{3}-\d{2}-\d{4}|\d{3}\s\d{2}\s\d{4}|\d{9})\b",
+                "replace": "[SSN]"
+            },
+            "credit_card": {
+                "pattern": r"\b(?:\d{4}[\s\-]?){3}\d{4}\b",
+                "replace": "[CREDIT_CARD]"
+            },
+            "phone": {
+                "pattern": r"\b(?:\+?1[\s\-\.]?)?\(?\d{3}\)?[\s\-\.]?\d{3}[\s\-\.]?\d{4}\b",
+                "replace": "[PHONE]"
+            },
+            "email": {
+                "pattern": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+                "replace": "[EMAIL]"
+            },
+            "ip_address": {
+                "pattern": r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b",
+                "replace": "[IP_ADDRESS]"
+            },
+            "drivers_license": {
+                "pattern": r"\b[A-Z][0-9]{4,8}\b",
+                "replace": "[DL]"
+            }
+        }
+        
+        for pattern_name, enabled in patterns.items():
+            if enabled and pattern_name in PII_PATTERNS:
+                pii_config = PII_PATTERNS[pattern_name]
+                pattern = pii_config['pattern']
+                replace = pii_config['replace']
+                
+                matches = list(re.finditer(pattern, processed_text))
+                if matches:
+                    replacement_count += len(matches)
+                    processed_text = re.sub(pattern, replace, processed_text)
+    
+    return processed_text, replacement_count
