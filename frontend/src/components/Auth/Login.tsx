@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,8 +11,15 @@ export const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { signIn, signUp, confirmSignUp } = useAuth();
+  const { signIn, signUp, confirmSignUp, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +40,19 @@ export const Login: React.FC = () => {
         navigate('/');
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      // Handle specific Amplify errors
+      if (err.message?.includes('already a signed in user')) {
+        setError('You are already signed in. Please refresh the page or clear your browser data if you need to sign in with a different account.');
+      } else if (err.code === 'UserNotFoundException') {
+        setError('User not found. Please check your email or sign up for a new account.');
+      } else if (err.code === 'NotAuthorizedException') {
+        setError('Incorrect username or password.');
+      } else if (err.code === 'UserNotConfirmedException') {
+        setError('Please confirm your email address before signing in.');
+        setNeedsConfirmation(true);
+      } else {
+        setError(err.message || 'An error occurred');
+      }
     } finally {
       setLoading(false);
     }

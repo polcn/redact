@@ -40,6 +40,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleSignIn = async (email: string, password: string) => {
     try {
+      // Check if there's already a signed-in user and sign them out first
+      try {
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+          console.log('Signing out existing user before new sign in');
+          await signOut();
+        }
+      } catch (error) {
+        // No current user, proceed with sign in
+      }
+      
       await signIn({ username: email, password });
       await refreshUser();
     } catch (error) {
