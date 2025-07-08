@@ -258,7 +258,7 @@ For API key requests or technical support, please contact the Redact team.
 
 ## Changelog
 
-### Version 1.0 (2024-01-15)
+### Version 1.0 (2025-01-15)
 - Initial release with content-based conditional rules
 - Support for String.com default configuration
 - Pattern-based PII detection

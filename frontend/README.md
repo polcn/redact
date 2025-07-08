@@ -12,7 +12,7 @@ A secure React frontend for the AWS Document Redaction System.
 - ☑️ Multi-select for batch operations (delete, download)
 - 📊 Real-time processing status updates
 - ⬇️ Secure file downloads with presigned URLs
-- ⚙️ Configuration management UI (all users)
+- ⚙️ Configuration management UI (all authenticated users can manage their own rules)
 - 🎨 Modern UI with Anthropic-inspired design system
 - 🔒 User data isolation
 

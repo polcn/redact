@@ -31,15 +31,61 @@ A secure, automated document processing system that removes sensitive informatio
 ## Architecture
 
 ```
-Users → React Frontend (redact.9thcube.com) → CloudFront → S3
-             ↓
-        AWS Cognito
-             ↓
-      API Gateway → Lambda → S3 (User-Isolated Paths)
-             ↓         ↓
-       Config API   Processing
-             ↓         ↓
-        Admin UI   CloudWatch
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Frontend Layer                               │
+├─────────────────────────────────────────────────────────────────────┤
+│  React SPA → CloudFront (EOG2DS78ES8MD) → S3 (redact-frontend-*)   │
+│  Route 53 (redact.9thcube.com) → ACM Certificate                   │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────────────┐
+│                    Authentication Layer                              │
+├─────────────────────────────────────────────────────────────────────┤
+│  AWS Cognito (us-east-1_4Uv3seGwS)                                 │
+│  • User Pool with JWT tokens                                        │
+│  • Pre-signup Lambda for email domain validation                    │
+│  • Allowed domains: gmail.com, outlook.com, yahoo.com, 9thcube.com │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────────────┐
+│                        API Layer                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│  API Gateway (REST) → Lambda (redact-api-handler)                  │
+│  • /documents/upload    - Upload files (base64)                    │
+│  • /documents/status    - Check processing status                  │
+│  • /documents/{id}      - Delete files                             │
+│  • /user/files          - List user files                          │
+│  • /api/config          - Get/Update redaction rules               │
+│  • /api/string/redact   - String.com integration                   │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────────────┐
+│                    Processing Layer                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│  S3 Event Trigger → Lambda (document-scrubbing-processor)          │
+│  • User isolation: users/{userId}/* paths                          │
+│  • Multi-format support: PDF, DOCX, XLSX, CSV, PPTX, TXT          │
+│  • Pattern detection & conditional rules                           │
+│  • Outputs: .md files (ChatGPT compatible)                         │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────────────┐
+│                     Storage Layer                                    │
+├─────────────────────────────────────────────────────────────────────┤
+│  S3 Buckets (AES256 encryption, lifecycle policies)                │
+│  • redact-input-*       - Original uploads                         │
+│  • redact-processed-*   - Redacted documents                       │
+│  • redact-quarantine-*  - Failed processing                        │
+│  • redact-config-*      - User configurations                      │
+└─────────────────────────────────────────────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────────────────┐
+│                    External Integrations                             │
+├─────────────────────────────────────────────────────────────────────┤
+│  • AWS SSM Parameter Store - API key storage                       │
+│  • CloudWatch Logs - Monitoring and debugging                      │
+│  • String.com API - External redaction requests                    │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Quick Start
@@ -70,7 +116,7 @@ npm run build
 
 ### ✅ Recent Updates (as of 2025-07-07)
 
-#### Session 12 - String.com Integration & Content-Based Redaction (✅ Backend Complete)
+#### Session 12 - String.com Integration & Content-Based Redaction (✅ Complete)
 - **Content-Based Conditional Rules**: Added support for applying different redaction rules based on document content
 - **String.com API Integration**: Created dedicated endpoint `/api/string/redact` with Bearer token authentication
 - **API Key Management**: Implemented secure API key storage in AWS Parameter Store
