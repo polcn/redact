@@ -1,8 +1,17 @@
 # TODO List
 
-## String.com Integration - ✅ Complete
+## Authentication Fix - ✅ Complete (2025-07-08)
 
 ### ✅ Recently Fixed
+1. **AWS Amplify v6 Authentication Error** ✅ FIXED
+   - "There is already a signed in user" error resolved
+   - Auto sign-out of existing users before new sign-in implemented
+   - Concurrent logins from multiple devices still supported
+   - Frontend deployed with fixes
+
+## String.com Integration - ✅ Complete
+
+### ✅ Previously Fixed
 1. **API Gateway String.com Endpoint Issue** ✅ FIXED
    - The `/api/string/redact` endpoint was returning 401 "Authentication required"
    - Root causes fixed:
