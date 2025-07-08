@@ -85,7 +85,9 @@ def lambda_handler(event, context):
             'event': 'API_REQUEST',
             'path': path,
             'method': method,
-            'request_id': context.aws_request_id
+            'request_id': context.aws_request_id,
+            'headers': list(event.get('headers', {}).keys()),
+            'has_auth': 'Authorization' in event.get('headers', {})
         }))
         
         # Public endpoints
@@ -93,7 +95,9 @@ def lambda_handler(event, context):
             return handle_health_check(headers)
         
         # String.com integration endpoint (uses API key auth, not Cognito)
+        logger.info(f"Checking String.com endpoint: path='{path}' method='{method}' match={path == '/api/string/redact' and method == 'POST'}")
         if path == '/api/string/redact' and method == 'POST':
+            logger.info("Calling handle_string_redact")
             return handle_string_redact(event, headers, context)
         
         # Get user context
@@ -919,7 +923,11 @@ def validate_string_api_key(api_key):
         cache_key = f"api_key_{api_key[:8]}"  # Use first 8 chars as cache key
         
         # Try to get from Parameter Store
-        parameter_name = f"/redact/api-keys/string-{os.environ.get('STAGE', 'prod')}"
+        stage = os.environ.get('STAGE', 'prod')
+        # Map 'production' to 'prod' for consistency
+        if stage == 'production':
+            stage = 'prod'
+        parameter_name = f"/redact/api-keys/string-{stage}"
         
         try:
             response = ssm.get_parameter(

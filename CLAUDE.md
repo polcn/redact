@@ -150,7 +150,7 @@ REACT_APP_DOMAIN=redact.9thcube.com
   - API key stored securely in AWS Parameter Store
   - Returns redacted text with replacement count and processing time
   - Generated API key: `YOUR_API_KEY`
-  - **🔴 BLOCKED**: API returning 401 authentication errors despite fixes
+  - **✅ FIXED**: API endpoint now fully functional after IAM and environment fixes
 - **Frontend Enhancements**:
   - ConditionalRuleEditor component for managing content-based rules
   - RedactionTester component for real-time configuration testing
@@ -402,34 +402,49 @@ aws s3 rm s3://BUCKET --recursive  # Clear bucket before destroy
 
 ## Current Work Status (Session 12)
 
-### 🔴 Critical Issue
-**String.com API Authentication Failure**
-- Endpoint: `POST /api/string/redact` returns 401
-- Fix attempted: Moved route check before Cognito auth
-- Status: Still failing after deployment
-- Next step: Check CloudWatch logs for Lambda function
+### ✅ String.com Integration Complete
+**API Endpoint Successfully Fixed and Deployed**
+- Endpoint: `POST /api/string/redact` now working perfectly
+- Fixes applied:
+  - Added SSM permissions to API Lambda IAM role
+  - Updated Lambda environment STAGE from "production" to "prod"
+- Content-based rules working as expected:
+  - "Choice Hotels" or "Choice" → "CH"
+  - "Cronos" → "CR"
 
-### 🟡 Pending Deployment
-- Frontend conditional rules UI components
-- RedactionTester component
-- Enhanced ConfigEditor
+### 🟡 Pending Frontend Deployment
+- Frontend conditional rules UI components (ready but not deployed)
+- RedactionTester component for live testing
+- Enhanced ConfigEditor with conditional rules
 
-### ✅ Completed
-- Lambda processor conditional rules logic
-- API handler String.com endpoint code
-- API key generation and storage
-- Documentation for String.com
+### ✅ Backend Complete
+- Lambda processor conditional rules logic ✅
+- API handler String.com endpoint ✅
+- API key generation and storage ✅
+- SSM Parameter Store integration ✅
+- Documentation created ✅
 
-### Debug Commands
+### Production API Details
 ```bash
-# Check API handler logs
-aws logs tail /aws/lambda/redact-api-handler --follow
+# String.com Integration Endpoint
+POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/api/string/redact
 
-# Test String.com endpoint
-curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/api/string/redact \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Test with Choice Hotels and Cronos"}'
+# Headers
+Authorization: Bearer YOUR_API_KEY
+Content-Type: application/json
+
+# Example Request
+{
+  "text": "Meeting notes with Choice Hotels and Cronos team"
+}
+
+# Example Response
+{
+  "success": true,
+  "redacted_text": "Meeting notes with CH and CR team",
+  "replacements_made": 2,
+  "processing_time_ms": 0
+}
 ```
 
 ## CI/CD Pipeline
