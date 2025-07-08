@@ -3,7 +3,7 @@
 ## Overview
 **AWS Document Redaction System** - Enterprise-grade document scrubbing with React frontend.
 - **Frontend**: https://redact.9thcube.com
-- **Status**: ✅ Production Complete with UI
+- **Status**: ✅ Production Complete with UI + String.com API
 - **Cost**: $0-5/month
 - **API**: https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production
 
@@ -141,7 +141,7 @@ REACT_APP_DOMAIN=redact.9thcube.com
 
 ### ✅ Recent Updates (2025-07-07)
 
-#### Session 12 - String.com Integration & Content-Based Redaction (⚠️ In Progress)
+#### Session 12 - String.com Integration & Content-Based Redaction (✅ Backend Complete)
 - **Content-Based Conditional Rules**: Documents can now trigger specific redaction rules based on content
   - Example: Documents containing "Choice Hotels" replace with "CH"
   - Example: Documents containing "Cronos" replace with "CR"
@@ -305,7 +305,7 @@ Currently using `api_handler_simple.py` for the API Lambda function. This simpli
 | GET | /user/files | List all user files | ✅ Working |
 | GET | /api/config | Get redaction configuration | ✅ Working |
 | PUT | /api/config | Update redaction configuration | ✅ Working |
-| POST | /api/string/redact | String.com redaction endpoint | 🔴 401 Auth Error |
+| POST | /api/string/redact | String.com redaction endpoint | ✅ Working |
 
 ## File Management Features
 

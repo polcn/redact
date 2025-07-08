@@ -25,6 +25,7 @@ A secure, automated document processing system that removes sensitive informatio
 - **👤 User Isolation**: Each user only sees their own files
 - **⚙️ Configuration UI**: User-configurable redaction rules
 - **🔍 Pattern Detection**: Automatic PII detection (SSN, credit cards, phones, emails, IPs, driver's licenses)
+- **🔗 String.com API**: Dedicated endpoint for programmatic redaction with Bearer token auth
 - **💰 Cost-Optimized**: $0-5/month serverless architecture
 
 ## Architecture
@@ -69,7 +70,7 @@ npm run build
 
 ### ✅ Recent Updates (as of 2025-07-07)
 
-#### Session 12 - String.com Integration & Content-Based Redaction
+#### Session 12 - String.com Integration & Content-Based Redaction (✅ Backend Complete)
 - **Content-Based Conditional Rules**: Added support for applying different redaction rules based on document content
 - **String.com API Integration**: Created dedicated endpoint `/api/string/redact` with Bearer token authentication
 - **API Key Management**: Implemented secure API key storage in AWS Parameter Store
