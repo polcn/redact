@@ -1,0 +1,58 @@
+graph TB
+    subgraph "Frontend"
+        A[React App<br/>redact.9thcube.com]
+    end
+    
+    subgraph "Authentication"
+        B[AWS Cognito<br/>us-east-1_4Uv3seGwS]
+    end
+    
+    subgraph "CDN"
+        C[CloudFront<br/>EOG2DS78ES8MD]
+    end
+    
+    subgraph "API Layer"
+        D[API Gateway<br/>101pi5aiv5.execute-api.us-east-1.amazonaws.com]
+        E[API Lambda<br/>api_handler_simple.py]
+    end
+    
+    subgraph "Processing Layer"
+        F[Document Processor Lambda<br/>lambda_function_v2.py]
+    end
+    
+    subgraph "Storage Layer"
+        G[S3: redact-input-*<br/>User Uploads]
+        H[S3: redact-processed-*<br/>Processed Files]
+        I[S3: redact-quarantine-*<br/>Failed Files]
+        J[S3: redact-config-*<br/>User Configs]
+    end
+    
+    subgraph "External APIs"
+        K[String.com API<br/>Content Redaction]
+    end
+    
+    A -->|Static Assets| C
+    A -->|Authentication| B
+    A -->|API Calls| D
+    B -->|JWT Token| D
+    D --> E
+    E -->|Upload| G
+    E -->|Process Request| F
+    E -->|Config Management| J
+    E -->|String.com Redact| K
+    F -->|Read| G
+    F -->|Write| H
+    F -->|Error| I
+    F -->|Read Config| J
+    
+    style A fill:#e1f5fe
+    style B fill:#fff3e0
+    style C fill:#f3e5f5
+    style D fill:#e8f5e9
+    style E fill:#e8f5e9
+    style F fill:#fff8e1
+    style G fill:#ffebee
+    style H fill:#ffebee
+    style I fill:#ffebee
+    style J fill:#ffebee
+    style K fill:#fce4ec
