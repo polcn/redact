@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2025-01-09T00:00:00.000Z" agent="5.0" etag="redact-architecture" version="21.6.5" type="device">
+  <diagram name="Redact Architecture" id="redact-arch-diagram">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Frontend Group -->
+        <mxCell id="frontend-group" value="" style="group;rounded=1;fillColor=#e1f5fe;strokeColor=#01579b;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="200" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="frontend-label" value="Frontend" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="frontend-group">
+          <mxGeometry x="60" y="0" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="react-app" value="React App&lt;br&gt;redact.9thcube.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#0d47a1" vertex="1" parent="frontend-group">
+          <mxGeometry x="20" y="30" width="160" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Authentication -->
+        <mxCell id="cognito" value="AWS Cognito&lt;br&gt;us-east-1_4Uv3seGwS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#e65100" vertex="1" parent="1">
+          <mxGeometry x="300" y="60" width="160" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- CDN -->
+        <mxCell id="cloudfront" value="CloudFront&lt;br&gt;EOG2DS78ES8MD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e5f5;strokeColor=#4a148c" vertex="1" parent="1">
+          <mxGeometry x="60" y="180" width="160" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- API Layer Group -->
+        <mxCell id="api-group" value="" style="group;rounded=1;fillColor=#e8f5e9;strokeColor=#1b5e20;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="520" y="40" width="220" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="api-label" value="API Layer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="api-group">
+          <mxGeometry x="70" y="0" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="api-gateway" value="API Gateway&lt;br&gt;101pi5aiv5.execute-api.&lt;br&gt;us-east-1.amazonaws.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#2e7d32" vertex="1" parent="api-group">
+          <mxGeometry x="20" y="30" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="api-lambda" value="API Lambda&lt;br&gt;api_handler_simple.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#c8e6c9;strokeColor=#2e7d32" vertex="1" parent="api-group">
+          <mxGeometry x="20" y="110" width="180" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Processing Layer -->
+        <mxCell id="processor-lambda" value="Document Processor Lambda&lt;br&gt;lambda_function_v2.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#f57f17" vertex="1" parent="1">
+          <mxGeometry x="540" y="300" width="180" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Storage Layer Group -->
+        <mxCell id="storage-group" value="" style="group;rounded=1;fillColor=#ffebee;strokeColor=#b71c1c;dashed=1" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="700" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="storage-label" value="Storage Layer (S3)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" vertex="1" parent="storage-group">
+          <mxGeometry x="280" y="0" width="140" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-input" value="redact-input-*&lt;br&gt;User Uploads" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828" vertex="1" parent="storage-group">
+          <mxGeometry x="20" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-processed" value="redact-processed-*&lt;br&gt;Processed Files" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828" vertex="1" parent="storage-group">
+          <mxGeometry x="190" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-quarantine" value="redact-quarantine-*&lt;br&gt;Failed Files" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828" vertex="1" parent="storage-group">
+          <mxGeometry x="360" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-config" value="redact-config-*&lt;br&gt;User Configs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffcdd2;strokeColor=#c62828" vertex="1" parent="storage-group">
+          <mxGeometry x="530" y="40" width="140" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- External API -->
+        <mxCell id="string-api" value="String.com API&lt;br&gt;Content Redaction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#880e4f" vertex="1" parent="1">
+          <mxGeometry x="800" y="120" width="160" height="60" as="geometry" />
+        </mxCell>
+        
+        <!-- Arrows -->
+        <mxCell id="arrow1" value="" style="endArrow=classic;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" edge="1" parent="1" source="react-app" target="cognito">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="300" as="sourcePoint" />
+            <mxPoint x="450" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow1-label" value="Authentication" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[]" vertex="1" connectable="0" parent="arrow1">
+          <mxGeometry x="-0.2" y="-10" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow2" value="" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" edge="1" parent="1" source="react-app" target="cloudfront">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="300" as="sourcePoint" />
+            <mxPoint x="450" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow2-label" value="Static Assets" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[]" vertex="1" connectable="0" parent="arrow2">
+          <mxGeometry x="-0.2" y="-10" relative="1" as="geometry">
+            <mxPoint x="20" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow3" value="" style="endArrow=classic;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" edge="1" parent="1" source="cognito" target="api-gateway">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="300" as="sourcePoint" />
+            <mxPoint x="450" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow3-label" value="JWT Token" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[]" vertex="1" connectable="0" parent="arrow3">
+          <mxGeometry x="-0.2" y="-10" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow4" value="" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" edge="1" parent="1" source="api-gateway" target="api-lambda">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="300" as="sourcePoint" />
+            <mxPoint x="450" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow5" value="" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" edge="1" parent="1" source="api-lambda" target="processor-lambda">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="300" as="sourcePoint" />
+            <mxPoint x="450" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow5-label" value="Process Request" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[]" vertex="1" connectable="0" parent="arrow5">
+          <mxGeometry x="-0.2" y="-10" relative="1" as="geometry">
+            <mxPoint x="20" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow6" value="" style="endArrow=classic;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" edge="1" parent="1" source="api-lambda" target="string-api">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="300" as="sourcePoint" />
+            <mxPoint x="450" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow6-label" value="String.com Redact" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[]" vertex="1" connectable="0" parent="arrow6">
+          <mxGeometry x="-0.2" y="-10" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow7" value="" style="endArrow=classic;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" edge="1" parent="1" source="processor-lambda" target="s3-input">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="400" as="sourcePoint" />
+            <mxPoint x="450" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow7-label" value="Read" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[]" vertex="1" connectable="0" parent="arrow7">
+          <mxGeometry x="-0.2" y="-10" relative="1" as="geometry">
+            <mxPoint x="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow8" value="" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" edge="1" parent="1" source="processor-lambda" target="s3-processed">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="400" as="sourcePoint" />
+            <mxPoint x="450" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow8-label" value="Write" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[]" vertex="1" connectable="0" parent="arrow8">
+          <mxGeometry x="-0.2" y="-10" relative="1" as="geometry">
+            <mxPoint x="-20" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow9" value="" style="endArrow=classic;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" edge="1" parent="1" source="processor-lambda" target="s3-quarantine">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="400" as="sourcePoint" />
+            <mxPoint x="450" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow9-label" value="Error" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[]" vertex="1" connectable="0" parent="arrow9">
+          <mxGeometry x="-0.2" y="-10" relative="1" as="geometry">
+            <mxPoint x="10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+        <mxCell id="arrow10" value="" style="endArrow=classic;html=1;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" edge="1" parent="1" source="processor-lambda" target="s3-config">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="400" y="400" as="sourcePoint" />
+            <mxPoint x="450" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="arrow10-label" value="Read Config" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[]" vertex="1" connectable="0" parent="arrow10">
+          <mxGeometry x="-0.2" y="-10" relative="1" as="geometry">
+            <mxPoint x="20" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
