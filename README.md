@@ -30,6 +30,7 @@ cd frontend && npm install && npm run build && ./deploy.sh
 Visit https://redact.9thcube.com and sign up with allowed email domains.
 
 ## Recent Updates
+- **2025-07-11**: Email verification now required for new users (security enhancement)
 - **2025-07-08**: Fixed AWS Amplify v6 "already signed in" error
 - **2025-07-08**: String.com API with content-based rules ("Choice Hotels"→"CH")
 - **2025-06-25**: User-isolated configs, PPTX support, clean filenames
