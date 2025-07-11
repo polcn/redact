@@ -7,7 +7,8 @@ Production-ready document redaction system with React frontend at https://redact
 - **Pattern Detection**: SSN, credit cards, phones, emails, IPs, licenses
 - **Link Stripping**: Removes URLs while preserving link text for redaction
 - **User Isolation**: Secure file storage per user
-- **String.com API**: Content-based redaction rules
+- **String.com API**: Content-based redaction rules with rate limiting
+- **API Management**: Automated key rotation, usage quotas, monitoring
 - **Cost**: $0-5/month serverless architecture
 
 ## Architecture
@@ -31,6 +32,7 @@ cd frontend && npm install && npm run build && ./deploy.sh
 Visit https://redact.9thcube.com and sign up with allowed email domains.
 
 ## Recent Updates
+- **2025-07-11**: API rate limiting (10k/month) and automated key rotation (30-day cycle)
 - **2025-07-11**: Link stripping - removes URLs while preserving text for redaction
 - **2025-07-11**: Email verification now required for new users (security enhancement)
 - **2025-07-08**: Fixed AWS Amplify v6 "already signed in" error
@@ -40,10 +42,11 @@ Visit https://redact.9thcube.com and sign up with allowed email domains.
 
 ## Infrastructure
 - **S3 Buckets**: redact-{input,processed,quarantine,config}-32a4ee51
-- **Lambda**: document-scrubbing-processor, redact-api-handler
+- **Lambda**: document-scrubbing-processor, redact-api-handler, api-key-rotation
 - **API**: https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production
 - **Cognito**: us-east-1_4Uv3seGwS
 - **Security**: AES256 encryption, IAM least-privilege, user isolation
+- **Monitoring**: CloudWatch alarms for API quotas, throttling, and rotation failures
 
 ## API Usage
 ```bash
@@ -95,10 +98,12 @@ aws logs tail /aws/lambda/document-scrubbing-processor --follow
 - `main.tf` - Core infrastructure
 - `lambda.tf` - Document processor
 - `api-gateway.tf` - REST API
+- `api-rate-limiting.tf` - Usage plans and quotas
+- `api-key-rotation.tf` - Automated key management
 - `frontend.tf` - CloudFront/Route53
 - `cognito.tf` - Authentication
 - `lambda_code/` - Processing logic
-- `api_code/` - API handlers
+- `api_code/` - API handlers and rotation
 - `frontend/` - React app
 
 For detailed documentation, see CLAUDE.md
