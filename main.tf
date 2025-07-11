@@ -228,12 +228,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "quarantine_documents" {
     }
 
     transition {
-      days          = 7
+      days          = 30
       storage_class = "STANDARD_IA"
     }
 
     transition {
-      days          = 30
+      days          = 90
       storage_class = "GLACIER"
     }
 

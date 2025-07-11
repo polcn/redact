@@ -138,7 +138,7 @@ resource "aws_lambda_function" "cognito_pre_signup" {
   environment {
     variables = {
       ALLOWED_DOMAINS = "gmail.com,outlook.com,yahoo.com,9thcube.com"  # Configure allowed email domains
-      AUTO_CONFIRM    = "true"
+      AUTO_CONFIRM    = "false"
     }
   }
   
