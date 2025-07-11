@@ -448,13 +448,51 @@ def process_single_file(bucket, key, config):
     
     return {'processed': True, 'file_type': file_ext}
 
+def strip_urls_preserve_text(text):
+    """
+    Strip URLs from text while preserving the link text.
+    Handles various formats:
+    - HTML: <a href="url">text</a> -> text
+    - Markdown: [text](url) -> text
+    - Plain URLs: http://example.com -> (removed)
+    - Email links: <a href="mailto:email">text</a> -> text
+    """
+    import re
+    
+    # Strip HTML anchor tags but keep the text
+    # Matches <a href="...">text</a> and replaces with just text
+    text = re.sub(r'<a\s+(?:[^>]*?\s+)?href=["\'](?:[^"\']*)["\'][^>]*>(.*?)</a>', r'\1', text, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Strip Markdown links but keep the text
+    # Matches [text](url) and replaces with just text
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    
+    # Strip standalone URLs (http, https, ftp, etc.)
+    # This regex matches URLs that are not part of HTML or Markdown syntax
+    url_pattern = r'(?<!["\'\(])\b(?:https?|ftp|ftps)://[^\s<>"{}|\\^`\[\]]+(?!["\'\)])'
+    text = re.sub(url_pattern, '', text)
+    
+    # Strip www URLs without protocol
+    www_pattern = r'(?<!["\'\(/@])\bwww\.[^\s<>"{}|\\^`\[\]]+(?!["\'\)])'
+    text = re.sub(www_pattern, '', text)
+    
+    # Clean up any double spaces left after URL removal
+    text = re.sub(r'\s+', ' ', text)
+    
+    return text.strip()
+
 def apply_redaction_rules(text, config):
     """Apply redaction rules to text content including pattern-based PII detection"""
     if not config:
         return text, False
     
     redacted = False
-    processed_text = text
+    
+    # Strip URLs first while preserving link text
+    processed_text = strip_urls_preserve_text(text)
+    if processed_text != text:
+        redacted = True
+    
     case_sensitive = config.get('case_sensitive', False)
     
     # Apply conditional rules first (content-based redaction)
@@ -556,8 +594,12 @@ def apply_redaction_with_count(text, config):
     if not config:
         return text, 0
     
-    processed_text = text
+    # Strip URLs first while preserving link text
+    processed_text = strip_urls_preserve_text(text)
     replacement_count = 0
+    if processed_text != text:
+        replacement_count += 1  # Count URL stripping as one replacement
+    
     case_sensitive = config.get('case_sensitive', False)
     
     # Apply conditional rules first (content-based redaction)
@@ -1116,7 +1158,7 @@ def process_csv_file(bucket, key, config, user_info=None):
         processed_text, redacted = apply_redaction_rules(text, config)
         
         # Normalize text for Windows compatibility
-        processed_text = normalize_text_for_windows(processed_text)
+        processed_text = normalize_text_output(processed_text)
         
         # Change file extension to .md for ChatGPT compatibility
         file_path = user_info['file_path'] if user_info else key

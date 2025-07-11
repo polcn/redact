@@ -39,11 +39,13 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
-### 2025-07-11: Email Verification Required
-- Disabled auto-confirmation for new user registrations
-- Users must now verify email address before signing in
-- Prevents unauthorized access with unverified email addresses
-- Set `AUTO_CONFIRM = "false"` in Cognito configuration
+### 2025-07-11: Link Stripping & Security Enhancements
+- **Email Verification**: Now required for new user registrations (AUTO_CONFIRM = false)
+- **Link Stripping**: URLs removed while preserving link text for redaction
+  - HTML: `<a href="url">Choice Hotels</a>` → `CH`
+  - Markdown: `[Choice Hotels](url)` → `CH`
+  - Prevents information leakage through URLs
+- **CSV Processing**: Fixed normalize_text function error
 
 ### 2025-07-08: Authentication Fix
 - Fixed "There is already a signed in user" error with AWS Amplify v6

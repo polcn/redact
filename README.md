@@ -5,6 +5,7 @@ Production-ready document redaction system with React frontend at https://redact
 ## Features
 - **Multi-format**: PDF/DOCX/TXT/CSV/PPTX → .md | XLSX → .csv (first sheet)
 - **Pattern Detection**: SSN, credit cards, phones, emails, IPs, licenses
+- **Link Stripping**: Removes URLs while preserving link text for redaction
 - **User Isolation**: Secure file storage per user
 - **String.com API**: Content-based redaction rules
 - **Cost**: $0-5/month serverless architecture
@@ -30,6 +31,7 @@ cd frontend && npm install && npm run build && ./deploy.sh
 Visit https://redact.9thcube.com and sign up with allowed email domains.
 
 ## Recent Updates
+- **2025-07-11**: Link stripping - removes URLs while preserving text for redaction
 - **2025-07-11**: Email verification now required for new users (security enhancement)
 - **2025-07-08**: Fixed AWS Amplify v6 "already signed in" error
 - **2025-07-08**: String.com API with content-based rules ("Choice Hotels"→"CH")

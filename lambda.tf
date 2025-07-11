@@ -160,7 +160,7 @@ resource "aws_lambda_function" "document_processor" {
   filename         = "document_processor.zip"
   function_name    = "document-scrubbing-processor"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "lambda_function.lambda_handler"
+  handler         = "lambda_function_v2.lambda_handler"
   runtime         = "python3.11"
   timeout         = var.lambda_timeout
   memory_size     = var.lambda_memory_size

@@ -31,7 +31,7 @@
 - [x] Verify Lambda deployment includes latest api_handler_simple.py changes ✅
 
 #### Frontend
-- [ ] Deploy frontend with new conditional rules UI
+- [x] Deploy frontend with new conditional rules UI ✅ Deployed 2025-07-08
 - [ ] Test conditional rules editor with various scenarios
 - [ ] Add import/export functionality for configurations
 - [ ] Add rule templates for common use cases
@@ -103,7 +103,7 @@ Before next deployment:
 - ✅ Backend ready for production use
 - ✅ Core find/replace UI deployed (June 26)
 
-### 🟡 Pending Deployment
-- 🟡 Enhanced frontend with conditional rules UI (ready but not deployed)
-- 🟡 RedactionTester component
-- 🟡 ConditionalRuleEditor component
+### ✅ Recently Deployed (2025-07-08)
+- ✅ Enhanced frontend with conditional rules UI deployed
+- ✅ RedactionTester component
+- ✅ ConditionalRuleEditor component
