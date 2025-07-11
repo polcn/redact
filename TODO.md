@@ -26,8 +26,8 @@
 - [x] ~~Debug and fix String.com API endpoint authentication~~ ✅ FIXED
 - [x] ~~Add proper logging to API handler for debugging~~ ✅ Added debug logging
 - [x] ~~Test String.com integration end-to-end~~ ✅ Tested and working
-- [ ] Add rate limiting for API key usage
-- [ ] Implement API key rotation mechanism
+- [x] ~~Add rate limiting for API key usage~~ ✅ Implemented with API Gateway Usage Plans
+- [x] ~~Implement API key rotation mechanism~~ ✅ Monthly rotation with 7-day grace period
 - [x] Verify Lambda deployment includes latest api_handler_simple.py changes ✅
 
 #### Frontend
@@ -84,11 +84,20 @@ Before next deployment:
 ## Notes
 
 - API Key for String.com is stored in Parameter Store: `/redact/api-keys/string-prod`
+- API Gateway key for rate limiting: `/redact/api-keys/string-api-gateway-key`
 - Default String.com configuration includes Choice Hotels and Cronos rules
 - Frontend deployment: `cd frontend && npm run build && ./deploy.sh`
 - Infrastructure deployment: `terraform apply`
 - String.com API endpoint: `POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/api/string/redact`
-- Authentication header: `Authorization: Bearer REMOVED`
+- Authentication header: `Authorization: Bearer [current_api_key_from_parameter_store]`
+- Rate limits: 10,000 requests/month, 100 req/sec burst
+
+### Rate Limiting Implementation (2025-07-11)
+- ✅ API Gateway Usage Plans with 10k/month quota
+- ✅ CloudWatch alarms for quota (80%) and throttling monitoring
+- ✅ Automated key rotation every 30 days via EventBridge
+- ✅ 7-day grace period for old keys during rotation
+- ✅ API handler validates both current and old keys
 
 ## Implementation Status
 

@@ -206,14 +206,16 @@ resource "aws_api_gateway_method" "documents_delete" {
 
 # POST /api/string/redact - String.com redaction endpoint
 resource "aws_api_gateway_method" "string_redact_post" {
-  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
-  resource_id   = aws_api_gateway_resource.api_string_redact.id
-  http_method   = "POST"
-  authorization = "NONE"  # Uses custom API key authentication
+  rest_api_id      = aws_api_gateway_rest_api.redact_api.id
+  resource_id      = aws_api_gateway_resource.api_string_redact.id
+  http_method      = "POST"
+  authorization    = "NONE"  # Uses custom API key authentication
+  api_key_required = true    # Require API Gateway API key for rate limiting
   
   request_parameters = {
-    "method.request.header.Authorization" = true
-    "method.request.header.Content-Type" = true
+    "method.request.header.Authorization" = true  # Bearer token for our validation
+    "method.request.header.Content-Type"  = true
+    "method.request.header.x-api-key"     = true  # API Gateway API key
   }
 }
 
@@ -504,21 +506,22 @@ resource "aws_api_gateway_stage" "redact_api_stage" {
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
   stage_name    = var.environment
   
-  access_log_settings {
-    destination_arn = aws_cloudwatch_log_group.api_gateway_logs.arn
-    format = jsonencode({
-      requestId      = "$context.requestId"
-      ip            = "$context.identity.sourceIp"
-      caller        = "$context.identity.caller"
-      user          = "$context.identity.user"
-      requestTime   = "$context.requestTime"
-      httpMethod    = "$context.httpMethod"
-      resourcePath  = "$context.resourcePath"
-      status        = "$context.status"
-      protocol      = "$context.protocol"
-      responseLength = "$context.responseLength"
-    })
-  }
+  # Note: Commenting out access logs for now - requires CloudWatch Logs role ARN in account settings
+  # access_log_settings {
+  #   destination_arn = aws_cloudwatch_log_group.api_gateway_logs.arn
+  #   format = jsonencode({
+  #     requestId      = "$context.requestId"
+  #     ip            = "$context.identity.sourceIp"
+  #     caller        = "$context.identity.caller"
+  #     user          = "$context.identity.user"
+  #     requestTime   = "$context.requestTime"
+  #     httpMethod    = "$context.httpMethod"
+  #     resourcePath  = "$context.resourcePath"
+  #     status        = "$context.status"
+  #     protocol      = "$context.protocol"
+  #     responseLength = "$context.responseLength"
+  #   })
+  # }
   
   tags = {
     Project = "redact"

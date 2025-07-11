@@ -39,8 +39,14 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
-### 2025-07-11: Link Stripping & Security Enhancements
-- **Email Verification**: Now required for new user registrations (AUTO_CONFIRM = false)
+### 2025-07-11: Rate Limiting & API Key Management
+- **API Rate Limiting**: Implemented AWS API Gateway Usage Plans
+  - 10,000 requests/month quota, 100 req/sec rate limit
+  - CloudWatch alarms at 80% quota usage and high 4XX errors
+- **API Key Rotation**: Automated monthly rotation with 7-day grace period
+  - EventBridge scheduled rotation every 30 days
+  - Old keys remain valid during grace period for smooth transitions
+  - Rotation tracking in Parameter Store
 - **Link Stripping**: URLs removed while preserving link text for redaction
   - HTML: `<a href="url">Choice Hotels</a>` → `CH`
   - Markdown: `[Choice Hotels](url)` → `CH`
@@ -73,6 +79,28 @@ curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/a
   -H "Content-Type: application/json" \
   -d '{"text": "Meeting with Choice Hotels and Cronos"}'
 # Returns: {"redacted_text": "Meeting with CH and CR", "replacements_made": 2}
+```
+
+## API Key Management
+```bash
+# View current API key (first 50 chars)
+aws ssm get-parameter --name /redact/api-keys/string-prod --with-decryption --query 'Parameter.Value' --output text | head -c 50
+
+# Manually rotate API key
+aws lambda invoke --function-name redact-api-key-rotation /tmp/output.json
+
+# Check rotation status
+aws ssm get-parameter --name /redact/api-keys/last-rotation --query 'Parameter.Value' --output text | jq
+
+# Monitor API usage
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/ApiGateway \
+  --metric-name Count \
+  --dimensions Name=ApiName,Value=document-redaction-api Name=Stage,Value=production \
+  --statistics Sum \
+  --start-time $(date -u -d '30 days ago' +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 86400
 ```
 
 ## Troubleshooting

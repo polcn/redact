@@ -917,7 +917,7 @@ def handle_batch_download(event, headers, context, user_context):
         }
 
 def validate_string_api_key(api_key):
-    """Validate API key from Parameter Store"""
+    """Validate API key from Parameter Store (checks both current and old keys during grace period)"""
     try:
         # Check cache first (simple in-memory cache)
         cache_key = f"api_key_{api_key[:8]}"  # Use first 8 chars as cache key
@@ -929,6 +929,7 @@ def validate_string_api_key(api_key):
             stage = 'prod'
         parameter_name = f"/redact/api-keys/string-{stage}"
         
+        # Check current API key
         try:
             response = ssm.get_parameter(
                 Name=parameter_name,
@@ -938,6 +939,7 @@ def validate_string_api_key(api_key):
             stored_config = json.loads(response['Parameter']['Value'])
             
             if stored_config.get('key') == api_key:
+                logger.info("API key validated successfully (current key)")
                 return {
                     'user_id': stored_config.get('user_id', 'string-integration'),
                     'name': stored_config.get('name', 'String.com Integration'),
@@ -947,7 +949,30 @@ def validate_string_api_key(api_key):
         except ssm.exceptions.ParameterNotFound:
             logger.warning(f"API key parameter not found: {parameter_name}")
         except Exception as e:
-            logger.error(f"Error validating API key: {str(e)}")
+            logger.error(f"Error validating current API key: {str(e)}")
+        
+        # Check old API key during grace period
+        old_parameter_name = f"/redact/api-keys/string-{stage}-old"
+        try:
+            response = ssm.get_parameter(
+                Name=old_parameter_name,
+                WithDecryption=True
+            )
+            
+            # For old keys, we just check the raw value
+            if response['Parameter']['Value'] == api_key:
+                logger.info("API key validated successfully (old key during grace period)")
+                return {
+                    'user_id': 'string-integration',
+                    'name': 'String.com Integration (Grace Period)',
+                    'permissions': ['api:string:redact'],
+                    'config_override': {}
+                }
+        except ssm.exceptions.ParameterNotFound:
+            # No old key exists, which is normal
+            pass
+        except Exception as e:
+            logger.error(f"Error validating old API key: {str(e)}")
         
         return None
         
@@ -959,8 +984,14 @@ def handle_string_redact(event, headers, context):
     """
     Handle String.com redaction endpoint
     POST /api/string/redact
+    Note: This endpoint requires both API Gateway key (x-api-key) and Bearer token
     """
     try:
+        # Check for API Gateway key (handled by API Gateway, but we can log it)
+        api_gateway_key = event.get('headers', {}).get('x-api-key', '')
+        if api_gateway_key:
+            logger.info("Request includes API Gateway key for rate limiting")
+        
         # Extract bearer token
         auth_header = event.get('headers', {}).get('Authorization', '')
         if not auth_header.startswith('Bearer '):
