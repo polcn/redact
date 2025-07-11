@@ -32,6 +32,7 @@ cd frontend && npm install && npm run build && ./deploy.sh
 Visit https://redact.9thcube.com and sign up with allowed email domains.
 
 ## Recent Updates
+- **2025-07-11**: Fixed user isolation - new users no longer see other users' filters
 - **2025-07-11**: API rate limiting (10k/month) and automated key rotation (30-day cycle)
 - **2025-07-11**: Link stripping - removes URLs while preserving text for redaction
 - **2025-07-11**: Email verification now required for new users (security enhancement)

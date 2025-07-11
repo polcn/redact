@@ -623,32 +623,8 @@ def handle_get_config(headers, user_context):
                 'body': json.dumps(config)
             }
         except s3.exceptions.NoSuchKey:
-            # Try global config as fallback
-            try:
-                response = s3.get_object(
-                    Bucket=CONFIG_BUCKET,
-                    Key='config.json'
-                )
-                config = json.loads(response['Body'].read())
-                logger.info(f"Using global config for user {user_id} (no user-specific config found)")
-                
-                # Copy global config to user-specific location for future use
-                s3.put_object(
-                    Bucket=CONFIG_BUCKET,
-                    Key=user_config_key,
-                    Body=json.dumps(config, indent=2),
-                    ContentType='application/json',
-                    ServerSideEncryption='AES256'
-                )
-                logger.info(f"Copied global config to user-specific location for user {user_id}")
-                
-                return {
-                    'statusCode': 200,
-                    'headers': headers,
-                    'body': json.dumps(config)
-                }
-            except s3.exceptions.NoSuchKey:
-                pass
+            # No user config exists yet - this is expected for new users
+            logger.info(f"No config found for user {user_id}, will create default")
         
         # Return default config if nothing found
         default_config = {

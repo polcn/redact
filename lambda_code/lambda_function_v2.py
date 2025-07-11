@@ -161,15 +161,31 @@ def validate_file(bucket, key):
         logger.error(f"File validation error: {str(e)}")
         raise
 
+def get_default_config():
+    """Return a clean default configuration for new users"""
+    return {
+        "replacements": [],
+        "case_sensitive": False,
+        "patterns": {
+            "ssn": False,
+            "credit_card": False,
+            "phone": False,
+            "email": False,
+            "ip_address": False,
+            "drivers_license": False
+        }
+    }
+
 def get_redaction_config(user_id=None):
     """Load user-specific configuration from S3 bucket with caching"""
     global _config_cache, _config_last_modified
     
-    # Determine config key
-    if user_id:
-        config_key = f'configs/users/{user_id}/config.json'
-    else:
-        config_key = 'config.json'  # Fallback to global config
+    # Always use user-specific config key
+    if not user_id:
+        logger.warning("No user_id provided, using default config")
+        return get_default_config()
+    
+    config_key = f'configs/users/{user_id}/config.json'
     
     try:
         # Try user-specific config first
@@ -208,67 +224,19 @@ def get_redaction_config(user_id=None):
                 return config
                 
             except s3.exceptions.NoSuchKey:
-                logger.info(f"No user-specific config for {user_id}, trying global config")
-                # Fall through to try global config
+                logger.info(f"No user-specific config for {user_id}, returning default config")
+                return get_default_config()
         
-        # Try global config as fallback
-        try:
-            response = s3.head_object(Bucket=CONFIG_BUCKET, Key='config.json')
-            last_modified = response['LastModified']
-            
-            # Check global cache
-            cache_key = "global"
-            if isinstance(_config_cache, dict) and cache_key in _config_cache:
-                if _config_last_modified and _config_last_modified.get(cache_key) == last_modified:
-                    logger.info("Using cached global configuration")
-                    return _config_cache[cache_key]
-            
-            # Load fresh global config
-            response = s3.get_object(Bucket=CONFIG_BUCKET, Key='config.json')
-            config_content = response['Body'].read()
-            
-            if len(config_content) > MAX_CONFIG_SIZE:
-                raise ValueError(f"Configuration file too large: {len(config_content)} bytes")
-            
-            config = json.loads(config_content)
-            
-            # Update cache
-            if not isinstance(_config_cache, dict):
-                _config_cache = {}
-            if not isinstance(_config_last_modified, dict):
-                _config_last_modified = {}
-                
-            _config_cache[cache_key] = config
-            _config_last_modified[cache_key] = last_modified
-            
-            logger.info(f"Loaded global configuration with {len(config.get('replacements', []))} rules")
-            return config
-            
-        except s3.exceptions.NoSuchKey:
-            pass
-        
-        # No config found, use defaults
-        logger.warning("No configuration found, using defaults")
-        default_config = {
-            "replacements": DEFAULT_REPLACEMENTS, 
-            "case_sensitive": False,
-            "patterns": {
-                "ssn": False,
-                "credit_card": False,
-                "phone": False,
-                "email": False,
-                "ip_address": False,
-                "drivers_license": False
-            }
-        }
-        return default_config
+        # This should not be reached given the changes above
+        logger.warning("Unexpected: No configuration found, using defaults")
+        return get_default_config()
         
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in configuration: {str(e)}")
-        return {"replacements": DEFAULT_REPLACEMENTS, "case_sensitive": False}
+        return get_default_config()
     except Exception as e:
         logger.error(f"Error loading configuration: {str(e)}")
-        return {"replacements": DEFAULT_REPLACEMENTS, "case_sensitive": False}
+        return get_default_config()
 
 def lambda_handler(event, context):
     """
