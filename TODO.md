@@ -1,5 +1,15 @@
 # TODO List
 
+## Security Fix - ✅ Complete (2025-07-11)
+
+### ✅ User Isolation Issue Fixed
+1. **New Users Seeing Other Users' Filters** ✅ FIXED
+   - Critical security issue where global config fallback exposed data between users
+   - Removed global config fallback from both API handler and Lambda processor
+   - Deleted legacy global config files from S3
+   - Each user now gets a clean, empty configuration on first use
+   - Full user isolation now enforced
+
 ## Authentication Fix - ✅ Complete (2025-07-08)
 
 ### ✅ Recently Fixed

@@ -39,7 +39,11 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
-### 2025-07-11: Rate Limiting & API Key Management
+### 2025-07-11: Security & Infrastructure Updates
+- **User Isolation Fix**: Fixed critical security issue where new users could see other users' filters
+  - Removed global config fallback that was exposing data between users
+  - Each user now gets a clean, empty configuration on first use
+  - Deleted legacy global config files from S3
 - **API Rate Limiting**: Implemented AWS API Gateway Usage Plans
   - 10,000 requests/month quota, 100 req/sec rate limit
   - CloudWatch alarms at 80% quota usage and high 4XX errors
