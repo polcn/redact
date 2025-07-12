@@ -1,5 +1,20 @@
 # TODO List
 
+## Bug Fixes - ✅ Complete (2025-07-12)
+
+### ✅ File Operations Issues Fixed
+1. **Delete and Batch Download Not Working** ✅ FIXED
+   - URL encoding mismatch between frontend and backend resolved
+   - Document IDs now properly handled by API Gateway path parameters
+   - Both single file deletion and ZIP batch downloads working
+   - Enhanced logging for troubleshooting future issues
+
+2. **Legacy .doc Files Stuck Processing** ✅ FIXED
+   - Removed .doc from supported file extensions (only .docx supported)
+   - Moved 2 stuck .doc files to quarantine bucket
+   - Updated upload validation to reject .doc files with clear error message
+   - Improved error handling for unsupported file types
+
 ## Security Fix - ✅ Complete (2025-07-11)
 
 ### ✅ User Isolation Issue Fixed
