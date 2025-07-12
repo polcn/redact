@@ -29,7 +29,7 @@ CONFIG_BUCKET = os.environ['CONFIG_BUCKET']
 
 # Constants
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'xlsx', 'xls', 'csv', 'pptx', 'ppt'}
 
 def get_user_context(event):
     """Extract user context from API Gateway authorizer"""
@@ -530,11 +530,19 @@ def handle_document_delete(event, headers, context, user_context):
         
         # Decode the document ID to get the S3 key
         from urllib.parse import unquote
-        s3_key = unquote(document_id)
+        
+        # API Gateway automatically decodes path parameters once
+        # Our frontend sends already-encoded IDs (from the list endpoint)
+        # So document_id here should already be the decoded S3 key
+        s3_key = document_id
+        
+        # Log the decoding for debugging
+        logger.info(f"Delete request - Document ID from path: {document_id}, S3 key to use: {s3_key}, User: {user_context['user_id']}")
         
         # Security check: ensure the key belongs to the user
         user_prefix = get_user_s3_prefix(user_context['user_id'])
         if not s3_key.startswith(f"processed/{user_prefix}/") and not s3_key.startswith(f"{user_prefix}/"):
+            logger.warning(f"Access denied - Key: {s3_key}, Expected prefix: {user_prefix}")
             return {
                 'statusCode': 403,
                 'headers': headers,
@@ -553,7 +561,9 @@ def handle_document_delete(event, headers, context, user_context):
             try:
                 s3.delete_object(Bucket=PROCESSED_BUCKET, Key=s3_key)
                 deleted_files.append(f"processed/{s3_key}")
+                logger.info(f"Successfully deleted from processed bucket: {s3_key}")
             except Exception as e:
+                logger.error(f"Failed to delete from processed bucket - Key: {s3_key}, Error: {str(e)}")
                 errors.append(f"Failed to delete {s3_key}: {str(e)}")
             
             # Also delete from input bucket if exists
@@ -569,7 +579,9 @@ def handle_document_delete(event, headers, context, user_context):
             try:
                 s3.delete_object(Bucket=INPUT_BUCKET, Key=s3_key)
                 deleted_files.append(f"input/{s3_key}")
+                logger.info(f"Successfully deleted from input bucket: {s3_key}")
             except Exception as e:
+                logger.error(f"Failed to delete from input bucket - Key: {s3_key}, Error: {str(e)}")
                 errors.append(f"Failed to delete {s3_key}: {str(e)}")
         
         if not deleted_files and not errors:
@@ -801,19 +813,26 @@ def handle_batch_download(event, headers, context, user_context):
             
             for doc_id in document_ids:
                 try:
-                    # Decode the document ID to get the S3 key
-                    from urllib.parse import unquote
-                    s3_key = unquote(doc_id)
+                    # The document IDs from frontend are already the S3 keys
+                    # (they were encoded when sent in the list response, but the frontend
+                    # sends them back as-is, and they're automatically decoded by the JSON parser)
+                    s3_key = doc_id
+                    
+                    # Log for debugging
+                    logger.info(f"Batch download - Document ID: {doc_id}, S3 key to use: {s3_key}")
                     
                     # Security check: ensure the key belongs to the user
-                    if not s3_key.startswith(f"processed/{user_prefix}/"):
+                    if not (s3_key.startswith(f"processed/{user_prefix}/") or s3_key.startswith(f"{user_prefix}/")):
                         logger.warning(f"Unauthorized access attempt to {s3_key} by user {user_context['user_id']}")
                         errors.append({'id': doc_id, 'error': 'Unauthorized'})
                         continue
                     
-                    # Get the file from S3
+                    # Get the file from S3 - determine which bucket based on key
                     try:
-                        response = s3.get_object(Bucket=PROCESSED_BUCKET, Key=s3_key)
+                        if s3_key.startswith("processed/"):
+                            response = s3.get_object(Bucket=PROCESSED_BUCKET, Key=s3_key)
+                        else:
+                            response = s3.get_object(Bucket=INPUT_BUCKET, Key=s3_key)
                         file_content = response['Body'].read()
                         
                         # Extract filename from S3 key

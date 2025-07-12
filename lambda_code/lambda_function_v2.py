@@ -53,7 +53,7 @@ s3 = boto3.client('s3')
 # Configuration constants
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB limit
 MAX_CONFIG_SIZE = 1 * 1024 * 1024  # 1MB limit for config
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'pptx', 'ppt'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'xlsx', 'xls', 'csv', 'pptx', 'ppt'}
 MAX_REPLACEMENTS = 100  # Maximum number of replacement rules
 BATCH_SIZE = 5  # Maximum files to process in one batch
 BATCH_TIMEOUT = 45  # Maximum seconds for batch processing
@@ -400,8 +400,10 @@ def process_single_file(bucket, key, config):
         process_text_file(bucket, key, config, user_info)
     elif file_ext == 'pdf':
         process_pdf_file(bucket, key, config, user_info)
-    elif file_ext in ['docx', 'doc']:
+    elif file_ext == 'docx':
         process_docx_file(bucket, key, config, user_info)
+    elif file_ext == 'doc':
+        raise ValueError("Legacy .doc format is not supported. Please convert to .docx format.")
     elif file_ext in ['xlsx', 'xls']:
         process_xlsx_file(bucket, key, config, user_info)
     elif file_ext == 'csv':

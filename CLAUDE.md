@@ -39,6 +39,17 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
+### 2025-07-12: Bug Fixes & File Support Updates
+- **File Operations Fix**: Fixed delete and batch download functionality
+  - Resolved URL encoding issues between frontend and backend
+  - Document IDs now properly handled by API Gateway path parameters
+  - Both single file deletion and ZIP batch downloads now working
+- **Legacy .doc File Handling**: Removed support for legacy .doc format
+  - Moved stuck .doc files to quarantine bucket
+  - Updated upload validation to reject .doc files with clear error message
+  - Only .docx format supported (along with txt, pdf, xlsx, xls, csv, pptx, ppt)
+- **Error Handling**: Improved error messages for unsupported file types
+
 ### 2025-07-11: Security & Infrastructure Updates
 - **User Isolation Fix**: Fixed critical security issue where new users could see other users' filters
   - Removed global config fallback that was exposing data between users
