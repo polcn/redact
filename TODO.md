@@ -7,7 +7,8 @@
    - ✅ CORS preflight requests fixed - browser no longer blocks requests
    - ✅ URL encoding issues addressed in backend handlers
    - ✅ Enhanced logging for troubleshooting
-   - ❌ Delete and ZIP download operations still failing - needs further investigation
+   - ❌ Delete and ZIP download operations still failing - requests not reaching backend
+   - 🔍 **Next Steps**: Check JWT token expiration, frontend error handling, or API Gateway routing
 
 2. **Legacy .doc Files Stuck Processing** ✅ FIXED
    - Removed .doc from supported file extensions (only .docx supported)
