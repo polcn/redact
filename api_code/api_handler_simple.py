@@ -538,12 +538,21 @@ def handle_document_delete(event, headers, context, user_context):
         
         # Security check: ensure the key belongs to the user
         user_prefix = get_user_s3_prefix(user_context['user_id'])
-        if not s3_key.startswith(f"processed/{user_prefix}/") and not s3_key.startswith(f"{user_prefix}/"):
-            logger.warning(f"Access denied - Key: {s3_key}, Expected prefix: {user_prefix}")
+        
+        # Check if this is a processed file or input file that belongs to the user
+        valid_prefixes = [
+            f"processed/{user_prefix}/",  # processed/users/{user_id}/
+            f"{user_prefix}/"              # users/{user_id}/
+        ]
+        
+        is_authorized = any(s3_key.startswith(prefix) for prefix in valid_prefixes)
+        
+        if not is_authorized:
+            logger.warning(f"Access denied - Key: {s3_key}, User prefix: {user_prefix}, Valid prefixes: {valid_prefixes}")
             return {
                 'statusCode': 403,
                 'headers': headers,
-                'body': json.dumps({'error': 'Access denied'})
+                'body': json.dumps({'error': 'Access denied - you can only delete your own files'})
             }
         
         deleted_files = []
@@ -818,8 +827,15 @@ def handle_batch_download(event, headers, context, user_context):
                     logger.info(f"Batch download - Document ID: {doc_id}, Decoded S3 key: {s3_key}")
                     
                     # Security check: ensure the key belongs to the user
-                    if not (s3_key.startswith(f"processed/{user_prefix}/") or s3_key.startswith(f"{user_prefix}/")):
-                        logger.warning(f"Unauthorized access attempt to {s3_key} by user {user_context['user_id']}")
+                    valid_prefixes = [
+                        f"processed/{user_prefix}/",  # processed/users/{user_id}/
+                        f"{user_prefix}/"              # users/{user_id}/
+                    ]
+                    
+                    is_authorized = any(s3_key.startswith(prefix) for prefix in valid_prefixes)
+                    
+                    if not is_authorized:
+                        logger.warning(f"Unauthorized access attempt to {s3_key} by user {user_context['user_id']}, valid prefixes: {valid_prefixes}")
                         errors.append({'id': doc_id, 'error': 'Unauthorized'})
                         continue
                     

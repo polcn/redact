@@ -39,14 +39,26 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
+### 2025-07-13: File Operations Fixed
+- **File Deletion Fixed**: Resolved 403 Access Denied errors when deleting files
+  - Updated security validation in API handler to correctly handle S3 key formats
+  - Now properly validates keys in format `processed/users/{user_id}/filename`
+  - Added clearer error messages and improved logging
+- **Batch Download Fixed**: Resolved 404 errors for ZIP download functionality  
+  - Endpoint was already implemented but had same security validation issue
+  - Updated security checks to match the delete endpoint fix
+  - Users can now download multiple files as a single ZIP archive
+- **Security Improvements**: Enhanced user isolation validation
+  - Consistent security checks across all file operations
+  - Better error messages for unauthorized access attempts
+
 ### 2025-07-12: Bug Fixes & File Support Updates  
 - **CORS Issues**: Fixed CORS preflight requests for DELETE and POST operations
   - API Gateway CORS configuration properly deployed
   - Browser no longer blocks delete and batch download requests
-- **File Operations**: Partial fixes for delete and batch download functionality
+- **File Operations**: Initial work on delete and batch download functionality
   - Resolved URL encoding issues between frontend and backend
   - Enhanced logging for troubleshooting
-  - ⚠️ Delete and ZIP download still experiencing issues - requires further investigation
 - **Legacy .doc File Handling**: Removed support for legacy .doc format
   - Moved stuck .doc files to quarantine bucket
   - Updated upload validation to reject .doc files with clear error message

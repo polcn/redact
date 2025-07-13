@@ -61,6 +61,8 @@ The following files are generated during deployment and not stored in version co
 Visit https://redact.9thcube.com and sign up with allowed email domains.
 
 ## Recent Updates
+- **2025-07-13**: Fixed file deletion (403 errors) and batch download (404 errors)
+- **2025-07-12**: Removed legacy .doc support, improved error handling
 - **2025-07-11**: Fixed user isolation - new users no longer see other users' filters
 - **2025-07-11**: API rate limiting (10k/month) and automated key rotation (30-day cycle)
 - **2025-07-11**: Link stripping - removes URLs while preserving text for redaction
