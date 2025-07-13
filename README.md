@@ -21,13 +21,42 @@ React → CloudFront → Cognito Auth → API Gateway → Lambda
 ```
 
 ## Quick Start
+
+### Prerequisites
+- AWS CLI configured with appropriate credentials
+- Terraform installed
+- Node.js and npm installed
+- Domain configured in Route 53
+
+### Initial Setup
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd redact-terraform
+
+# Install dependencies (required after fresh clone)
+npm install
+cd frontend && npm install && cd ..
+
 # Deploy infrastructure
-terraform init && terraform apply
+terraform init
+terraform apply
 
 # Deploy frontend
-cd frontend && npm install && npm run build && ./deploy.sh
+cd frontend
+npm run build
+./deploy.sh
 ```
+
+### Build Artifacts
+The following files are generated during deployment and not stored in version control:
+- `node_modules/` - NPM dependencies
+- `frontend/node_modules/` - Frontend dependencies
+- `.terraform/` - Terraform providers
+- `*.zip` - Lambda deployment packages
+- `frontend/build/` - React build output
+- `terraform.tfstate*` - Terraform state files (store remotely)
+- `.env` files - Environment configurations
 
 Visit https://redact.9thcube.com and sign up with allowed email domains.
 

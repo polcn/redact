@@ -30,6 +30,14 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.old
+*~
+
+# Test artifacts
+test_event.json
+response*.json
+payload.b64
 
 # Python
 __pycache__/
