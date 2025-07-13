@@ -39,11 +39,14 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
-### 2025-07-12: Bug Fixes & File Support Updates
-- **File Operations Fix**: Fixed delete and batch download functionality
+### 2025-07-12: Bug Fixes & File Support Updates  
+- **CORS Issues**: Fixed CORS preflight requests for DELETE and POST operations
+  - API Gateway CORS configuration properly deployed
+  - Browser no longer blocks delete and batch download requests
+- **File Operations**: Partial fixes for delete and batch download functionality
   - Resolved URL encoding issues between frontend and backend
-  - Document IDs now properly handled by API Gateway path parameters
-  - Both single file deletion and ZIP batch downloads now working
+  - Enhanced logging for troubleshooting
+  - ⚠️ Delete and ZIP download still experiencing issues - requires further investigation
 - **Legacy .doc File Handling**: Removed support for legacy .doc format
   - Moved stuck .doc files to quarantine bucket
   - Updated upload validation to reject .doc files with clear error message
