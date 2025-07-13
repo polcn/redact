@@ -530,14 +530,11 @@ def handle_document_delete(event, headers, context, user_context):
         
         # Decode the document ID to get the S3 key
         from urllib.parse import unquote
-        
-        # API Gateway automatically decodes path parameters once
-        # Our frontend sends already-encoded IDs (from the list endpoint)
-        # So document_id here should already be the decoded S3 key
-        s3_key = document_id
+        # Document ID from URL path is URL-encoded - decode it to get S3 key
+        s3_key = unquote(document_id)
         
         # Log the decoding for debugging
-        logger.info(f"Delete request - Document ID from path: {document_id}, S3 key to use: {s3_key}, User: {user_context['user_id']}")
+        logger.info(f"Delete request - Document ID from path: {document_id}, Decoded S3 key: {s3_key}, User: {user_context['user_id']}")
         
         # Security check: ensure the key belongs to the user
         user_prefix = get_user_s3_prefix(user_context['user_id'])
@@ -813,13 +810,12 @@ def handle_batch_download(event, headers, context, user_context):
             
             for doc_id in document_ids:
                 try:
-                    # The document IDs from frontend are already the S3 keys
-                    # (they were encoded when sent in the list response, but the frontend
-                    # sends them back as-is, and they're automatically decoded by the JSON parser)
-                    s3_key = doc_id
+                    # Document IDs from frontend are URL-encoded S3 keys - need to decode them
+                    from urllib.parse import unquote
+                    s3_key = unquote(doc_id)
                     
                     # Log for debugging
-                    logger.info(f"Batch download - Document ID: {doc_id}, S3 key to use: {s3_key}")
+                    logger.info(f"Batch download - Document ID: {doc_id}, Decoded S3 key: {s3_key}")
                     
                     # Security check: ensure the key belongs to the user
                     if not (s3_key.startswith(f"processed/{user_prefix}/") or s3_key.startswith(f"{user_prefix}/")):

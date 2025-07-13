@@ -496,6 +496,7 @@ resource "aws_api_gateway_deployment" "redact_api_deployment" {
       aws_api_gateway_method.upload_post.id,
       aws_api_gateway_integration.upload_integration.id,
       aws_api_gateway_authorizer.cognito_authorizer.id,
+      timestamp(),
     ]))
   }
 }
