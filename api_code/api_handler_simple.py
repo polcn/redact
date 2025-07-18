@@ -133,6 +133,9 @@ def lambda_handler(event, context):
         elif path == '/documents/batch-download' and method == 'POST':
             return handle_batch_download(event, headers, context, user_context)
             
+        elif path == '/documents/combine' and method == 'POST':
+            return handle_combine_documents(event, headers, context, user_context)
+            
         # Test redaction endpoint
         elif path == '/api/test-redaction' and method == 'POST':
             return handle_test_redaction(event, headers, context, user_context)
@@ -921,6 +924,155 @@ def handle_batch_download(event, headers, context, user_context):
             'statusCode': 500,
             'headers': headers,
             'body': json.dumps({'error': 'Batch download failed'})
+        }
+
+def handle_combine_documents(event, headers, context, user_context):
+    """Handle POST /documents/combine endpoint to combine multiple files into one"""
+    try:
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid request body'})
+            }
+        
+        document_ids = body.get('document_ids', [])
+        output_filename = body.get('output_filename', 'combined_document.txt')
+        separator = body.get('separator', '\n\n--- Document Break ---\n\n')
+        
+        if not document_ids:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'No document IDs provided'})
+            }
+        
+        # Limit batch size to prevent timeout
+        max_batch_size = 20
+        if len(document_ids) > max_batch_size:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': f'Maximum batch size is {max_batch_size} files'})
+            }
+        
+        user_prefix = get_user_s3_prefix(user_context['user_id'])
+        combined_content = []
+        
+        # Get files from processed bucket
+        for doc_id in document_ids:
+            # Security check - ensure doc_id doesn't contain path traversal
+            if '/' in doc_id or '..' in doc_id:
+                logger.warning(f"Invalid document ID: {doc_id}")
+                continue
+                
+            # Clean the document ID
+            clean_doc_id = unquote_plus(doc_id).strip()
+            
+            # Try to find the file in processed bucket
+            prefix = f"processed/{user_prefix}/{clean_doc_id}"
+            
+            try:
+                # List objects with the prefix
+                response = s3.list_objects_v2(
+                    Bucket=PROCESSED_BUCKET,
+                    Prefix=prefix,
+                    MaxKeys=10
+                )
+                
+                if 'Contents' not in response or len(response['Contents']) == 0:
+                    logger.warning(f"No files found for document: {clean_doc_id}")
+                    continue
+                
+                # Find the processed file (should end with .txt, .md, or .csv)
+                processed_file = None
+                for obj in response['Contents']:
+                    key = obj['Key']
+                    if (key.endswith('.txt') or key.endswith('.md') or key.endswith('.csv')) and not key.endswith('.zip'):
+                        processed_file = key
+                        break
+                
+                if not processed_file:
+                    logger.warning(f"No processed text file found for document: {clean_doc_id}")
+                    continue
+                
+                # Download file content
+                file_obj = s3.get_object(Bucket=PROCESSED_BUCKET, Key=processed_file)
+                content = file_obj['Body'].read().decode('utf-8', errors='replace')
+                
+                # Add document header
+                file_name = os.path.basename(processed_file)
+                combined_content.append(f"=== {file_name} ===\n\n{content}")
+                
+            except ClientError as e:
+                logger.error(f"Error accessing file {clean_doc_id}: {str(e)}")
+                continue
+        
+        if not combined_content:
+            return {
+                'statusCode': 404,
+                'headers': headers,
+                'body': json.dumps({'error': 'No valid documents found to combine'})
+            }
+        
+        # Join all content with separator
+        final_content = separator.join(combined_content)
+        
+        # Generate unique document ID for combined file
+        document_id = str(uuid.uuid4())
+        timestamp = int(time.time())
+        
+        # Ensure output filename has proper extension
+        if not output_filename.endswith(('.txt', '.md')):
+            output_filename = output_filename + '.txt'
+        
+        # Save combined file to processed bucket
+        combined_key = f"processed/{user_prefix}/{document_id}/{output_filename}"
+        
+        s3.put_object(
+            Bucket=PROCESSED_BUCKET,
+            Key=combined_key,
+            Body=final_content.encode('utf-8'),
+            ContentType='text/plain',
+            Metadata={
+                'user_id': user_context['user_id'],
+                'document_id': document_id,
+                'combined_from': json.dumps(document_ids[:10]),  # Store first 10 IDs
+                'file_count': str(len(combined_content)),
+                'timestamp': str(timestamp),
+                'combined': 'true'
+            }
+        )
+        
+        # Generate download URL
+        download_url = generate_presigned_url(
+            PROCESSED_BUCKET,
+            combined_key,
+            filename=output_filename
+        )
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'message': 'Documents combined successfully',
+                'document_id': document_id,
+                'filename': output_filename,
+                'file_count': len(combined_content),
+                'download_url': download_url,
+                'size': len(final_content)
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error combining documents: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to combine documents'})
         }
 
 def validate_string_api_key(api_key):

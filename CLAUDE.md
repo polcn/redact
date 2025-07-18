@@ -39,6 +39,20 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
+### 2025-07-18: File Combination Feature
+- **Combine Files**: New feature to combine multiple processed files into one document
+  - Select multiple completed files using checkboxes
+  - Click "Combine Files" button to open configuration modal
+  - Specify output filename (defaults to "combined_document.txt")
+  - Files are combined with document headers and separators
+  - Combined file is automatically downloaded
+  - Maximum 20 files can be combined at once
+  - API endpoint: `POST /documents/combine`
+- **Authentication Fix**: Fixed "auth user pool not configured" error
+  - Added missing .env file with Cognito configuration
+  - User Pool ID: us-east-1_4Uv3seGwS
+  - Proper environment variables now deployed with frontend
+
 ### 2025-07-13: File Operations Fixed
 - **File Deletion Fixed**: Resolved 403 Access Denied errors when deleting files
   - Updated security validation in API handler to correctly handle S3 key formats
@@ -98,6 +112,8 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 - `POST /documents/upload` - Upload file (base64)
 - `GET /documents/status/{id}` - Check processing
 - `DELETE /documents/{id}` - Delete file
+- `POST /documents/batch-download` - Download multiple files as ZIP
+- `POST /documents/combine` - Combine multiple files into one
 - `GET /user/files` - List user files
 - `GET/PUT /api/config` - Manage redaction rules
 - `POST /api/string/redact` - String.com API (Bearer auth)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { listUserFiles, deleteFile, batchDownloadFiles } from '../../services/api';
+import { listUserFiles, deleteFile, batchDownloadFiles, combineFiles } from '../../services/api';
 import { FileItem } from './FileItem';
 
 export interface FileData {
@@ -17,6 +17,9 @@ export const FileList: React.FC = () => {
   const [error, setError] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showCombineModal, setShowCombineModal] = useState(false);
+  const [combineFilename, setCombineFilename] = useState('combined_document.txt');
+  const [isCombining, setIsCombining] = useState(false);
 
   const loadFiles = async () => {
     try {
@@ -153,6 +156,49 @@ export const FileList: React.FC = () => {
     }
   };
 
+  const handleCombineFiles = async () => {
+    try {
+      setError('');
+      setIsCombining(true);
+      
+      // Get list of selected files that are completed
+      const selectedFileIds = files
+        .filter(f => selectedFiles.has(f.id) && f.status === 'completed')
+        .map(f => f.id);
+      
+      if (selectedFileIds.length === 0) {
+        setError('No completed files selected');
+        setIsCombining(false);
+        return;
+      }
+      
+      // Call combine API
+      const response = await combineFiles(selectedFileIds, combineFilename);
+      
+      // Download the combined file
+      const link = document.createElement('a');
+      link.href = response.download_url;
+      link.download = response.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clear selection and close modal
+      setSelectedFiles(new Set());
+      setShowCombineModal(false);
+      setCombineFilename('combined_document.txt');
+      
+      // Refresh files list to show the new combined file
+      await loadFiles();
+      
+    } catch (err: any) {
+      setError('Failed to combine files');
+      console.error('Combine files error:', err);
+    } finally {
+      setIsCombining(false);
+    }
+  };
+
   const selectedCount = selectedFiles.size;
   const hasCompletedFiles = files.some(f => f.status === 'completed' && selectedFiles.has(f.id));
 
@@ -180,13 +226,22 @@ export const FileList: React.FC = () => {
           {selectedCount > 0 && (
             <div className="flex items-center gap-sm">
               {hasCompletedFiles && (
-                <button
-                  onClick={handleDownloadSelected}
-                  className="btn-anthropic btn-anthropic-accent"
-                  style={{ padding: '0.5rem 1rem' }}
-                >
-                  Download as ZIP
-                </button>
+                <>
+                  <button
+                    onClick={() => setShowCombineModal(true)}
+                    className="btn-anthropic btn-anthropic-primary"
+                    style={{ padding: '0.5rem 1rem' }}
+                  >
+                    Combine Files
+                  </button>
+                  <button
+                    onClick={handleDownloadSelected}
+                    className="btn-anthropic btn-anthropic-accent"
+                    style={{ padding: '0.5rem 1rem' }}
+                  >
+                    Download as ZIP
+                  </button>
+                </>
               )}
               <button
                 onClick={handleBatchDelete}
@@ -222,6 +277,52 @@ export const FileList: React.FC = () => {
           </div>
         ))}
       </div>
+      
+      {/* Combine Files Modal */}
+      {showCombineModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowCombineModal(false)}
+        >
+          <div 
+            className="bg-white rounded-lg p-lg shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-semibold mb-md">Combine Files</h2>
+            <p className="text-secondary mb-lg">
+              Combine {files.filter(f => selectedFiles.has(f.id) && f.status === 'completed').length} selected files into one document.
+            </p>
+            
+            <div className="mb-lg">
+              <label className="block text-sm font-medium mb-xs">Output filename:</label>
+              <input
+                type="text"
+                value={combineFilename}
+                onChange={(e) => setCombineFilename(e.target.value)}
+                className="input-anthropic w-full"
+                placeholder="combined_document.txt"
+              />
+            </div>
+            
+            <div className="flex justify-end gap-sm">
+              <button
+                onClick={() => setShowCombineModal(false)}
+                className="btn-anthropic btn-anthropic-secondary"
+                disabled={isCombining}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCombineFiles}
+                className="btn-anthropic btn-anthropic-primary"
+                disabled={isCombining || !combineFilename.trim()}
+              >
+                {isCombining ? 'Combining...' : 'Combine'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

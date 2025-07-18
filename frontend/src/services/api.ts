@@ -89,4 +89,25 @@ export const batchDownloadFiles = async (documentIds: string[]): Promise<{ downl
   return response.data;
 };
 
+// Combine multiple files into one
+export const combineFiles = async (
+  documentIds: string[],
+  outputFilename: string = 'combined_document.txt',
+  separator: string = '\n\n--- Document Break ---\n\n'
+): Promise<{
+  message: string;
+  document_id: string;
+  filename: string;
+  file_count: number;
+  download_url: string;
+  size: number;
+}> => {
+  const response = await api.post('/documents/combine', {
+    document_ids: documentIds,
+    output_filename: outputFilename,
+    separator: separator
+  });
+  return response.data;
+};
+
 export default api;
