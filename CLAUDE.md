@@ -39,7 +39,7 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
-### 2025-07-18: File Combination Feature
+### 2025-07-18: File Combination Feature & Markdown Support
 - **Combine Files**: New feature to combine multiple processed files into one document
   - Select multiple completed files using checkboxes
   - Click "Combine Files" button to open configuration modal
@@ -48,6 +48,10 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
   - Combined file is automatically downloaded
   - Maximum 20 files can be combined at once
   - API endpoint: `POST /documents/combine`
+- **Markdown Support**: Added .md file support
+  - Process Markdown files (.md) as plain text for redaction
+  - Updated allowed file extensions in both frontend and backend
+  - Markdown files undergo same redaction rules as .txt files
 - **Authentication Fix**: Fixed "auth user pool not configured" error
   - Added missing .env file with Cognito configuration
   - User Pool ID: us-east-1_4Uv3seGwS
