@@ -183,7 +183,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
           type="file"
           className="hidden"
           id="file-upload"
-          accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv,.pptx,.ppt"
+          accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv,.pptx,.ppt,.md"
           onChange={handleFileSelect}
           disabled={uploading}
           multiple

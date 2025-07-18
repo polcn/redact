@@ -3,7 +3,7 @@
 Production-ready document redaction system with React frontend at https://redact.9thcube.com
 
 ## Features
-- **Multi-format**: PDF/DOCX/TXT/CSV/PPTX → .md | XLSX → .csv (first sheet)
+- **Multi-format**: PDF/DOCX/TXT/CSV/PPTX/MD → .md | XLSX → .csv (first sheet)
 - **Pattern Detection**: SSN, credit cards, phones, emails, IPs, licenses
 - **Link Stripping**: Removes URLs while preserving link text for redaction
 - **User Isolation**: Secure file storage per user
@@ -63,7 +63,7 @@ The following files are generated during deployment and not stored in version co
 Visit https://redact.9thcube.com and sign up with allowed email domains.
 
 ## Recent Updates
-- **2025-07-18**: File combination - select multiple files and combine into one document
+- **2025-07-18**: Added .md (Markdown) file support and file combination feature
 - **2025-07-13**: Fixed file deletion (403 errors) and batch download (404 errors)
 - **2025-07-12**: Removed legacy .doc support, improved error handling
 - **2025-07-11**: Fixed user isolation - new users no longer see other users' filters
