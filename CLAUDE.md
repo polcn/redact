@@ -17,7 +17,7 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 ```
 
 ## Key Features
-- Multi-format support: PDF/DOCX/TXT/CSV/PPTX → .md | XLSX → .csv (first sheet)
+- Multi-format support: PDF/DOCX/TXT/CSV/PPTX/MD → .md | XLSX → .csv (first sheet)
 - User-isolated file storage with real-time processing
 - Pattern detection: SSN, credit cards, phones, emails, IPs, licenses
 - String.com API: `POST /api/string/redact` with Bearer auth
@@ -106,6 +106,7 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 - **Security Fix**: User-isolated configs at `configs/users/{user_id}/config.json`
 - **String.com API**: Content-based rules ("Choice Hotels"→"CH", "Cronos"→"CR")
 - **File Support**: Added PPTX, fixed XLSX→CSV conversion for ChatGPT
+- **Markdown Support**: Added .md file support - processes as plain text
 - **UI**: Clean filenames with Windows-style versioning
 
 ## API Endpoints
