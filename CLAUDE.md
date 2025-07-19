@@ -39,6 +39,13 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
+### 2025-07-19: Repository Cleanup
+- **Removed Unnecessary Files**: Cleaned up test and template files
+  - Removed `test.md` - Test markdown file
+  - Removed `architecture-documentation-template.md` - Unused template
+  - Removed `frontend/test-auth-fix.js` - Temporary test script
+  - Kept all essential files including node_modules, build artifacts, and terraform state for development continuity
+
 ### 2025-07-18: File Combination Feature & Markdown Support
 - **Combine Files**: New feature to combine multiple processed files into one document
   - Select multiple completed files using checkboxes
