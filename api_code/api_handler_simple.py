@@ -1026,9 +1026,20 @@ def handle_combine_documents(event, headers, context, user_context):
                 file_obj = s3.get_object(Bucket=PROCESSED_BUCKET, Key=processed_file)
                 content = file_obj['Body'].read().decode('utf-8', errors='replace')
                 
-                # Add document header
+                # Add document header with metadata for better LLM parsing and vector DB indexing
                 file_name = os.path.basename(processed_file)
-                combined_content.append(f"=== {file_name} ===\n\n{content}")
+                doc_number = len(combined_content) + 1
+                
+                # Create a structured header that LLMs can easily parse
+                header = f"""
+{'='*80}
+DOCUMENT #{doc_number}: {file_name}
+SOURCE: {processed_file}
+{'='*80}
+
+"""
+                # Add the content with clear boundaries
+                combined_content.append(f"{header}{content}")
                 
             except ClientError as e:
                 logger.error(f"Error accessing file {clean_doc_id}: {str(e)}")
@@ -1041,8 +1052,34 @@ def handle_combine_documents(event, headers, context, user_context):
                 'body': json.dumps({'error': 'No valid documents found to combine'})
             }
         
-        # Join all content with separator
-        final_content = separator.join(combined_content)
+        # Create table of contents for easy navigation
+        toc_lines = [
+            "="*80,
+            "TABLE OF CONTENTS",
+            "="*80,
+            f"Total Documents: {len(combined_content)}",
+            f"Generated: {datetime.utcnow().isoformat()}Z",
+            "",
+            "Documents included in this combined file:",
+            ""
+        ]
+        
+        # Extract document names from combined_content headers
+        for i, content in enumerate(combined_content, 1):
+            # Extract filename from the header
+            lines = content.split('\n')
+            for line in lines:
+                if line.startswith('DOCUMENT #'):
+                    doc_name = line.split(':', 1)[1].strip() if ':' in line else f"Document {i}"
+                    toc_lines.append(f"{i}. {doc_name}")
+                    break
+        
+        toc_lines.extend(["", "="*80, "", ""])
+        table_of_contents = '\n'.join(toc_lines)
+        
+        # Join all content with enhanced separator for clear document boundaries
+        enhanced_separator = f"\n\n{separator}\n{'#'*80}\n# END OF DOCUMENT\n{'#'*80}\n{separator}\n\n"
+        final_content = table_of_contents + enhanced_separator.join(combined_content)
         
         # Generate unique document ID for combined file
         document_id = str(uuid.uuid4())

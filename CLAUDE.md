@@ -75,6 +75,13 @@ _No known issues at this time._
   - Combined file is automatically downloaded
   - Maximum 20 files can be combined at once
   - API endpoint: `POST /documents/combine`
+  - **Enhanced document delineation (2025-07-22)**:
+    - Table of contents at the beginning showing all included documents
+    - Clear document headers with document number, filename, and full S3 path
+    - Structured separators between documents for easy parsing
+    - Format optimized for LLM reading and vector database indexing
+    - Each document wrapped with 80-character delimiters
+    - End-of-document markers for clear boundaries
 - **Markdown Support**: Added .md file support
   - Process Markdown files (.md) as plain text for redaction
   - Updated allowed file extensions in both frontend and backend
