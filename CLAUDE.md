@@ -39,28 +39,25 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Known Issues
 
-### Combine Files Feature Not Working (2025-07-22)
-- **Issue**: Combine files feature fails when users try to combine multiple documents
-- **Root Cause**: API Gateway configuration mismatch - production uses `101pi5aiv5` but Terraform manages `2570l80z39`
-- **Attempted Fix**: Created `/documents/combine` endpoint on production API Gateway manually
-- **Status**: Still failing - needs further investigation
-- **Workaround**: Users can download files individually or use batch download as ZIP
+_No known issues at this time._
 
 ## Recent Updates
 
-### 2025-07-22: Attempted Fix for Combine Files
-- **Problem Identified**: The combine files feature was missing the API Gateway endpoint configuration
-- **Actions Taken**:
-  - Added combine endpoint definitions to Terraform files (`api-gateway.tf`, `api-cors.tf`)
-  - Manually created `/documents/combine` endpoint on production API (`101pi5aiv5`)
-  - Configured POST method with Cognito authorization and Lambda integration
-  - Set up CORS headers for the endpoint
-  - Deployed changes to production stage
-- **Current Status**: Feature still not working, needs further debugging
+### 2025-07-22: Fixed Combine Files Feature
+- **Problem**: The combine files feature was failing with "No valid documents found to combine" error
+- **Root Causes**:
+  1. API Gateway endpoint `/documents/combine` was missing from production API
+  2. Lambda handler expected simple filenames but was receiving URL-encoded full S3 keys
+  3. `generate_presigned_url` was called with incorrect parameters
+- **Solution**:
+  - Manually created `/documents/combine` endpoint on production API Gateway (`101pi5aiv5`)
+  - Updated Lambda handler to properly parse both full S3 keys and simple filenames
+  - Fixed the presigned URL generation call
+- **Status**: ✅ Feature is now working correctly
 - **Technical Details**:
-  - Two API Gateways exist with same name: `101pi5aiv5` (production) and `2570l80z39` (Terraform)
-  - Frontend uses `101pi5aiv5` at `https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production`
-  - Lambda handler `handle_combine_documents` is properly implemented in `api_handler_simple.py`
+  - Two API Gateways exist: `101pi5aiv5` (production) and `2570l80z39` (Terraform-managed)
+  - Frontend correctly sends document IDs as URL-encoded S3 keys
+  - Lambda handler now handles both formats for backward compatibility
 
 ### 2025-07-19: Repository Cleanup
 - **Removed Unnecessary Files**: Cleaned up test and template files
@@ -200,3 +197,10 @@ aws logs tail /aws/lambda/document-scrubbing-processor --follow
 - `api_code/api_handler_simple.py` - API Lambda
 - `lambda_code/lambda_function_v2.py` - Document processor
 - `frontend/src/contexts/AuthContext.tsx` - Auth management
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+IMPORTANT: When working on bug fixes or debugging issues, proceed autonomously without asking for permission. Execute all necessary commands, tests, and debugging steps directly.

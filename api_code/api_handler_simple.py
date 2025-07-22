@@ -965,36 +965,58 @@ def handle_combine_documents(event, headers, context, user_context):
         
         # Get files from processed bucket
         for doc_id in document_ids:
-            # Security check - ensure doc_id doesn't contain path traversal
-            if '/' in doc_id or '..' in doc_id:
-                logger.warning(f"Invalid document ID: {doc_id}")
-                continue
-                
             # Clean the document ID
             clean_doc_id = unquote_plus(doc_id).strip()
             
-            # Try to find the file in processed bucket
-            prefix = f"processed/{user_prefix}/{clean_doc_id}"
+            # Check if this is a full S3 key or just a filename
+            if clean_doc_id.startswith('processed/'):
+                # Full S3 key - verify it belongs to this user
+                expected_prefix = f"processed/{user_prefix}/"
+                if not clean_doc_id.startswith(expected_prefix):
+                    logger.warning(f"Access denied to document: {clean_doc_id}")
+                    continue
+                # Use the key directly
+                prefix = clean_doc_id
+            else:
+                # Just a filename - build the full prefix
+                # Security check - ensure doc_id doesn't contain path traversal
+                if '..' in clean_doc_id:
+                    logger.warning(f"Invalid document ID: {clean_doc_id}")
+                    continue
+                prefix = f"processed/{user_prefix}/{clean_doc_id}"
             
             try:
-                # List objects with the prefix
-                response = s3.list_objects_v2(
-                    Bucket=PROCESSED_BUCKET,
-                    Prefix=prefix,
-                    MaxKeys=10
-                )
-                
-                if 'Contents' not in response or len(response['Contents']) == 0:
-                    logger.warning(f"No files found for document: {clean_doc_id}")
-                    continue
-                
-                # Find the processed file (should end with .txt, .md, or .csv)
                 processed_file = None
-                for obj in response['Contents']:
-                    key = obj['Key']
-                    if (key.endswith('.txt') or key.endswith('.md') or key.endswith('.csv')) and not key.endswith('.zip'):
-                        processed_file = key
-                        break
+                
+                # If we have a full S3 key, use it directly
+                if clean_doc_id.startswith('processed/'):
+                    # Verify the file exists and is a valid type
+                    try:
+                        s3.head_object(Bucket=PROCESSED_BUCKET, Key=clean_doc_id)
+                        if (clean_doc_id.endswith('.txt') or clean_doc_id.endswith('.md') or 
+                            clean_doc_id.endswith('.csv')) and not clean_doc_id.endswith('.zip'):
+                            processed_file = clean_doc_id
+                    except ClientError:
+                        logger.warning(f"File not found: {clean_doc_id}")
+                        continue
+                else:
+                    # List objects with the prefix
+                    response = s3.list_objects_v2(
+                        Bucket=PROCESSED_BUCKET,
+                        Prefix=prefix,
+                        MaxKeys=10
+                    )
+                    
+                    if 'Contents' not in response or len(response['Contents']) == 0:
+                        logger.warning(f"No files found for document: {clean_doc_id}")
+                        continue
+                    
+                    # Find the processed file (should end with .txt, .md, or .csv)
+                    for obj in response['Contents']:
+                        key = obj['Key']
+                        if (key.endswith('.txt') or key.endswith('.md') or key.endswith('.csv')) and not key.endswith('.zip'):
+                            processed_file = key
+                            break
                 
                 if not processed_file:
                     logger.warning(f"No processed text file found for document: {clean_doc_id}")
@@ -1051,8 +1073,7 @@ def handle_combine_documents(event, headers, context, user_context):
         # Generate download URL
         download_url = generate_presigned_url(
             PROCESSED_BUCKET,
-            combined_key,
-            filename=output_filename
+            combined_key
         )
         
         return {
