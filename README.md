@@ -67,6 +67,7 @@ Visit https://redact.9thcube.com and sign up with allowed email domains.
   - Added table of contents with document listing
   - Clear document headers with source paths for citation
   - Structured separators for vector DB indexing
+  - Automatic datetime naming: `filename_YYYYMMDD_HHMMSS.ext`
 - **2025-07-22**: Fixed combine files feature - now properly handles URL-encoded document IDs
 - **2025-07-18**: Added .md (Markdown) file support and file combination feature
 - **2025-07-13**: Fixed file deletion (403 errors) and batch download (404 errors)
@@ -101,6 +102,13 @@ curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/a
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"text": "Meeting with Choice Hotels"}'
+
+# Combine multiple files
+curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/documents/combine \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"document_ids": ["file1.txt", "file2.txt"], "output_filename": "report"}'
+# Returns: {"filename": "report_20250722_163245.txt", "download_url": "..."}
 ```
 
 ## Configuration

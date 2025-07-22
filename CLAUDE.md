@@ -80,6 +80,11 @@ _No known issues at this time._
     - Clear document headers with document number, filename, and full S3 path
     - Structured separators between documents for easy parsing
     - Format optimized for LLM reading and vector database indexing
+  - **Automatic datetime naming (2025-07-22)**:
+    - Combined files now include timestamp in filename for uniqueness
+    - Format: `{base_name}_{YYYYMMDD}_{HHMMSS}.{ext}`
+    - Example: `combined_report_20250722_163245.txt`
+    - Prevents accidental overwrites and aids in version tracking
     - Each document wrapped with 80-character delimiters
     - End-of-document markers for clear boundaries
 - **Markdown Support**: Added .md file support
@@ -152,7 +157,7 @@ _No known issues at this time._
 - `GET /documents/status/{id}` - Check processing
 - `DELETE /documents/{id}` - Delete file
 - `POST /documents/batch-download` - Download multiple files as ZIP
-- `POST /documents/combine` - Combine multiple files into one
+- `POST /documents/combine` - Combine multiple files into one (with auto datetime naming)
 - `GET /user/files` - List user files
 - `GET/PUT /api/config` - Manage redaction rules
 - `POST /api/string/redact` - String.com API (Bearer auth)
