@@ -3,11 +3,16 @@
 ## Bug Fixes - ✅ Complete (2025-07-22)
 
 ### ✅ File Operations Issues - Fixed
-1. **Combine Files Feature** ✅ FIXED (2025-07-22)
+1. **Combine Files Feature** ✅ FIXED & ENHANCED (2025-07-22)
    - Fixed API Gateway endpoint configuration
    - Updated Lambda handler to properly parse URL-encoded document IDs
    - Fixed generate_presigned_url function call
    - Feature now working correctly
+   - Enhanced with LLM-optimized document delineation:
+     - Table of contents for easy navigation
+     - Clear document boundaries with headers and footers
+     - Source path information for accurate citation
+     - Format optimized for vector database indexing
 
 2. **Delete and Batch Download** ✅ FIXED (2025-07-13)
    - Fixed 403 Access Denied errors when deleting files
