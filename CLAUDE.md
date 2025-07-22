@@ -37,7 +37,30 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 }
 ```
 
+## Known Issues
+
+### Combine Files Feature Not Working (2025-07-22)
+- **Issue**: Combine files feature fails when users try to combine multiple documents
+- **Root Cause**: API Gateway configuration mismatch - production uses `101pi5aiv5` but Terraform manages `2570l80z39`
+- **Attempted Fix**: Created `/documents/combine` endpoint on production API Gateway manually
+- **Status**: Still failing - needs further investigation
+- **Workaround**: Users can download files individually or use batch download as ZIP
+
 ## Recent Updates
+
+### 2025-07-22: Attempted Fix for Combine Files
+- **Problem Identified**: The combine files feature was missing the API Gateway endpoint configuration
+- **Actions Taken**:
+  - Added combine endpoint definitions to Terraform files (`api-gateway.tf`, `api-cors.tf`)
+  - Manually created `/documents/combine` endpoint on production API (`101pi5aiv5`)
+  - Configured POST method with Cognito authorization and Lambda integration
+  - Set up CORS headers for the endpoint
+  - Deployed changes to production stage
+- **Current Status**: Feature still not working, needs further debugging
+- **Technical Details**:
+  - Two API Gateways exist with same name: `101pi5aiv5` (production) and `2570l80z39` (Terraform)
+  - Frontend uses `101pi5aiv5` at `https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production`
+  - Lambda handler `handle_combine_documents` is properly implemented in `api_handler_simple.py`
 
 ### 2025-07-19: Repository Cleanup
 - **Removed Unnecessary Files**: Cleaned up test and template files

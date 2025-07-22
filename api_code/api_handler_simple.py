@@ -134,6 +134,7 @@ def lambda_handler(event, context):
             return handle_batch_download(event, headers, context, user_context)
             
         elif path == '/documents/combine' and method == 'POST':
+            logger.info(f"Handling combine request for path: {path}")
             return handle_combine_documents(event, headers, context, user_context)
             
         # Test redaction endpoint
