@@ -63,6 +63,7 @@ The following files are generated during deployment and not stored in version co
 Visit https://redact.9thcube.com and sign up with allowed email domains.
 
 ## Recent Updates
+- **2025-07-22**: Fixed combine files feature - now properly handles URL-encoded document IDs
 - **2025-07-18**: Added .md (Markdown) file support and file combination feature
 - **2025-07-13**: Fixed file deletion (403 errors) and batch download (404 errors)
 - **2025-07-12**: Removed legacy .doc support, improved error handling
