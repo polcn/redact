@@ -1,18 +1,22 @@
 # TODO List
 
-## Bug Fixes - ✅ Complete (2025-07-12)
+## Bug Fixes - ✅ Complete (2025-07-22)
 
-### 🔄 File Operations Issues - Partially Fixed
-1. **Delete and Batch Download Not Working** 🔄 PARTIALLY FIXED
-   - ✅ CORS preflight requests fixed - browser no longer blocks requests
-   - ✅ URL encoding issues addressed in backend handlers
-   - ✅ Enhanced logging for troubleshooting
-   - ❌ Delete and ZIP download operations still failing - requests not reaching backend
-   - 🔍 **Next Steps**: Check JWT token expiration, frontend error handling, or API Gateway routing
+### ✅ File Operations Issues - Fixed
+1. **Combine Files Feature** ✅ FIXED (2025-07-22)
+   - Fixed API Gateway endpoint configuration
+   - Updated Lambda handler to properly parse URL-encoded document IDs
+   - Fixed generate_presigned_url function call
+   - Feature now working correctly
 
-2. **Legacy .doc Files Stuck Processing** ✅ FIXED
+2. **Delete and Batch Download** ✅ FIXED (2025-07-13)
+   - Fixed 403 Access Denied errors when deleting files
+   - Fixed 404 errors for ZIP download functionality
+   - Updated security validation to handle S3 key formats correctly
+
+3. **Legacy .doc Files Stuck Processing** ✅ FIXED (2025-07-12)
    - Removed .doc from supported file extensions (only .docx supported)
-   - Moved 2 stuck .doc files to quarantine bucket
+   - Moved stuck .doc files to quarantine bucket
    - Updated upload validation to reject .doc files with clear error message
    - Improved error handling for unsupported file types
 
