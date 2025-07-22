@@ -941,8 +941,18 @@ def handle_combine_documents(event, headers, context, user_context):
             }
         
         document_ids = body.get('document_ids', [])
-        output_filename = body.get('output_filename', 'combined_document.txt')
+        base_filename = body.get('output_filename', 'combined_document')
         separator = body.get('separator', '\n\n--- Document Break ---\n\n')
+        
+        # Generate timestamp for unique naming
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Clean the base filename and ensure proper extension
+        if base_filename.endswith(('.txt', '.md')):
+            name_parts = os.path.splitext(base_filename)
+            output_filename = f"{name_parts[0]}_{timestamp}{name_parts[1]}"
+        else:
+            output_filename = f"{base_filename}_{timestamp}.txt"
         
         if not document_ids:
             return {
@@ -1084,10 +1094,6 @@ SOURCE: {processed_file}
         # Generate unique document ID for combined file
         document_id = str(uuid.uuid4())
         timestamp = int(time.time())
-        
-        # Ensure output filename has proper extension
-        if not output_filename.endswith(('.txt', '.md')):
-            output_filename = output_filename + '.txt'
         
         # Save combined file to processed bucket
         combined_key = f"processed/{user_prefix}/{document_id}/{output_filename}"
