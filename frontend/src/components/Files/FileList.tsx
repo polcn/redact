@@ -21,6 +21,12 @@ export const FileList: React.FC = () => {
   const [combineFilename, setCombineFilename] = useState('combined_document.txt');
   const [isCombining, setIsCombining] = useState(false);
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'status'>('date-desc');
+  
+  // AI Summary modal state
+  const [showAISummaryModal, setShowAISummaryModal] = useState(false);
+  const [selectedFileForAI, setSelectedFileForAI] = useState<FileData | null>(null);
+  const [selectedSummaryType, setSelectedSummaryType] = useState<'brief' | 'standard' | 'detailed'>('standard');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const loadFiles = async () => {
     try {
@@ -35,12 +41,52 @@ export const FileList: React.FC = () => {
     }
   };
 
+  const handleOpenAISummary = (file: FileData) => {
+    setSelectedFileForAI(file);
+    setShowAISummaryModal(true);
+  };
+
+  const handleGenerateAISummary = async () => {
+    if (!selectedFileForAI) return;
+    
+    setIsGeneratingAI(true);
+    try {
+      const { generateAISummary } = await import('../../services/api');
+      const result = await generateAISummary(selectedFileForAI.id, selectedSummaryType);
+      
+      // Download the AI-enhanced file
+      if (result.download_url) {
+        const link = document.createElement('a');
+        link.href = result.download_url;
+        link.download = result.new_filename || selectedFileForAI.filename.replace(/\.([^.]+)$/, '_AI.$1');
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
+      setShowAISummaryModal(false);
+      setSelectedFileForAI(null);
+      loadFiles(); // Refresh the file list
+    } catch (err: any) {
+      console.error('AI Summary Error:', err);
+      alert(err.response?.data?.error || err.message || 'Failed to generate AI summary');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
   useEffect(() => {
     loadFiles();
-    // Refresh every 10 seconds to check for status updates
-    const interval = setInterval(loadFiles, 10000);
+    // Refresh every 10 seconds to check for status updates, but not when modals are open
+    const interval = setInterval(() => {
+      // Don't refresh if any modal is open
+      if (!showAISummaryModal && !showCombineModal) {
+        loadFiles();
+      }
+    }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [showAISummaryModal, showCombineModal]);
 
   if (loading) {
     return (
@@ -319,7 +365,11 @@ export const FileList: React.FC = () => {
                 style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
               />
               <div style={{ flex: 1 }}>
-                <FileItem file={file} onDelete={loadFiles} />
+                <FileItem 
+                  file={file} 
+                  onDelete={loadFiles}
+                  onOpenAISummary={() => handleOpenAISummary(file)}
+                />
               </div>
             </div>
           </div>
@@ -366,6 +416,80 @@ export const FileList: React.FC = () => {
                 disabled={isCombining || !combineFilename.trim()}
               >
                 {isCombining ? 'Combining...' : 'Combine'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Summary Modal */}
+      {showAISummaryModal && selectedFileForAI && (
+        <div 
+          onClick={(e) => {
+            // Prevent closing modal when clicking backdrop
+            e.stopPropagation();
+          }}
+          style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="card-anthropic" 
+            style={{ 
+            width: '90%', 
+            maxWidth: '500px',
+            padding: 'var(--spacing-lg)'
+          }}>
+            <h2 className="text-primary" style={{ marginBottom: 'var(--spacing-md)' }}>
+              Generate AI Summary
+            </h2>
+            
+            <p className="text-secondary" style={{ marginBottom: 'var(--spacing-lg)' }}>
+              Select the type of summary you want to generate for "{selectedFileForAI.filename}":
+            </p>
+            
+            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-sm)' }}>
+                Summary Type:
+              </label>
+              <select 
+                value={selectedSummaryType}
+                onChange={(e) => setSelectedSummaryType(e.target.value as 'brief' | 'standard' | 'detailed')}
+                className="input-anthropic"
+                style={{ width: '100%' }}
+              >
+                <option value="brief">Brief (2-3 sentences)</option>
+                <option value="standard">Standard (comprehensive)</option>
+                <option value="detailed">Detailed (in-depth analysis)</option>
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  setShowAISummaryModal(false);
+                  setSelectedFileForAI(null);
+                }}
+                className="btn-anthropic btn-anthropic-secondary"
+                disabled={isGeneratingAI}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGenerateAISummary}
+                className="btn-anthropic btn-anthropic-primary"
+                disabled={isGeneratingAI}
+              >
+                {isGeneratingAI ? 'Generating...' : 'Generate Summary'}
               </button>
             </div>
           </div>

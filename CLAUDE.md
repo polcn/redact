@@ -39,9 +39,23 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Known Issues
 
-_No known issues at this time._
+### AI Summary & Combined Documents Browser Behavior
+- **Issue**: When generating an AI summary or combining documents, the new document opens directly in the browser instead of downloading
+- **Current Behavior**: 
+  - AI Summary creates a new file with "_AI" suffix and displays it in the browser
+  - Combined documents also display in the browser instead of downloading
+  - Download button on these files also opens them in the browser
+- **Expected Behavior**: Files should download to the user's computer
+- **Workaround**: Users can right-click and "Save As" or use browser's save function
+- **Status**: To be fixed
 
 ## Recent Updates
+
+### 2025-07-23: AI Summary Feature & Metadata Fix
+- **Fixed**: AI summary was failing with "Failed to save AI document" error
+  - **Root Cause**: S3 metadata values must be strings, but `max_tokens` (int) and `temperature` (float) were being passed as numeric types
+  - **Solution**: Updated `generate_ai_summary_internal` to convert numeric metadata values to strings before saving to S3
+  - **Status**: ✅ Fix deployed and working
 
 ### 2025-07-23: AI Summary Feature
 - **New Feature**: On-demand AI summaries for processed documents
