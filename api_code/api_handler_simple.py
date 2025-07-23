@@ -127,6 +127,12 @@ def lambda_handler(event, context):
         elif path == '/api/config' and method == 'PUT':
             return handle_update_config(event, headers, user_context)
             
+        elif path == '/api/ai-config' and method == 'GET':
+            return handle_get_ai_config(headers, user_context)
+            
+        elif path == '/api/ai-config' and method == 'PUT':
+            return handle_update_ai_config(event, headers, user_context)
+            
         elif path.startswith('/documents/') and method == 'DELETE':
             return handle_document_delete(event, headers, context, user_context)
             
@@ -136,6 +142,9 @@ def lambda_handler(event, context):
         elif path == '/documents/combine' and method == 'POST':
             logger.info(f"Handling combine request for path: {path}")
             return handle_combine_documents(event, headers, context, user_context)
+            
+        elif path == '/documents/ai-summary' and method == 'POST':
+            return handle_ai_summary(event, headers, context, user_context)
             
         # Test redaction endpoint
         elif path == '/api/test-redaction' and method == 'POST':
@@ -1538,3 +1547,234 @@ def apply_redaction_for_api(text, config):
                     processed_text = re.sub(pattern, replace, processed_text)
     
     return processed_text, replacement_count
+
+def handle_ai_summary(event, headers, context, user_context):
+    """Handle POST /documents/ai-summary endpoint to add AI summary to a processed document"""
+    try:
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+        
+        # Get document ID
+        document_id = body.get('document_id')
+        if not document_id:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Document ID required'})
+            }
+        
+        # Get summary type (default to standard)
+        summary_type = body.get('summary_type', 'standard')
+        if summary_type not in ['brief', 'standard', 'detailed']:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid summary_type. Must be brief, standard, or detailed'})
+            }
+        
+        # Decode document ID to get S3 key
+        from urllib.parse import unquote
+        s3_key = unquote(document_id)
+        
+        # Security check: ensure the key belongs to the user
+        user_prefix = get_user_s3_prefix(user_context['user_id'])
+        if not s3_key.startswith(f"processed/{user_prefix}/"):
+            logger.warning(f"Access denied - Key: {s3_key}, User prefix: {user_prefix}")
+            return {
+                'statusCode': 403,
+                'headers': headers,
+                'body': json.dumps({'error': 'Access denied - you can only summarize your own files'})
+            }
+        
+        # Check if document already has AI summary
+        if "_AI" in s3_key:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Document already has an AI summary'})
+            }
+        
+        # Import the Lambda function for AI summary processing
+        # In production, this would be a shared layer or separate Lambda invocation
+        spec = importlib.util.spec_from_file_location(
+            "lambda_function_v2", 
+            "/var/task/lambda_function_v2.py"
+        )
+        lambda_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(lambda_module)
+        
+        # Add role to user context for model selection
+        user_context['summary_type'] = summary_type
+        
+        # Process document with AI summary
+        result = lambda_module.process_document_with_ai_summary(
+            PROCESSED_BUCKET,
+            s3_key,
+            user_context
+        )
+        
+        if result.get('success'):
+            # Generate presigned URL for the new AI-enhanced document
+            download_url = generate_presigned_url(
+                PROCESSED_BUCKET,
+                result['enhanced_key']
+            )
+            
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps({
+                    'success': True,
+                    'message': 'AI summary added successfully',
+                    'document_id': document_id,
+                    'new_filename': result['filename'],
+                    'download_url': download_url,
+                    'summary_metadata': result['metadata']
+                })
+            }
+        else:
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({
+                    'error': 'Failed to generate AI summary',
+                    'details': result.get('error', 'Unknown error')
+                })
+            }
+        
+    except Exception as e:
+        logger.error(f"Error in AI summary generation: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'AI summary generation failed'})
+        }
+
+def handle_get_ai_config(headers, user_context):
+    """Handle GET /api/ai-config endpoint to retrieve AI configuration"""
+    try:
+        # Check if user has admin role
+        if user_context.get('role') != 'admin':
+            # Regular users get limited info
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps({
+                    'enabled': True,
+                    'available_summary_types': ['brief', 'standard', 'detailed'],
+                    'default_summary_type': 'standard'
+                })
+            }
+        
+        # Admin users get full configuration
+        try:
+            param_name = '/redact/ai-config'
+            response = ssm.get_parameter(Name=param_name)
+            ai_config = json.loads(response['Parameter']['Value'])
+            
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(ai_config)
+            }
+        except ssm.exceptions.ParameterNotFound:
+            return {
+                'statusCode': 404,
+                'headers': headers,
+                'body': json.dumps({'error': 'AI configuration not found'})
+            }
+        
+    except Exception as e:
+        logger.error(f"Error getting AI config: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to get AI configuration'})
+        }
+
+def handle_update_ai_config(event, headers, user_context):
+    """Handle PUT /api/ai-config endpoint to update AI configuration (admin only)"""
+    try:
+        # Check if user has admin role
+        if user_context.get('role') != 'admin':
+            return {
+                'statusCode': 403,
+                'headers': headers,
+                'body': json.dumps({'error': 'Admin access required'})
+            }
+        
+        # Parse request body
+        body = event.get('body', '')
+        if event.get('isBase64Encoded', False):
+            body = base64.b64decode(body).decode('utf-8')
+        
+        ai_config = json.loads(body)
+        
+        # Validate AI configuration
+        required_fields = ['enabled', 'default_model', 'available_models', 'summary_types']
+        for field in required_fields:
+            if field not in ai_config:
+                return {
+                    'statusCode': 400,
+                    'headers': headers,
+                    'body': json.dumps({'error': f'Missing required field: {field}'})
+                }
+        
+        # Validate model IDs
+        valid_models = [
+            'anthropic.claude-3-haiku-20240307',
+            'anthropic.claude-3-sonnet-20240229',
+            'anthropic.claude-instant-v1'
+        ]
+        
+        if ai_config['default_model'] not in valid_models:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid default_model'})
+            }
+        
+        # Update SSM parameter
+        param_name = '/redact/ai-config'
+        ssm.put_parameter(
+            Name=param_name,
+            Value=json.dumps(ai_config, indent=2),
+            Type='String',
+            Overwrite=True
+        )
+        
+        logger.info(json.dumps({
+            'event': 'AI_CONFIG_UPDATED',
+            'admin_user': user_context['email'],
+            'default_model': ai_config['default_model']
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'message': 'AI configuration updated successfully',
+                'config': ai_config
+            })
+        }
+        
+    except json.JSONDecodeError:
+        return {
+            'statusCode': 400,
+            'headers': headers,
+            'body': json.dumps({'error': 'Invalid JSON'})
+        }
+    except Exception as e:
+        logger.error(f"Error updating AI config: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to update AI configuration'})
+        }

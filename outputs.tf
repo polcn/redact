@@ -9,7 +9,7 @@ output "processed_bucket_name" {
 }
 
 output "quarantine_bucket_name" {
-  description = "Name of the quarantine S3 bucket"  
+  description = "Name of the quarantine S3 bucket"
   value       = aws_s3_bucket.quarantine_documents.bucket
 }
 
@@ -28,11 +28,11 @@ output "api_gateway_url" {
 output "api_endpoints" {
   description = "Available API endpoints"
   value = {
-    health      = "GET /health"
-    upload      = "POST /documents/upload"
-    status      = "GET /documents/status/{id}"
-    user_files  = "GET /user/files"
-    get_config  = "GET /api/config"
+    health        = "GET /health"
+    upload        = "POST /documents/upload"
+    status        = "GET /documents/status/{id}"
+    user_files    = "GET /user/files"
+    get_config    = "GET /api/config"
     update_config = "PUT /api/config"
   }
 }

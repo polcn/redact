@@ -1,7 +1,7 @@
 # SQS Dead Letter Queue for failed Lambda invocations
 resource "aws_sqs_queue" "lambda_dlq" {
-  name                      = "document-scrubbing-dlq"
-  message_retention_seconds = 1209600  # 14 days
+  name                       = "document-scrubbing-dlq"
+  message_retention_seconds  = 1209600 # 14 days
   visibility_timeout_seconds = 300     # 5 minutes
 
   tags = {
@@ -150,6 +150,18 @@ resource "aws_iam_role_policy" "lambda_policy" {
             "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
           }
         }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ]
+        Resource = [
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-haiku-20240307",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-sonnet-20240229",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-instant-v1"
+        ]
       }
     ]
   })
@@ -157,13 +169,13 @@ resource "aws_iam_role_policy" "lambda_policy" {
 
 # Simple Lambda function for document processing
 resource "aws_lambda_function" "document_processor" {
-  filename         = "document_processor.zip"
-  function_name    = "document-scrubbing-processor"
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "lambda_function_v2.lambda_handler"
-  runtime         = "python3.11"
-  timeout         = var.lambda_timeout
-  memory_size     = var.lambda_memory_size
+  filename      = "document_processor.zip"
+  function_name = "document-scrubbing-processor"
+  role          = aws_iam_role.lambda_execution_role.arn
+  handler       = "lambda_function_v2.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = var.lambda_timeout
+  memory_size   = var.lambda_memory_size
 
   environment {
     variables = {
@@ -171,6 +183,7 @@ resource "aws_lambda_function" "document_processor" {
       OUTPUT_BUCKET     = aws_s3_bucket.processed_documents.bucket
       QUARANTINE_BUCKET = aws_s3_bucket.quarantine_documents.bucket
       CONFIG_BUCKET     = aws_s3_bucket.config_bucket.bucket
+      AI_CONFIG_PARAM   = "/redact/ai-config"
     }
   }
 
@@ -235,7 +248,7 @@ resource "null_resource" "build_lambda" {
   }
 
   provisioner "local-exec" {
-    command = "${path.module}/build_lambda.sh"
+    command     = "${path.module}/build_lambda.sh"
     working_dir = path.module
   }
 }

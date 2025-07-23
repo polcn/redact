@@ -20,6 +20,7 @@ export const FileList: React.FC = () => {
   const [showCombineModal, setShowCombineModal] = useState(false);
   const [combineFilename, setCombineFilename] = useState('combined_document.txt');
   const [isCombining, setIsCombining] = useState(false);
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'status'>('date-desc');
 
   const loadFiles = async () => {
     try {
@@ -143,9 +144,10 @@ export const FileList: React.FC = () => {
       const link = document.createElement('a');
       link.href = response.download_url;
       link.download = response.filename || 'redacted_documents.zip';
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      setTimeout(() => document.body.removeChild(link), 100);
       
       // Clear selection after download
       setSelectedFiles(new Set());
@@ -179,9 +181,10 @@ export const FileList: React.FC = () => {
       const link = document.createElement('a');
       link.href = response.download_url;
       link.download = response.filename;
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      setTimeout(() => document.body.removeChild(link), 100);
       
       // Clear selection and close modal
       setSelectedFiles(new Set());
@@ -202,26 +205,70 @@ export const FileList: React.FC = () => {
   const selectedCount = selectedFiles.size;
   const hasCompletedFiles = files.some(f => f.status === 'completed' && selectedFiles.has(f.id));
 
+  // Sort files based on selected sort option
+  const sortedFiles = [...files].sort((a, b) => {
+    switch (sortBy) {
+      case 'date-desc':
+        return new Date(b.last_modified).getTime() - new Date(a.last_modified).getTime();
+      case 'date-asc':
+        return new Date(a.last_modified).getTime() - new Date(b.last_modified).getTime();
+      case 'name-asc':
+        return a.filename.localeCompare(b.filename);
+      case 'name-desc':
+        return b.filename.localeCompare(a.filename);
+      case 'status':
+        const statusOrder = { completed: 0, processing: 1, quarantined: 2 };
+        return statusOrder[a.status] - statusOrder[b.status];
+      default:
+        return 0;
+    }
+  });
+
   return (
     <div>
       {files.length > 0 && (
-        <div className="mb-md flex items-center justify-between" style={{
-          padding: '0.75rem',
-          background: 'var(--color-background)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)'
-        }}>
-          <div className="flex items-center gap-md">
-            <input
-              type="checkbox"
-              checked={selectedFiles.size === files.length && files.length > 0}
-              onChange={handleSelectAll}
-              style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
-            />
-            <span className="text-secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
-              {selectedCount === 0 ? 'Select all' : `${selectedCount} selected`}
-            </span>
+        <>
+          <div className="mb-sm flex items-center justify-between">
+            <div className="flex items-center gap-sm">
+              <label className="text-secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
+                Sort by:
+              </label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="input-anthropic"
+                style={{ 
+                  padding: '0.5rem',
+                  fontSize: 'var(--font-size-sm)',
+                  minWidth: '180px'
+                }}
+              >
+                <option value="date-desc">Date (Newest first)</option>
+                <option value="date-asc">Date (Oldest first)</option>
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="status">Status</option>
+              </select>
+            </div>
           </div>
+          
+          <div className="mb-md flex items-center justify-between" style={{
+            padding: '0.75rem',
+            background: 'var(--color-background)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)'
+          }}>
+            <div className="flex items-center gap-md">
+              <input
+                type="checkbox"
+                checked={selectedFiles.size === files.length && files.length > 0}
+                onChange={handleSelectAll}
+                style={{ width: '1rem', height: '1rem', cursor: 'pointer' }}
+              />
+              <span className="text-secondary" style={{ fontSize: 'var(--font-size-sm)' }}>
+                {selectedCount === 0 ? 'Select all' : `${selectedCount} selected`}
+              </span>
+            </div>
           
           {selectedCount > 0 && (
             <div className="flex items-center gap-sm">
@@ -258,10 +305,11 @@ export const FileList: React.FC = () => {
             </div>
           )}
         </div>
+        </>
       )}
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-        {files.map((file) => (
+        {sortedFiles.map((file) => (
           <div key={file.id} className="relative">
             <div className="flex items-center gap-sm">
               <input

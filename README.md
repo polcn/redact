@@ -7,11 +7,12 @@ Production-ready document redaction system with React frontend at https://redact
 - **Pattern Detection**: SSN, credit cards, phones, emails, IPs, licenses
 - **Link Stripping**: Removes URLs while preserving link text for redaction
 - **User Isolation**: Secure file storage per user
+- **AI Summaries**: On-demand AI-powered document summaries using AWS Bedrock
 - **File Combination**: Combine multiple processed files into one document
 - **Batch Operations**: Download multiple files as ZIP or delete in bulk
 - **String.com API**: Content-based redaction rules with rate limiting
 - **API Management**: Automated key rotation, usage quotas, monitoring
-- **Cost**: $0-5/month serverless architecture
+- **Cost**: $0-5/month serverless architecture (AI summaries extra)
 
 ## Architecture
 ```
@@ -109,9 +110,18 @@ curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/d
   -H "Content-Type: application/json" \
   -d '{"document_ids": ["file1.txt", "file2.txt"], "output_filename": "report"}'
 # Returns: {"filename": "report_20250722_163245.txt", "download_url": "..."}
+
+# Generate AI summary
+curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/documents/ai-summary \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"document_id": "processed/users/123/document.md", "summary_type": "standard"}'
+# Returns: {"new_filename": "document_AI.md", "download_url": "..."}
 ```
 
 ## Configuration
+
+### Redaction Configuration
 ```json
 {
   "replacements": [
@@ -129,6 +139,16 @@ curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/d
   }
 }
 ```
+
+### AI Summary Feature
+- **Models**: AWS Bedrock with Claude 3 (Haiku, Sonnet, Instant)
+- **Summary Types**: 
+  - Brief: 2-3 sentence summary
+  - Standard: Comprehensive summary
+  - Detailed: In-depth analysis
+- **File Naming**: AI-enhanced files get "_AI" suffix (e.g., `report.md` → `report_AI.md`)
+- **Admin Controls**: Change default model via `/api/ai-config` endpoint
+- **Cost**: Pay-per-use based on AWS Bedrock pricing
 
 ## Troubleshooting
 ```bash

@@ -2,8 +2,8 @@
 
 # Usage plan for String.com API
 resource "aws_api_gateway_usage_plan" "string_api_plan" {
-  name         = "string-api-usage-plan"
-  description  = "Usage plan for String.com API with rate limiting"
+  name        = "string-api-usage-plan"
+  description = "Usage plan for String.com API with rate limiting"
 
   api_stages {
     api_id = aws_api_gateway_rest_api.redact_api.id
@@ -11,13 +11,13 @@ resource "aws_api_gateway_usage_plan" "string_api_plan" {
   }
 
   quota_settings {
-    limit  = 10000  # 10,000 requests per month
+    limit  = 10000 # 10,000 requests per month
     period = "MONTH"
   }
 
   throttle_settings {
-    rate_limit  = 100   # 100 requests per second
-    burst_limit = 200   # 200 requests burst capacity
+    rate_limit  = 100 # 100 requests per second
+    burst_limit = 200 # 200 requests burst capacity
   }
 
   tags = {
@@ -71,9 +71,9 @@ resource "aws_cloudwatch_metric_alarm" "api_quota_alarm" {
   evaluation_periods  = "1"
   metric_name         = "Count"
   namespace           = "AWS/ApiGateway"
-  period              = "3600"  # 1 hour
+  period              = "3600" # 1 hour
   statistic           = "Sum"
-  threshold           = "8000"  # Alert at 80% of monthly quota
+  threshold           = "8000" # Alert at 80% of monthly quota
   alarm_description   = "Alert when String.com API usage exceeds 80% of monthly quota"
   treat_missing_data  = "notBreaching"
 
@@ -96,9 +96,9 @@ resource "aws_cloudwatch_metric_alarm" "api_throttle_alarm" {
   evaluation_periods  = "2"
   metric_name         = "4XXError"
   namespace           = "AWS/ApiGateway"
-  period              = "300"  # 5 minutes
+  period              = "300" # 5 minutes
   statistic           = "Sum"
-  threshold           = "50"   # More than 50 4XX errors in 5 minutes
+  threshold           = "50" # More than 50 4XX errors in 5 minutes
   alarm_description   = "Alert when String.com API has high 4XX error rate (likely throttling)"
   treat_missing_data  = "notBreaching"
 

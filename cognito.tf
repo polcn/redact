@@ -20,7 +20,7 @@ resource "aws_cognito_user_pool" "redact_users" {
 
   # Username attributes
   username_attributes = ["email"]
-  
+
   # Auto-verified attributes
   auto_verified_attributes = ["email"]
 
@@ -34,7 +34,7 @@ resource "aws_cognito_user_pool" "redact_users" {
 
   # MFA configuration
   mfa_configuration = "OPTIONAL"
-  
+
   software_token_mfa_configuration {
     enabled = true
   }
@@ -46,7 +46,7 @@ resource "aws_cognito_user_pool" "redact_users" {
     mutable                  = true
     required                 = true
     developer_only_attribute = false
-    
+
     string_attribute_constraints {
       min_length = 1
       max_length = 256
@@ -59,7 +59,7 @@ resource "aws_cognito_user_pool" "redact_users" {
     mutable                  = true
     required                 = false
     developer_only_attribute = false
-    
+
     string_attribute_constraints {
       min_length = 1
       max_length = 256
@@ -72,7 +72,7 @@ resource "aws_cognito_user_pool" "redact_users" {
   }
 
   tags = {
-    Project = var.project_name
+    Project     = var.project_name
     Environment = var.environment
   }
 }
@@ -84,28 +84,28 @@ resource "aws_cognito_user_pool_client" "redact_web_client" {
 
   # OAuth flows
   allowed_oauth_flows_user_pool_client = true
-  allowed_oauth_flows                   = ["code", "implicit"]
-  allowed_oauth_scopes                  = ["email", "openid", "profile"]
-  
+  allowed_oauth_flows                  = ["code", "implicit"]
+  allowed_oauth_scopes                 = ["email", "openid", "profile"]
+
   # Callback URLs
   callback_urls = [
     "http://localhost:3000",
     "https://redact.9thcube.com"
   ]
-  
+
   logout_urls = [
     "http://localhost:3000",
     "https://redact.9thcube.com"
   ]
 
   # Client settings
-  generate_secret                      = false
-  refresh_token_validity               = 30
-  access_token_validity                = 1
-  id_token_validity                    = 1
-  enable_token_revocation              = true
-  prevent_user_existence_errors        = "ENABLED"
-  
+  generate_secret               = false
+  refresh_token_validity        = 30
+  access_token_validity         = 1
+  id_token_validity             = 1
+  enable_token_revocation       = true
+  prevent_user_existence_errors = "ENABLED"
+
   # Auth flows
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",
@@ -119,7 +119,7 @@ resource "aws_cognito_user_pool_client" "redact_web_client" {
     "email_verified",
     "custom:role"
   ]
-  
+
   write_attributes = [
     "email",
     "custom:role"
@@ -128,25 +128,25 @@ resource "aws_cognito_user_pool_client" "redact_web_client" {
 
 # Pre-signup Lambda to control user registration
 resource "aws_lambda_function" "cognito_pre_signup" {
-  filename         = "cognito_lambda.zip"
-  function_name    = "redact-cognito-pre-signup"
-  role            = aws_iam_role.cognito_lambda_role.arn
-  handler         = "pre_signup.lambda_handler"
-  runtime         = "python3.11"
-  timeout         = 5
-  
+  filename      = "cognito_lambda.zip"
+  function_name = "redact-cognito-pre-signup"
+  role          = aws_iam_role.cognito_lambda_role.arn
+  handler       = "pre_signup.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 5
+
   environment {
     variables = {
-      ALLOWED_DOMAINS = "gmail.com,outlook.com,yahoo.com,9thcube.com"  # Configure allowed email domains
+      ALLOWED_DOMAINS = "gmail.com,outlook.com,yahoo.com,9thcube.com" # Configure allowed email domains
       AUTO_CONFIRM    = "false"
     }
   }
-  
+
   tags = {
-    Project = var.project_name
+    Project     = var.project_name
     Environment = var.environment
   }
-  
+
   depends_on = [data.archive_file.cognito_lambda_zip]
 }
 
@@ -173,9 +173,9 @@ resource "aws_iam_role" "cognito_lambda_role" {
       }
     ]
   })
-  
+
   tags = {
-    Project = var.project_name
+    Project     = var.project_name
     Environment = var.environment
   }
 }
