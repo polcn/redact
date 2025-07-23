@@ -7,6 +7,7 @@ from urllib.parse import unquote_plus
 import tempfile
 from io import BytesIO
 import time
+from datetime import datetime
 from botocore.exceptions import ClientError
 
 # Configure logging first
@@ -49,6 +50,8 @@ except ImportError as e:
 
 # Initialize AWS clients
 s3 = boto3.client('s3')
+ssm = boto3.client('ssm')
+bedrock_runtime = None  # Initialize lazily when needed
 
 # Configuration constants
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB limit
@@ -1336,7 +1339,7 @@ def process_pptx_file(bucket, key, config, user_info=None):
             processed_text, redacted = apply_redaction_rules(full_text, config)
             
             # Normalize text for Windows compatibility
-            processed_text = normalize_text_for_windows(processed_text)
+            processed_text = normalize_text_output(processed_text)
             
             # Change file extension to .md for ChatGPT compatibility
             file_path = user_info['file_path'] if user_info else key
@@ -1427,3 +1430,206 @@ def create_success_marker(bucket, key):
     except Exception as e:
         logger.warning(f"Failed to create success marker: {str(e)}")
         # Don't fail the processing for marker creation
+
+def get_bedrock_client():
+    """Get or create Bedrock runtime client"""
+    global bedrock_runtime
+    if not bedrock_runtime:
+        bedrock_runtime = boto3.client('bedrock-runtime', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+    return bedrock_runtime
+
+def get_ai_config():
+    """Get AI configuration from SSM Parameter Store"""
+    try:
+        param_name = os.environ.get('AI_CONFIG_PARAM', '/redact/ai-config')
+        response = ssm.get_parameter(Name=param_name)
+        return json.loads(response['Parameter']['Value'])
+    except Exception as e:
+        logger.error(f"Error loading AI config: {str(e)}")
+        # Return default config if parameter doesn't exist
+        return {
+            'enabled': False,
+            'error': f'Failed to load AI config: {str(e)}'
+        }
+
+def generate_ai_summary(text, summary_type='standard', user_role='user'):
+    """
+    Generate AI summary for document text using AWS Bedrock
+    
+    Args:
+        text: The document text to summarize
+        summary_type: Type of summary (brief, standard, detailed)
+        user_role: Role of the user (user or admin) for model selection
+    
+    Returns:
+        tuple: (summary_text, metadata_dict)
+    """
+    try:
+        # Get AI configuration
+        ai_config = get_ai_config()
+        
+        if not ai_config.get('enabled', False):
+            raise ValueError("AI summaries are not enabled")
+        
+        # Select model based on user role
+        if user_role == 'admin' and ai_config.get('admin_override_model'):
+            model_id = ai_config['admin_override_model']
+        else:
+            model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307')
+        
+        # Get summary configuration
+        summary_configs = ai_config.get('summary_types', {})
+        summary_config = summary_configs.get(summary_type, summary_configs.get('standard', {}))
+        
+        max_tokens = summary_config.get('max_tokens', 500)
+        temperature = summary_config.get('temperature', 0.5)
+        instruction = summary_config.get('instruction', 'Summarize this document.')
+        
+        # Prepare the prompt
+        prompt = f"""Human: {instruction}
+
+Document content:
+{text[:10000]}  # Limit input to avoid token limits
+
+Please provide a clear, well-structured summary."""
+        
+        # Prepare request for Bedrock
+        bedrock = get_bedrock_client()
+        
+        # Format request based on model type
+        if "claude" in model_id:
+            request_body = json.dumps({
+                "prompt": prompt,
+                "max_tokens_to_sample": max_tokens,
+                "temperature": temperature,
+                "top_p": 0.9,
+                "stop_sequences": ["\\n\\nHuman:", "\\n\\nAssistant:"]
+            })
+        else:
+            # Default Anthropic format
+            request_body = json.dumps({
+                "prompt": prompt,
+                "max_tokens_to_sample": max_tokens,
+                "temperature": temperature
+            })
+        
+        # Invoke the model
+        start_time = time.time()
+        response = bedrock.invoke_model(
+            modelId=model_id,
+            contentType="application/json",
+            accept="application/json",
+            body=request_body
+        )
+        
+        # Parse response
+        response_body = json.loads(response["body"].read())
+        summary = response_body.get("completion", "").strip()
+        
+        processing_time = time.time() - start_time
+        
+        # Create metadata
+        metadata = {
+            "model": model_id,
+            "summary_type": summary_type,
+            "processing_time": processing_time,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "token_count": len(summary.split())  # Approximate
+        }
+        
+        logger.info(f"AI summary generated: model={model_id}, type={summary_type}, time={processing_time:.2f}s")
+        
+        return summary, metadata
+        
+    except Exception as e:
+        logger.error(f"Error generating AI summary: {str(e)}")
+        raise
+
+def process_document_with_ai_summary(bucket, key, user_context):
+    """
+    Add AI summary to an already processed document
+    
+    Args:
+        bucket: S3 bucket containing the processed document
+        key: S3 key of the processed document
+        user_context: User context including role information
+    
+    Returns:
+        dict: Result information including new document location
+    """
+    try:
+        # Download the processed document
+        response = s3.get_object(Bucket=bucket, Key=key)
+        content = response["Body"].read().decode("utf-8", errors="replace")
+        
+        # Extract filename
+        filename = key.split("/")[-1]
+        
+        # Generate AI summary
+        summary_type = user_context.get("summary_type", "standard")
+        user_role = user_context.get("role", "user")
+        
+        summary, metadata = generate_ai_summary(content, summary_type, user_role)
+        
+        # Format the enhanced document with AI summary
+        ai_header = f"""{"="*80}
+AI SUMMARY
+Generated: {metadata["timestamp"]}
+Model: {metadata["model"]}
+Type: {summary_type}
+{"="*80}
+
+{summary}
+
+{"="*80}
+ORIGINAL DOCUMENT
+{"="*80}
+"""
+        
+        enhanced_content = ai_header + content
+        
+        # Modify filename to include AI marker
+        if "." in filename:
+            name_parts = filename.rsplit(".", 1)
+            new_filename = f"{name_parts[0]}_AI.{name_parts[1]}"
+        else:
+            new_filename = f"{filename}_AI"
+        
+        # Construct new S3 key
+        key_parts = key.split("/")
+        key_parts[-1] = new_filename
+        new_key = "/".join(key_parts)
+        
+        # Upload enhanced document
+        s3.put_object(
+            Bucket=bucket,
+            Key=new_key,
+            Body=enhanced_content.encode("utf-8"),
+            ServerSideEncryption="AES256",
+            Metadata={
+                "ai-enhanced": "true",
+                "ai-model": metadata["model"],
+                "ai-summary-type": summary_type,
+                "ai-processing-time": str(metadata["processing_time"]),
+                "original-document": key
+            }
+        )
+        
+        logger.info(f"AI-enhanced document created: {new_key}")
+        
+        return {
+            "success": True,
+            "original_key": key,
+            "enhanced_key": new_key,
+            "filename": new_filename,
+            "summary_length": len(summary),
+            "metadata": metadata
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing document with AI summary: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "original_key": key
+        }

@@ -43,6 +43,25 @@ _No known issues at this time._
 
 ## Recent Updates
 
+### 2025-07-23: AI Summary Feature
+- **New Feature**: On-demand AI summaries for processed documents
+  - **Purpose**: Add AI-generated summaries to already processed documents
+  - **Models**: AWS Bedrock with Claude 3 Haiku (default), Sonnet, and Instant
+  - **Summary Types**: Brief (2-3 sentences), Standard (comprehensive), Detailed (in-depth)
+  - **Filename Convention**: AI-enhanced files get "_AI" suffix (e.g., `report.md` → `report_AI.md`)
+  - **Admin Controls**: Admins can change default model via `/api/ai-config`
+  - **UI Updates**: 
+    - "AI Summary" button on completed files (if no AI summary exists)
+    - "AI" badge indicator on files with AI summaries
+    - Modal for selecting summary type
+  - **API Endpoint**: `POST /documents/ai-summary`
+  - **Cost Optimization**: Only generates summaries on request, not automatically
+- **Technical Implementation**:
+  - Bedrock permissions added to Lambda IAM role
+  - AI configuration stored in SSM Parameter Store
+  - Summary prepended to document with metadata (timestamp, model, type)
+  - Model selection: Regular users use default, admins can override
+
 ### 2025-07-22: Fixed Combine Files Feature
 - **Problem**: The combine files feature was failing with "No valid documents found to combine" error
 - **Root Causes**:
@@ -158,8 +177,10 @@ _No known issues at this time._
 - `DELETE /documents/{id}` - Delete file
 - `POST /documents/batch-download` - Download multiple files as ZIP
 - `POST /documents/combine` - Combine multiple files into one (with auto datetime naming)
+- `POST /documents/ai-summary` - Generate AI summary for processed document
 - `GET /user/files` - List user files
 - `GET/PUT /api/config` - Manage redaction rules
+- `GET/PUT /api/ai-config` - AI configuration (GET: all users, PUT: admin only)
 - `POST /api/string/redact` - String.com API (Bearer auth)
 
 ## String.com API

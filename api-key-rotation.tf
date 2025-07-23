@@ -2,45 +2,45 @@
 
 # Lambda function for API key rotation
 resource "aws_lambda_function" "api_key_rotation" {
-  filename         = "api_lambda.zip"  # Reuse the same ZIP that includes all API code
-  function_name    = "redact-api-key-rotation"
-  role            = aws_iam_role.api_key_rotation_role.arn
-  handler         = "api_key_rotation.lambda_handler"
-  runtime         = "python3.11"
-  timeout         = 60
-  memory_size     = 128
-  
+  filename      = "api_lambda.zip" # Reuse the same ZIP that includes all API code
+  function_name = "redact-api-key-rotation"
+  role          = aws_iam_role.api_key_rotation_role.arn
+  handler       = "api_key_rotation.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 60
+  memory_size   = 128
+
   environment {
     variables = {
       API_GATEWAY_KEY_ID = aws_api_gateway_api_key.string_api_key.id
     }
   }
-  
+
   tags = {
     Project     = "redact"
     Environment = var.environment
     Purpose     = "api-key-rotation"
   }
-  
+
   depends_on = [data.archive_file.api_lambda_zip]
 }
 
 # Lambda function for cleaning up old keys
 resource "aws_lambda_function" "api_key_cleanup" {
-  filename         = "api_lambda.zip"
-  function_name    = "redact-api-key-cleanup"
-  role            = aws_iam_role.api_key_rotation_role.arn
-  handler         = "api_key_rotation.cleanup_old_keys"
-  runtime         = "python3.11"
-  timeout         = 60
-  memory_size     = 128
-  
+  filename      = "api_lambda.zip"
+  function_name = "redact-api-key-cleanup"
+  role          = aws_iam_role.api_key_rotation_role.arn
+  handler       = "api_key_rotation.cleanup_old_keys"
+  runtime       = "python3.11"
+  timeout       = 60
+  memory_size   = 128
+
   tags = {
     Project     = "redact"
     Environment = var.environment
     Purpose     = "api-key-cleanup"
   }
-  
+
   depends_on = [data.archive_file.api_lambda_zip]
 }
 
@@ -60,7 +60,7 @@ resource "aws_iam_role" "api_key_rotation_role" {
       }
     ]
   })
-  
+
   tags = {
     Project     = "redact"
     Environment = var.environment
@@ -126,8 +126,8 @@ resource "aws_iam_role_policy" "api_key_rotation_policy" {
 resource "aws_cloudwatch_event_rule" "api_key_rotation_schedule" {
   name                = "redact-api-key-rotation-schedule"
   description         = "Trigger API key rotation monthly"
-  schedule_expression = "rate(30 days)"  # Rotate every 30 days
-  
+  schedule_expression = "rate(30 days)" # Rotate every 30 days
+
   tags = {
     Project     = "redact"
     Environment = var.environment
@@ -139,8 +139,8 @@ resource "aws_cloudwatch_event_rule" "api_key_rotation_schedule" {
 resource "aws_cloudwatch_event_rule" "api_key_cleanup_schedule" {
   name                = "redact-api-key-cleanup-schedule"
   description         = "Clean up old API keys after grace period"
-  schedule_expression = "rate(1 day)"  # Check daily if cleanup is needed
-  
+  schedule_expression = "rate(1 day)" # Check daily if cleanup is needed
+
   tags = {
     Project     = "redact"
     Environment = var.environment
@@ -183,7 +183,7 @@ resource "aws_lambda_permission" "allow_eventbridge_cleanup" {
 resource "aws_cloudwatch_log_group" "api_key_rotation_logs" {
   name              = "/aws/lambda/redact-api-key-rotation"
   retention_in_days = 14
-  
+
   tags = {
     Project     = "redact"
     Environment = var.environment
@@ -193,7 +193,7 @@ resource "aws_cloudwatch_log_group" "api_key_rotation_logs" {
 resource "aws_cloudwatch_log_group" "api_key_cleanup_logs" {
   name              = "/aws/lambda/redact-api-key-cleanup"
   retention_in_days = 14
-  
+
   tags = {
     Project     = "redact"
     Environment = var.environment

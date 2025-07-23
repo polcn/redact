@@ -110,4 +110,35 @@ export const combineFiles = async (
   return response.data;
 };
 
+// Generate AI summary for a document
+export const generateAISummary = async (
+  documentId: string,
+  summaryType: 'brief' | 'standard' | 'detailed' = 'standard'
+): Promise<{
+  success: boolean;
+  message: string;
+  document_id: string;
+  new_filename: string;
+  download_url: string;
+  summary_metadata: any;
+}> => {
+  const response = await api.post('/documents/ai-summary', {
+    document_id: documentId,
+    summary_type: summaryType
+  });
+  return response.data;
+};
+
+// Get AI configuration (admin only gets full config)
+export const getAIConfig = async (): Promise<any> => {
+  const response = await api.get('/api/ai-config');
+  return response.data;
+};
+
+// Update AI configuration (admin only)
+export const updateAIConfig = async (config: any): Promise<any> => {
+  const response = await api.put('/api/ai-config', config);
+  return response.data;
+};
+
 export default api;

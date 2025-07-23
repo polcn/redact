@@ -3,11 +3,11 @@
 # S3 bucket for frontend hosting
 resource "aws_s3_bucket" "frontend" {
   bucket = "redact-frontend-9thcube-${substr(sha256("${var.project_name}-frontend"), 0, 8)}"
-  
+
   tags = {
-    Project = var.project_name
+    Project     = var.project_name
     Environment = var.environment
-    Purpose = "React frontend hosting"
+    Purpose     = "React frontend hosting"
   }
 }
 
@@ -30,7 +30,7 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
   }
 
   error_document {
-    key = "index.html"  # For React Router
+    key = "index.html" # For React Router
   }
 }
 
@@ -64,7 +64,7 @@ resource "aws_s3_bucket_policy" "frontend" {
         Principal = {
           AWS = aws_cloudfront_origin_access_identity.frontend.iam_arn
         }
-        Action = "s3:GetObject"
+        Action   = "s3:GetObject"
         Resource = "${aws_s3_bucket.frontend.arn}/*"
       }
     ]
@@ -76,13 +76,13 @@ resource "aws_acm_certificate" "frontend_cert" {
   provider          = aws.us_east_1
   domain_name       = "redact.9thcube.com"
   validation_method = "DNS"
-  
+
   lifecycle {
     create_before_destroy = true
   }
-  
+
   tags = {
-    Project = var.project_name
+    Project     = var.project_name
     Environment = var.environment
   }
 }
@@ -161,7 +161,7 @@ resource "aws_cloudfront_distribution" "frontend" {
     response_page_path = "/index.html"
   }
 
-  price_class = "PriceClass_100"  # US, Canada, Europe
+  price_class = "PriceClass_100" # US, Canada, Europe
 
   restrictions {
     geo_restriction {
@@ -175,7 +175,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   tags = {
-    Project = var.project_name
+    Project     = var.project_name
     Environment = var.environment
   }
 }
@@ -185,7 +185,7 @@ resource "aws_route53_record" "frontend" {
   zone_id = "Z08255452MP6V2QLHWIYG"
   name    = "redact.9thcube.com"
   type    = "A"
-  
+
   alias {
     name                   = aws_cloudfront_distribution.frontend.domain_name
     zone_id                = aws_cloudfront_distribution.frontend.hosted_zone_id

@@ -4,13 +4,13 @@
 resource "aws_api_gateway_rest_api" "redact_api" {
   name        = "document-redaction-api"
   description = "REST API for document redaction system"
-  
+
   endpoint_configuration {
     types = ["REGIONAL"]
   }
-  
+
   tags = {
-    Project = "redact"
+    Project     = "redact"
     Environment = var.environment
   }
 }
@@ -113,6 +113,20 @@ resource "aws_api_gateway_resource" "api_test_redaction" {
   path_part   = "test-redaction"
 }
 
+# API Gateway Resource - /api/ai-config
+resource "aws_api_gateway_resource" "api_ai_config" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.api.id
+  path_part   = "ai-config"
+}
+
+# API Gateway Resource - /documents/ai-summary
+resource "aws_api_gateway_resource" "documents_ai_summary" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.documents.id
+  path_part   = "ai-summary"
+}
+
 # API Gateway Resource - /documents/{id} for DELETE
 resource "aws_api_gateway_resource" "documents_id" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
@@ -127,7 +141,7 @@ resource "aws_api_gateway_method" "upload_post" {
   http_method   = "POST"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
-  
+
   request_parameters = {
     "method.request.header.Content-Type" = true
   }
@@ -140,7 +154,7 @@ resource "aws_api_gateway_method" "batch_download_post" {
   http_method   = "POST"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
-  
+
   request_parameters = {
     "method.request.header.Content-Type" = true
   }
@@ -153,7 +167,7 @@ resource "aws_api_gateway_method" "combine_post" {
   http_method   = "POST"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
-  
+
   request_parameters = {
     "method.request.header.Content-Type" = true
   }
@@ -166,7 +180,7 @@ resource "aws_api_gateway_method" "status_get" {
   http_method   = "GET"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
-  
+
   request_parameters = {
     "method.request.path.id" = true
   }
@@ -205,7 +219,7 @@ resource "aws_api_gateway_method" "api_config_put" {
   http_method   = "PUT"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
-  
+
   request_parameters = {
     "method.request.header.Content-Type" = true
   }
@@ -218,7 +232,7 @@ resource "aws_api_gateway_method" "documents_delete" {
   http_method   = "DELETE"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
-  
+
   request_parameters = {
     "method.request.path.id" = true
   }
@@ -229,13 +243,13 @@ resource "aws_api_gateway_method" "string_redact_post" {
   rest_api_id      = aws_api_gateway_rest_api.redact_api.id
   resource_id      = aws_api_gateway_resource.api_string_redact.id
   http_method      = "POST"
-  authorization    = "NONE"  # Uses custom API key authentication
-  api_key_required = true    # Require API Gateway API key for rate limiting
-  
+  authorization    = "NONE" # Uses custom API key authentication
+  api_key_required = true   # Require API Gateway API key for rate limiting
+
   request_parameters = {
-    "method.request.header.Authorization" = true  # Bearer token for our validation
+    "method.request.header.Authorization" = true # Bearer token for our validation
     "method.request.header.Content-Type"  = true
-    "method.request.header.x-api-key"     = true  # API Gateway API key
+    "method.request.header.x-api-key"     = true # API Gateway API key
   }
 }
 
@@ -246,7 +260,42 @@ resource "aws_api_gateway_method" "test_redaction_post" {
   http_method   = "POST"
   authorization = "COGNITO_USER_POOLS"
   authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
-  
+
+  request_parameters = {
+    "method.request.header.Content-Type" = true
+  }
+}
+
+# GET /api/ai-config - Get AI configuration
+resource "aws_api_gateway_method" "api_ai_config_get" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.api_ai_config.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+}
+
+# PUT /api/ai-config - Update AI configuration (admin only)
+resource "aws_api_gateway_method" "api_ai_config_put" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.api_ai_config.id
+  http_method   = "PUT"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+
+  request_parameters = {
+    "method.request.header.Content-Type" = true
+  }
+}
+
+# POST /documents/ai-summary - Generate AI summary for document
+resource "aws_api_gateway_method" "documents_ai_summary_post" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.documents_ai_summary.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+
   request_parameters = {
     "method.request.header.Content-Type" = true
   }
@@ -254,14 +303,14 @@ resource "aws_api_gateway_method" "test_redaction_post" {
 
 # Lambda function for API Gateway integration
 resource "aws_lambda_function" "api_handler" {
-  filename         = "api_lambda.zip"
-  function_name    = "redact-api-handler"
-  role            = aws_iam_role.api_lambda_role.arn
-  handler         = "api_handler_simple.lambda_handler"
-  runtime         = "python3.11"
-  timeout         = 30
-  memory_size     = 256
-  
+  filename      = "api_lambda.zip"
+  function_name = "redact-api-handler"
+  role          = aws_iam_role.api_lambda_role.arn
+  handler       = "api_handler_simple.lambda_handler"
+  runtime       = "python3.11"
+  timeout       = 30
+  memory_size   = 256
+
   environment {
     variables = {
       INPUT_BUCKET      = aws_s3_bucket.input_documents.bucket
@@ -272,12 +321,12 @@ resource "aws_lambda_function" "api_handler" {
       STAGE             = var.environment
     }
   }
-  
+
   tags = {
-    Project = "redact"
+    Project     = "redact"
     Environment = var.environment
   }
-  
+
   depends_on = [data.archive_file.api_lambda_zip]
 }
 
@@ -304,9 +353,9 @@ resource "aws_iam_role" "api_lambda_role" {
       }
     ]
   })
-  
+
   tags = {
-    Project = "redact"
+    Project     = "redact"
     Environment = var.environment
   }
 }
@@ -379,110 +428,140 @@ resource "aws_api_gateway_integration" "upload_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.upload.id
   http_method = aws_api_gateway_method.upload_post.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "batch_download_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.batch_download.id
   http_method = aws_api_gateway_method.batch_download_post.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "combine_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.combine.id
   http_method = aws_api_gateway_method.combine_post.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "status_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.status_id.id
   http_method = aws_api_gateway_method.status_get.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "health_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.health.id
   http_method = aws_api_gateway_method.health_get.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "user_files_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.user_files.id
   http_method = aws_api_gateway_method.user_files_get.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "api_config_get_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.api_config.id
   http_method = aws_api_gateway_method.api_config_get.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "api_config_put_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.api_config.id
   http_method = aws_api_gateway_method.api_config_put.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "documents_delete_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.documents_id.id
   http_method = aws_api_gateway_method.documents_delete.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "string_redact_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.api_string_redact.id
   http_method = aws_api_gateway_method.string_redact_post.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "test_redaction_integration" {
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   resource_id = aws_api_gateway_resource.api_test_redaction.id
   http_method = aws_api_gateway_method.test_redaction_post.http_method
-  
+
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.api_handler.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "api_ai_config_get_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_ai_config.id
+  http_method = aws_api_gateway_method.api_ai_config_get.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "api_ai_config_put_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.api_ai_config.id
+  http_method = aws_api_gateway_method.api_ai_config_put.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "documents_ai_summary_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.documents_ai_summary.id
+  http_method = aws_api_gateway_method.documents_ai_summary_post.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
 # Lambda permissions for API Gateway
@@ -504,6 +583,9 @@ resource "aws_api_gateway_deployment" "redact_api_deployment" {
     aws_api_gateway_integration.api_config_get_integration,
     aws_api_gateway_integration.api_config_put_integration,
     aws_api_gateway_integration.documents_delete_integration,
+    aws_api_gateway_integration.api_ai_config_get_integration,
+    aws_api_gateway_integration.api_ai_config_put_integration,
+    aws_api_gateway_integration.documents_ai_summary_integration,
     # CORS integrations
     aws_api_gateway_integration_response.upload_options_integration_response,
     aws_api_gateway_integration_response.status_id_options_integration_response,
@@ -514,11 +596,11 @@ resource "aws_api_gateway_deployment" "redact_api_deployment" {
 
   rest_api_id = aws_api_gateway_rest_api.redact_api.id
   stage_name  = var.environment
-  
+
   lifecycle {
     create_before_destroy = true
   }
-  
+
   # Force new deployment when configuration changes
   triggers = {
     redeployment = sha1(jsonencode([
@@ -536,7 +618,7 @@ resource "aws_api_gateway_stage" "redact_api_stage" {
   deployment_id = aws_api_gateway_deployment.redact_api_deployment.id
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
   stage_name    = var.environment
-  
+
   # Note: Commenting out access logs for now - requires CloudWatch Logs role ARN in account settings
   # access_log_settings {
   #   destination_arn = aws_cloudwatch_log_group.api_gateway_logs.arn
@@ -553,9 +635,9 @@ resource "aws_api_gateway_stage" "redact_api_stage" {
   #     responseLength = "$context.responseLength"
   #   })
   # }
-  
+
   tags = {
-    Project = "redact"
+    Project     = "redact"
     Environment = var.environment
   }
 }
@@ -564,9 +646,9 @@ resource "aws_api_gateway_stage" "redact_api_stage" {
 resource "aws_cloudwatch_log_group" "api_gateway_logs" {
   name              = "/aws/apigateway/document-redaction-api"
   retention_in_days = 14
-  
+
   tags = {
-    Project = "redact"
+    Project     = "redact"
     Environment = var.environment
   }
 }
@@ -577,7 +659,7 @@ resource "aws_api_gateway_method_response" "upload_200" {
   resource_id = aws_api_gateway_resource.upload.id
   http_method = aws_api_gateway_method.upload_post.http_method
   status_code = "200"
-  
+
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin" = true
   }
@@ -588,7 +670,7 @@ resource "aws_api_gateway_method_response" "status_200" {
   resource_id = aws_api_gateway_resource.status_id.id
   http_method = aws_api_gateway_method.status_get.http_method
   status_code = "200"
-  
+
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin" = true
   }
@@ -599,7 +681,7 @@ resource "aws_api_gateway_method_response" "health_200" {
   resource_id = aws_api_gateway_resource.health.id
   http_method = aws_api_gateway_method.health_get.http_method
   status_code = "200"
-  
+
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin" = true
   }
@@ -610,7 +692,7 @@ resource "aws_api_gateway_method_response" "user_files_200" {
   resource_id = aws_api_gateway_resource.user_files.id
   http_method = aws_api_gateway_method.user_files_get.http_method
   status_code = "200"
-  
+
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin" = true
   }
@@ -621,7 +703,7 @@ resource "aws_api_gateway_method_response" "api_config_get_200" {
   resource_id = aws_api_gateway_resource.api_config.id
   http_method = aws_api_gateway_method.api_config_get.http_method
   status_code = "200"
-  
+
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin" = true
   }
@@ -632,7 +714,7 @@ resource "aws_api_gateway_method_response" "api_config_put_200" {
   resource_id = aws_api_gateway_resource.api_config.id
   http_method = aws_api_gateway_method.api_config_put.http_method
   status_code = "200"
-  
+
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin" = true
   }
@@ -643,7 +725,7 @@ resource "aws_api_gateway_method_response" "documents_delete_200" {
   resource_id = aws_api_gateway_resource.documents_id.id
   http_method = aws_api_gateway_method.documents_delete.http_method
   status_code = "200"
-  
+
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin" = true
   }

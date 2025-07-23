@@ -373,6 +373,12 @@ input[type="checkbox"].input-anthropic:focus {
   color: #D64545;
 }
 
+.badge-ai {
+  background: rgba(138, 43, 226, 0.1);
+  color: #8A2BE2;
+  border: 1px solid rgba(138, 43, 226, 0.2);
+}
+
 /* Utility Classes */
 .text-primary { color: var(--text-primary); }
 .text-secondary { color: var(--text-secondary); }
