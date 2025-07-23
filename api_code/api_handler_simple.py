@@ -144,6 +144,7 @@ def lambda_handler(event, context):
             return handle_combine_documents(event, headers, context, user_context)
             
         elif path == '/documents/ai-summary' and method == 'POST':
+            logger.info(f"Handling AI summary request for path: {path}")
             return handle_ai_summary(event, headers, context, user_context)
             
         # Test redaction endpoint
@@ -1548,9 +1549,147 @@ def apply_redaction_for_api(text, config):
     
     return processed_text, replacement_count
 
-def handle_ai_summary(event, headers, context, user_context):
-    """Handle POST /documents/ai-summary endpoint to add AI summary to a processed document"""
+# AI Summary Helper Functions
+bedrock_runtime = None
+
+def get_bedrock_client():
+    """Get or create Bedrock runtime client"""
+    global bedrock_runtime
+    if not bedrock_runtime:
+        logger.info("Creating new Bedrock runtime client")
+        try:
+            bedrock_runtime = boto3.client('bedrock-runtime', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+            logger.info("Bedrock client created successfully")
+        except Exception as e:
+            logger.error(f"Error creating Bedrock client: {str(e)}")
+            raise
+    return bedrock_runtime
+
+def get_ai_config():
+    """Get AI configuration from SSM Parameter Store"""
     try:
+        param_name = os.environ.get('AI_CONFIG_PARAM', '/redact/ai-config')
+        response = ssm.get_parameter(Name=param_name)
+        return json.loads(response['Parameter']['Value'])
+    except Exception as e:
+        logger.error(f"Error loading AI config: {str(e)}")
+        return {
+            'enabled': False,
+            'error': f'Failed to load AI config: {str(e)}'
+        }
+
+def generate_ai_summary_internal(text, summary_type='standard', user_role='user'):
+    """Generate AI summary for document text using AWS Bedrock"""
+    try:
+        ai_config = get_ai_config()
+        
+        if not ai_config.get('enabled', False):
+            raise ValueError("AI summaries are not enabled")
+        
+        # Select model based on user role
+        if user_role == 'admin' and ai_config.get('admin_override_model'):
+            model_id = ai_config['admin_override_model']
+        else:
+            model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307')
+        
+        # Get summary configuration
+        summary_configs = ai_config.get('summary_types', {})
+        summary_config = summary_configs.get(summary_type, summary_configs.get('standard', {}))
+        
+        max_tokens = summary_config.get('max_tokens', 500)
+        temperature = summary_config.get('temperature', 0.5)
+        instruction = summary_config.get('instruction', 'Summarize this document.')
+        
+        # Prepare the prompt
+        prompt = f"""Human: {instruction}
+
+Document content:
+{text[:10000]}
+
+Please provide a clear, well-structured summary."""
+        
+        # Prepare request for Bedrock
+        bedrock = get_bedrock_client()
+        
+        # Format request based on model type
+        if "claude-3" in model_id or "claude-3-5" in model_id:
+            # Use Messages API for Claude 3 models
+            request_body = json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"{instruction}\nDocument content:\n{text[:10000]}\nPlease provide a clear, well-structured summary."
+                    }
+                ]
+            })
+        elif "claude" in model_id:
+            # Use legacy format for older Claude models
+            request_body = json.dumps({
+                "prompt": prompt,
+                "max_tokens_to_sample": max_tokens,
+                "temperature": temperature,
+                "top_p": 0.9,
+                "stop_sequences": ["\n\nHuman:"]
+            })
+        else:
+            # Add support for other models as needed
+            raise ValueError(f"Unsupported model: {model_id}")
+        
+        # Invoke the model
+        response = bedrock.invoke_model(
+            modelId=model_id,
+            contentType='application/json',
+            accept='application/json',
+            body=request_body
+        )
+        
+        # Parse response
+        response_body = json.loads(response['body'].read())
+        logger.info(f"Bedrock response: {json.dumps(response_body)[:500]}...")  # Log first 500 chars
+        
+        if "claude-3" in model_id or "claude-3-5" in model_id:
+            # Claude 3 uses Messages API response format
+            content = response_body.get('content', [])
+            if content and isinstance(content, list) and len(content) > 0:
+                summary = content[0].get('text', '').strip()
+            else:
+                summary = ''
+        elif "claude" in model_id:
+            summary = response_body.get('completion', '').strip()
+        else:
+            summary = response_body.get('text', '').strip()
+        
+        logger.info(f"Extracted summary type: {type(summary)}, value: {str(summary)[:200]}...")  # Log summary type
+        
+        # Ensure summary is a string
+        if not isinstance(summary, str):
+            logger.warning(f"Summary is not a string, converting from {type(summary)}")
+            summary = str(summary)
+        
+        # Create metadata
+        metadata = {
+            'model': model_id,
+            'summary_type': summary_type,
+            'generated_at': datetime.utcnow().isoformat(),
+            'user_role': user_role,
+            'max_tokens': str(max_tokens),
+            'temperature': str(temperature)
+        }
+        
+        return summary, metadata
+        
+    except Exception as e:
+        logger.error(f"Error generating AI summary: {str(e)}")
+        raise
+
+def handle_ai_summary(event, headers, context, user_context):
+    logger.info("=== handle_ai_summary called ===")
+    logger.info(f"User context: {user_context}")
+    try:
+        logger.info("Starting AI summary generation process")
         # Parse request body
         try:
             body = json.loads(event.get('body', '{}'))
@@ -1601,53 +1740,133 @@ def handle_ai_summary(event, headers, context, user_context):
                 'body': json.dumps({'error': 'Document already has an AI summary'})
             }
         
-        # Import the Lambda function for AI summary processing
-        # In production, this would be a shared layer or separate Lambda invocation
-        spec = importlib.util.spec_from_file_location(
-            "lambda_function_v2", 
-            "/var/task/lambda_function_v2.py"
-        )
-        lambda_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(lambda_module)
-        
-        # Add role to user context for model selection
-        user_context['summary_type'] = summary_type
-        
-        # Process document with AI summary
-        result = lambda_module.process_document_with_ai_summary(
-            PROCESSED_BUCKET,
-            s3_key,
-            user_context
-        )
-        
-        if result.get('success'):
-            # Generate presigned URL for the new AI-enhanced document
-            download_url = generate_presigned_url(
-                PROCESSED_BUCKET,
-                result['enhanced_key']
-            )
-            
-            return {
-                'statusCode': 200,
-                'headers': headers,
-                'body': json.dumps({
-                    'success': True,
-                    'message': 'AI summary added successfully',
-                    'document_id': document_id,
-                    'new_filename': result['filename'],
-                    'download_url': download_url,
-                    'summary_metadata': result['metadata']
-                })
-            }
-        else:
+        # Get the document content
+        try:
+            obj = s3.get_object(Bucket=PROCESSED_BUCKET, Key=s3_key)
+            document_content = obj['Body'].read().decode('utf-8')
+        except Exception as e:
+            logger.error(f"Error reading document: {str(e)}")
             return {
                 'statusCode': 500,
                 'headers': headers,
-                'body': json.dumps({
-                    'error': 'Failed to generate AI summary',
-                    'details': result.get('error', 'Unknown error')
-                })
+                'body': json.dumps({'error': 'Failed to read document'})
             }
+        
+        # Generate AI summary
+        try:
+            logger.info(f"Calling generate_ai_summary_internal with summary_type={summary_type}")
+            summary_text, summary_metadata = generate_ai_summary_internal(
+                document_content,
+                summary_type=summary_type,
+                user_role=user_context.get('user_role', 'user')
+            )
+            logger.info("AI summary generated successfully")
+        except Exception as e:
+            logger.error(f"Error generating summary: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({'error': f'Failed to generate AI summary: {str(e)}'})
+            }
+        
+        # Create new document with AI summary
+        ai_header = f"""# AI Summary
+
+**Generated by:** {summary_metadata['model']}  
+**Summary Type:** {summary_metadata['summary_type']}  
+**Generated at:** {summary_metadata['generated_at']}
+
+{summary_text}
+
+---
+
+# Original Document
+
+"""
+        
+        # Combine AI summary with original document
+        logger.info(f"AI header type: {type(ai_header)}, summary_text type: {type(summary_text)}")
+        logger.info(f"Document content type: {type(document_content)}")
+        logger.info(f"AI header value: {repr(ai_header[:100])}")
+        logger.info(f"Summary text value: {repr(summary_text[:100]) if isinstance(summary_text, str) else repr(summary_text)}")
+        logger.info(f"Document content value: {repr(document_content[:100])}")
+        
+        # Ensure all parts are strings
+        if not isinstance(ai_header, str):
+            logger.error(f"AI header is not a string: {type(ai_header)}")
+            ai_header = str(ai_header)
+        if not isinstance(document_content, str):
+            logger.error(f"Document content is not a string: {type(document_content)}")
+            document_content = str(document_content)
+            
+        new_content = ai_header + document_content
+        logger.info(f"New content type: {type(new_content)}, length: {len(new_content)}")
+        
+        # Create new filename with _AI suffix
+        original_filename = s3_key.split('/')[-1]
+        if original_filename.endswith('.md'):
+            new_filename = original_filename[:-3] + '_AI.md'
+        else:
+            new_filename = original_filename.rsplit('.', 1)[0] + '_AI.' + original_filename.rsplit('.', 1)[1]
+        
+        # Save to S3
+        new_key = '/'.join(s3_key.split('/')[:-1]) + '/' + new_filename
+        
+        try:
+            s3.put_object(
+                Bucket=PROCESSED_BUCKET,
+                Key=new_key,
+                Body=new_content.encode('utf-8'),
+                ContentType='text/plain',
+                Metadata={
+                    'original_document': s3_key,
+                    'ai_summary': 'true',
+                    **summary_metadata
+                }
+            )
+            
+            # Generate presigned URL
+            download_url = s3.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': PROCESSED_BUCKET,
+                    'Key': new_key
+                },
+                ExpiresIn=3600
+            )
+            
+            result = {
+                'success': True,
+                'filename': new_filename,
+                's3_key': new_key,
+                'metadata': summary_metadata,
+                'download_url': download_url
+            }
+            
+        except Exception as e:
+            logger.error(f"Error saving AI document: {str(e)}")
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({'error': 'Failed to save AI document'})
+            }
+        
+        # Return success response
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'success': True,
+                'message': 'AI summary added successfully',
+                'document_id': document_id,
+                'new_filename': result['filename'],
+                'download_url': result['download_url'],
+                'summary_metadata': result['metadata']
+            })
+        }
         
     except Exception as e:
         logger.error(f"Error in AI summary generation: {str(e)}")
