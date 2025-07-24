@@ -1611,6 +1611,10 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         else:
             model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307-v1:0')
         
+        logger.info(f"Using model_id: {model_id}")
+        logger.info(f"Selected model from frontend: {selected_model}")
+        logger.info(f"User role: {user_role}")
+        
         # Get summary configuration
         summary_configs = ai_config.get('summary_types', {})
         summary_config = summary_configs.get(summary_type, summary_configs.get('standard', {}))
@@ -1658,6 +1662,7 @@ Please provide a clear, well-structured summary."""
             raise ValueError(f"Unsupported model: {model_id}")
         
         # Invoke the model
+        bedrock = get_bedrock_runtime()
         response = bedrock.invoke_model(
             modelId=model_id,
             contentType='application/json',
