@@ -111,7 +111,9 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({ file, onDelete, o
           <>
             <button
               onClick={(e) => {
+                console.log('Download button clicked for:', file.filename);
                 e.preventDefault();
+                e.stopPropagation();
                 const link = document.createElement('a');
                 link.href = file.download_url!;
                 link.download = file.filename;
@@ -128,7 +130,12 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({ file, onDelete, o
             
             {!hasAISummary && onOpenAISummary && (
               <button
-                onClick={onOpenAISummary}
+                onClick={(e) => {
+                  console.log('AI Summary button clicked for:', file.filename);
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onOpenAISummary();
+                }}
                 className="btn-anthropic btn-anthropic-primary"
                 style={{ padding: '0.5rem 1rem' }}
                 title="Generate AI Summary"

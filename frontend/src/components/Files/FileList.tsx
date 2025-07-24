@@ -32,6 +32,7 @@ export const FileList: React.FC = () => {
     try {
       setError('');
       const response = await listUserFiles();
+      console.log('Files loaded:', response.files?.length || 0, 'files');
       setFiles(response.files || []);
     } catch (err: any) {
       setError('Failed to load files');
@@ -42,6 +43,7 @@ export const FileList: React.FC = () => {
   };
 
   const handleOpenAISummary = (file: FileData) => {
+    console.log('Opening AI Summary modal for:', file.filename);
     setSelectedFileForAI(file);
     setShowAISummaryModal(true);
   };
@@ -49,25 +51,18 @@ export const FileList: React.FC = () => {
   const handleGenerateAISummary = async () => {
     if (!selectedFileForAI) return;
     
+    console.log('Starting AI summary generation for:', selectedFileForAI.filename);
     setIsGeneratingAI(true);
     try {
       const { generateAISummary } = await import('../../services/api');
       const result = await generateAISummary(selectedFileForAI.id, selectedSummaryType);
       
-      // Download the AI-enhanced file
-      if (result.download_url) {
-        const link = document.createElement('a');
-        link.href = result.download_url;
-        link.download = result.new_filename || selectedFileForAI.filename.replace(/\.([^.]+)$/, '_AI.$1');
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      console.log('AI Summary result:', result);
       
+      // Close modal and refresh the file list to show the new AI summary
       setShowAISummaryModal(false);
       setSelectedFileForAI(null);
-      loadFiles(); // Refresh the file list
+      await loadFiles(); // Refresh the file list
     } catch (err: any) {
       console.error('AI Summary Error:', err);
       alert(err.response?.data?.error || err.message || 'Failed to generate AI summary');
@@ -221,23 +216,17 @@ export const FileList: React.FC = () => {
       }
       
       // Call combine API
+      console.log('Calling combineFiles API...');
       const response = await combineFiles(selectedFileIds, combineFilename);
-      
-      // Download the combined file
-      const link = document.createElement('a');
-      link.href = response.download_url;
-      link.download = response.filename;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => document.body.removeChild(link), 100);
+      console.log('Combine files response:', response);
       
       // Clear selection and close modal
       setSelectedFiles(new Set());
       setShowCombineModal(false);
       setCombineFilename('combined_document.txt');
       
-      // Refresh files list to show the new combined file
+      // Refresh the file list to show the new combined file
+      console.log('Refreshing file list...');
       await loadFiles();
       
     } catch (err: any) {
@@ -426,8 +415,10 @@ export const FileList: React.FC = () => {
       {showAISummaryModal && selectedFileForAI && (
         <div 
           onClick={(e) => {
-            // Prevent closing modal when clicking backdrop
-            e.stopPropagation();
+            // Close modal when clicking backdrop
+            console.log('Backdrop clicked - closing modal');
+            setShowAISummaryModal(false);
+            setSelectedFileForAI(null);
           }}
           style={{
           position: 'fixed',
@@ -442,7 +433,10 @@ export const FileList: React.FC = () => {
           zIndex: 1000
         }}>
           <div 
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              // Prevent closing when clicking inside modal
+              e.stopPropagation();
+            }}
             className="card-anthropic" 
             style={{ 
             width: '90%', 

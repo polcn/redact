@@ -99,7 +99,7 @@ export const combineFiles = async (
   document_id: string;
   filename: string;
   file_count: number;
-  download_url: string;
+  s3_key: string;
   size: number;
 }> => {
   const response = await api.post('/documents/combine', {
@@ -119,7 +119,7 @@ export const generateAISummary = async (
   message: string;
   document_id: string;
   new_filename: string;
-  download_url: string;
+  s3_key: string;
   summary_metadata: any;
 }> => {
   const response = await api.post('/documents/ai-summary', {

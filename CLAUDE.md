@@ -39,23 +39,25 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Known Issues
 
-### AI Summary & Combined Documents Browser Behavior
-- **Issue**: When generating an AI summary or combining documents, the new document opens directly in the browser instead of downloading
-- **Current Behavior**: 
-  - AI Summary creates a new file with "_AI" suffix and displays it in the browser
-  - Combined documents also display in the browser instead of downloading
-  - Download button on these files also opens them in the browser
-- **Expected Behavior**: Files should download to the user's computer
-- **Workaround**: Users can right-click and "Save As" or use browser's save function
-- **Status**: To be fixed
 
 ## Recent Updates
 
-### 2025-07-23: AI Summary Feature & Metadata Fix
+### 2025-07-24: Combined Files Auto-Download Fix
+- **Fixed**: Combined files were auto-downloading instead of just appearing in file list
+  - **Root Cause**: Lambda function was returning `download_url` in response, causing frontend to auto-download
+  - **Solution**: Updated `combine_documents` Lambda handler to NOT return `download_url` in response
+  - **Frontend**: Added console logging to track combine operation flow
+  - **Status**: ✅ Fix deployed - combined files now appear in list without auto-downloading
+
+### 2025-07-23: AI Summary Feature & Fixes
 - **Fixed**: AI summary was failing with "Failed to save AI document" error
   - **Root Cause**: S3 metadata values must be strings, but `max_tokens` (int) and `temperature` (float) were being passed as numeric types
   - **Solution**: Updated `generate_ai_summary_internal` to convert numeric metadata values to strings before saving to S3
   - **Status**: ✅ Fix deployed and working
+- **Fixed**: AI summaries and combined documents auto-downloading instead of just appearing in file list
+  - **Root Cause**: Code was automatically triggering downloads after creation
+  - **Solution**: Removed automatic download behavior; files now just appear in the list
+  - **Status**: ✅ Fix deployed - files appear in list without auto-downloading
 
 ### 2025-07-23: AI Summary Feature
 - **New Feature**: On-demand AI summaries for processed documents

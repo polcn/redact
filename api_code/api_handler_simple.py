@@ -1129,6 +1129,7 @@ SOURCE: {processed_file}
             combined_key
         )
         
+        logger.info(f"Combine documents response - NOT including download_url, s3_key: {combined_key}")
         return {
             'statusCode': 200,
             'headers': headers,
@@ -1137,7 +1138,7 @@ SOURCE: {processed_file}
                 'document_id': document_id,
                 'filename': output_filename,
                 'file_count': len(combined_content),
-                'download_url': download_url,
+                's3_key': combined_key,
                 'size': len(final_content)
             })
         }
@@ -1863,7 +1864,7 @@ def handle_ai_summary(event, headers, context, user_context):
                 'message': 'AI summary added successfully',
                 'document_id': document_id,
                 'new_filename': result['filename'],
-                'download_url': result['download_url'],
+                's3_key': result['s3_key'],
                 'summary_metadata': result['metadata']
             })
         }
