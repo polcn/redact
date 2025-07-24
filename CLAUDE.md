@@ -58,7 +58,6 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
   - **Available Models**:
     - Claude 3 Haiku (Default - Fast)
     - Claude 3 Sonnet (Balanced)
-    - Claude Instant (Legacy)
   - **UI Updates**: 
     - Model dropdown added to AI Summary modal
     - Model dropdown added to Batch AI Summary modal

@@ -1600,8 +1600,7 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         # 3. Default model
         available_models = [
             'anthropic.claude-3-haiku-20240307-v1:0',
-            'anthropic.claude-3-sonnet-20240229-v1:0',
-            'anthropic.claude-instant-v1'
+            'anthropic.claude-3-sonnet-20240229-v1:0'
         ]
         
         if selected_model and selected_model in available_models:
@@ -1663,6 +1662,8 @@ Please provide a clear, well-structured summary."""
         
         # Invoke the model
         bedrock = get_bedrock_client()
+        logger.info(f"About to invoke model with modelId: {model_id}")
+        logger.info(f"Request body length: {len(request_body)}")
         response = bedrock.invoke_model(
             modelId=model_id,
             contentType='application/json',
@@ -1744,6 +1745,7 @@ def handle_ai_summary(event, headers, context, user_context):
         
         # Get model selection (optional)
         selected_model = body.get('model')  # Will be None if not provided
+        logger.info(f"Model from request body: {selected_model}")
         
         # Decode document ID to get S3 key
         from urllib.parse import unquote

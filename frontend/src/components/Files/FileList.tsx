@@ -559,7 +559,6 @@ export const FileList: React.FC = () => {
                 <option value="">Default (Claude 3 Haiku - Fast)</option>
                 <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Fast)</option>
                 <option value="anthropic.claude-3-sonnet-20240229-v1:0">Claude 3 Sonnet (Balanced)</option>
-                <option value="anthropic.claude-instant-v1">Claude Instant (Legacy)</option>
               </select>
             </div>
             
@@ -675,7 +674,6 @@ export const FileList: React.FC = () => {
                 <option value="">Default (Claude 3 Haiku - Fast)</option>
                 <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Fast)</option>
                 <option value="anthropic.claude-3-sonnet-20240229-v1:0">Claude 3 Sonnet (Balanced)</option>
-                <option value="anthropic.claude-instant-v1">Claude Instant (Legacy)</option>
               </select>
             </div>
             
