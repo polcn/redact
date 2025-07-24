@@ -556,9 +556,31 @@ export const FileList: React.FC = () => {
                 className="input-anthropic"
                 style={{ width: '100%' }}
               >
-                <option value="">Default (Claude 3 Haiku - Fast)</option>
-                <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Fast)</option>
-                <option value="anthropic.claude-3-sonnet-20240229-v1:0">Claude 3 Sonnet (Balanced)</option>
+                <option value="">Default (Claude 3 Haiku)</option>
+                <optgroup label="Claude Models">
+                  <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Fast)</option>
+                  <option value="anthropic.claude-3-5-haiku-20241022-v1:0">Claude 3.5 Haiku (Latest Fast)</option>
+                  <option value="anthropic.claude-3-sonnet-20240229-v1:0">Claude 3 Sonnet</option>
+                  <option value="anthropic.claude-3-5-sonnet-20241022-v2:0">Claude 3.5 Sonnet (Latest)</option>
+                  <option value="anthropic.claude-3-opus-20240229-v1:0">Claude 3 Opus (Most Capable)</option>
+                </optgroup>
+                <optgroup label="Amazon Nova (Free Tier)">
+                  <option value="amazon.nova-micro-v1:0">Nova Micro (Fastest, Free)</option>
+                  <option value="amazon.nova-lite-v1:0">Nova Lite (Balanced, Free)</option>
+                  <option value="amazon.nova-pro-v1:0">Nova Pro (Advanced, Free)</option>
+                </optgroup>
+                <optgroup label="Meta Llama">
+                  <option value="meta.llama3-2-1b-instruct-v1:0">Llama 3.2 1B (Tiny)</option>
+                  <option value="meta.llama3-2-3b-instruct-v1:0">Llama 3.2 3B (Small)</option>
+                  <option value="meta.llama3-8b-instruct-v1:0">Llama 3 8B (Medium)</option>
+                </optgroup>
+                <optgroup label="Mistral">
+                  <option value="mistral.mistral-7b-instruct-v0:2">Mistral 7B</option>
+                  <option value="mistral.mistral-small-2402-v1:0">Mistral Small</option>
+                </optgroup>
+                <optgroup label="DeepSeek">
+                  <option value="deepseek.r1-v1:0">DeepSeek R1 (Advanced Reasoning)</option>
+                </optgroup>
               </select>
             </div>
             
@@ -606,52 +628,83 @@ export const FileList: React.FC = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="card-anthropic" 
             style={{ 
               width: '90%', 
-              maxWidth: '500px',
-              padding: 'var(--spacing-lg)'
+              maxWidth: '550px',
+              background: 'white',
+              borderRadius: '8px',
+              padding: '32px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+              border: '1px solid #e0e0e0'
             }}
           >
-            <h2 className="text-primary" style={{ marginBottom: 'var(--spacing-md)' }}>
+            <h2 style={{ 
+              fontSize: '1.5rem',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              marginBottom: '20px'
+            }}>
               Batch AI Summary
             </h2>
             
-            <p className="text-secondary" style={{ marginBottom: 'var(--spacing-lg)' }}>
+            <p style={{ 
+              fontSize: '0.95rem',
+              color: '#666',
+              marginBottom: '24px',
+              lineHeight: '1.5'
+            }}>
               Generate AI summaries for {files.filter(f => selectedFiles.has(f.id) && f.status === 'completed' && !f.filename.includes('_AI.')).length} selected files.
             </p>
             
             {isBatchProcessing && (
-              <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ 
+                  marginBottom: '8px',
+                  fontSize: '0.9rem',
+                  color: '#555'
+                }}>
                   Progress: {batchProgress.current} / {batchProgress.total}
                 </div>
                 <div style={{
                   width: '100%',
                   height: '20px',
-                  background: 'var(--color-background)',
-                  borderRadius: 'var(--radius-sm)',
-                  overflow: 'hidden'
+                  background: '#f5f5f5',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  border: '1px solid #e0e0e0'
                 }}>
                   <div style={{
                     width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%`,
                     height: '100%',
-                    background: 'var(--color-primary)',
+                    background: 'linear-gradient(90deg, #4F90F0 0%, #3B82F6 100%)',
                     transition: 'width 0.3s ease'
                   }} />
                 </div>
               </div>
             )}
             
-            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-              <label style={{ display: 'block', marginBottom: 'var(--spacing-sm)' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                color: '#333'
+              }}>
                 Summary Type:
               </label>
               <select 
                 value={batchSummaryType}
                 onChange={(e) => setBatchSummaryType(e.target.value as 'brief' | 'standard' | 'detailed')}
-                className="input-anthropic"
-                style={{ width: '100%' }}
+                style={{ 
+                  width: '100%',
+                  padding: '10px 12px',
+                  fontSize: '0.95rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  background: 'white',
+                  cursor: isBatchProcessing ? 'not-allowed' : 'pointer'
+                }}
                 disabled={isBatchProcessing}
               >
                 <option value="brief">Brief (2-3 sentences)</option>
@@ -660,24 +713,64 @@ export const FileList: React.FC = () => {
               </select>
             </div>
             
-            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-              <label style={{ display: 'block', marginBottom: 'var(--spacing-sm)' }}>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                color: '#333'
+              }}>
                 AI Model:
               </label>
               <select 
                 value={batchModel}
                 onChange={(e) => setBatchModel(e.target.value)}
-                className="input-anthropic"
-                style={{ width: '100%' }}
+                style={{ 
+                  width: '100%',
+                  padding: '10px 12px',
+                  fontSize: '0.95rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  background: 'white',
+                  cursor: isBatchProcessing ? 'not-allowed' : 'pointer'
+                }}
                 disabled={isBatchProcessing}
               >
-                <option value="">Default (Claude 3 Haiku - Fast)</option>
-                <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Fast)</option>
-                <option value="anthropic.claude-3-sonnet-20240229-v1:0">Claude 3 Sonnet (Balanced)</option>
+                <option value="">Default (Claude 3 Haiku)</option>
+                <optgroup label="Claude Models">
+                  <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Fast)</option>
+                  <option value="anthropic.claude-3-5-haiku-20241022-v1:0">Claude 3.5 Haiku (Latest Fast)</option>
+                  <option value="anthropic.claude-3-sonnet-20240229-v1:0">Claude 3 Sonnet</option>
+                  <option value="anthropic.claude-3-5-sonnet-20241022-v2:0">Claude 3.5 Sonnet (Latest)</option>
+                  <option value="anthropic.claude-3-opus-20240229-v1:0">Claude 3 Opus (Most Capable)</option>
+                </optgroup>
+                <optgroup label="Amazon Nova (Free Tier)">
+                  <option value="amazon.nova-micro-v1:0">Nova Micro (Fastest, Free)</option>
+                  <option value="amazon.nova-lite-v1:0">Nova Lite (Balanced, Free)</option>
+                  <option value="amazon.nova-pro-v1:0">Nova Pro (Advanced, Free)</option>
+                </optgroup>
+                <optgroup label="Meta Llama">
+                  <option value="meta.llama3-2-1b-instruct-v1:0">Llama 3.2 1B (Tiny)</option>
+                  <option value="meta.llama3-2-3b-instruct-v1:0">Llama 3.2 3B (Small)</option>
+                  <option value="meta.llama3-8b-instruct-v1:0">Llama 3 8B (Medium)</option>
+                </optgroup>
+                <optgroup label="Mistral">
+                  <option value="mistral.mistral-7b-instruct-v0:2">Mistral 7B</option>
+                  <option value="mistral.mistral-small-2402-v1:0">Mistral Small</option>
+                </optgroup>
+                <optgroup label="DeepSeek">
+                  <option value="deepseek.r1-v1:0">DeepSeek R1 (Advanced Reasoning)</option>
+                </optgroup>
               </select>
             </div>
             
-            <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px', 
+              justifyContent: 'flex-end',
+              marginTop: '32px'
+            }}>
               <button
                 onClick={() => setShowBatchAIModal(false)}
                 className="btn-anthropic btn-anthropic-secondary"

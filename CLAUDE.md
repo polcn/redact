@@ -56,13 +56,17 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 - **New Feature**: AI Model Selection
   - **Purpose**: Allow users to choose which AI model to use for summaries
   - **Available Models**:
-    - Claude 3 Haiku (Default - Fast)
-    - Claude 3 Sonnet (Balanced)
+    - **Claude Models**: 3 Haiku, 3.5 Haiku, 3 Sonnet, 3.5 Sonnet, 3 Opus
+    - **Amazon Nova (Free Tier)**: Nova Micro, Lite, Pro
+    - **Meta Llama**: 3.2 1B/3B, 3 8B
+    - **Mistral**: 7B, Small
+    - **DeepSeek**: R1 (Advanced Reasoning)
   - **UI Updates**: 
     - Model dropdown added to AI Summary modal
     - Model dropdown added to Batch AI Summary modal
   - **Backend**: Fixed user role checking bug (was checking 'user_role' instead of 'role' from Cognito)
   - **API**: Updated `/documents/ai-summary` to accept optional 'model' parameter
+  - **UI Improvements**: Fixed batch AI summary modal styling with proper borders, spacing, and typography
   - **Status**: ✅ Feature deployed and working
 
 ### 2025-07-24: Combined Files Auto-Download Fix

@@ -1599,8 +1599,25 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         # 2. Admin override model (if user is admin)
         # 3. Default model
         available_models = [
+            # Claude models
             'anthropic.claude-3-haiku-20240307-v1:0',
-            'anthropic.claude-3-sonnet-20240229-v1:0'
+            'anthropic.claude-3-sonnet-20240229-v1:0',
+            'anthropic.claude-3-opus-20240229-v1:0',
+            'anthropic.claude-3-5-sonnet-20241022-v2:0',
+            'anthropic.claude-3-5-haiku-20241022-v1:0',
+            # Amazon Nova models (free tier)
+            'amazon.nova-micro-v1:0',
+            'amazon.nova-lite-v1:0',
+            'amazon.nova-pro-v1:0',
+            # Meta Llama models
+            'meta.llama3-2-1b-instruct-v1:0',
+            'meta.llama3-2-3b-instruct-v1:0',
+            'meta.llama3-8b-instruct-v1:0',
+            # Mistral models
+            'mistral.mistral-7b-instruct-v0:2',
+            'mistral.mistral-small-2402-v1:0',
+            # DeepSeek models
+            'deepseek.r1-v1:0'
         ]
         
         if selected_model and selected_model in available_models:
@@ -1635,7 +1652,7 @@ Please provide a clear, well-structured summary."""
         
         # Format request based on model type
         if "claude-3" in model_id or "claude-3-5" in model_id:
-            # Use Messages API for Claude 3 models
+            # Use Messages API for Claude 3/3.5 models
             request_body = json.dumps({
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": max_tokens,
@@ -1647,8 +1664,52 @@ Please provide a clear, well-structured summary."""
                     }
                 ]
             })
-        elif "claude" in model_id:
-            # Use legacy format for older Claude models
+        elif "nova" in model_id:
+            # Amazon Nova models
+            request_body = json.dumps({
+                "messages": [
+                    {
+                        "role": "user", 
+                        "content": [{"text": f"{instruction}\nDocument content:\n{text[:10000]}\nPlease provide a clear, well-structured summary."}]
+                    }
+                ],
+                "inferenceConfig": {
+                    "max_new_tokens": max_tokens,
+                    "temperature": temperature,
+                    "topP": 0.9
+                }
+            })
+        elif "llama" in model_id:
+            # Meta Llama models
+            request_body = json.dumps({
+                "prompt": f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{instruction}\nDocument content:\n{text[:10000]}\nPlease provide a clear, well-structured summary.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+                "max_gen_len": max_tokens,
+                "temperature": temperature,
+                "top_p": 0.9
+            })
+        elif "mistral" in model_id:
+            # Mistral models
+            request_body = json.dumps({
+                "prompt": f"<s>[INST] {instruction}\nDocument content:\n{text[:10000]}\nPlease provide a clear, well-structured summary. [/INST]",
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "top_p": 0.9
+            })
+        elif "deepseek" in model_id:
+            # DeepSeek models
+            request_body = json.dumps({
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"{instruction}\nDocument content:\n{text[:10000]}\nPlease provide a clear, well-structured summary."
+                    }
+                ],
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "top_p": 0.9
+            })
+        else:
+            # Default to Claude format for backwards compatibility
             request_body = json.dumps({
                 "prompt": prompt,
                 "max_tokens_to_sample": max_tokens,
@@ -1656,9 +1717,6 @@ Please provide a clear, well-structured summary."""
                 "top_p": 0.9,
                 "stop_sequences": ["\n\nHuman:"]
             })
-        else:
-            # Add support for other models as needed
-            raise ValueError(f"Unsupported model: {model_id}")
         
         # Invoke the model
         bedrock = get_bedrock_client()
@@ -1680,6 +1738,33 @@ Please provide a clear, well-structured summary."""
             content = response_body.get('content', [])
             if content and isinstance(content, list) and len(content) > 0:
                 summary = content[0].get('text', '').strip()
+            else:
+                summary = ''
+        elif "nova" in model_id:
+            # Amazon Nova response format
+            output = response_body.get('output', {})
+            message = output.get('message', {})
+            content = message.get('content', [])
+            if content and isinstance(content, list) and len(content) > 0:
+                summary = content[0].get('text', '').strip()
+            else:
+                summary = ''
+        elif "llama" in model_id:
+            # Meta Llama response format
+            summary = response_body.get('generation', '').strip()
+        elif "mistral" in model_id:
+            # Mistral response format
+            outputs = response_body.get('outputs', [])
+            if outputs and len(outputs) > 0:
+                summary = outputs[0].get('text', '').strip()
+            else:
+                summary = ''
+        elif "deepseek" in model_id:
+            # DeepSeek response format
+            choices = response_body.get('choices', [])
+            if choices and len(choices) > 0:
+                message = choices[0].get('message', {})
+                summary = message.get('content', '').strip()
             else:
                 summary = ''
         elif "claude" in model_id:
