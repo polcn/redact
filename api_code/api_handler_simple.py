@@ -1662,7 +1662,7 @@ Please provide a clear, well-structured summary."""
             raise ValueError(f"Unsupported model: {model_id}")
         
         # Invoke the model
-        bedrock = get_bedrock_runtime()
+        bedrock = get_bedrock_client()
         response = bedrock.invoke_model(
             modelId=model_id,
             contentType='application/json',
