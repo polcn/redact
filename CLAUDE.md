@@ -42,7 +42,19 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
-### 2025-07-24: Download Button Fix, Batch AI Summary, Model Selection & UI Improvements
+### 2025-07-24: Smart File Naming, Download Fix, Batch AI Summary, Model Selection & UI
+- **New Feature**: Smart File Naming with Duplicate Handling
+  - **Purpose**: Prevent file overwrites by automatically renaming duplicates
+  - **Naming Convention**: Uses Windows-style naming: `file.txt`, `file (1).txt`, `file (2).txt`
+  - **Implementation**: 
+    - Created `get_unique_filename()` utility function
+    - Checks S3 for existing files before saving
+    - Automatically appends (1), (2), etc. when duplicates found
+  - **Applied To**:
+    - Document uploads
+    - AI summary generation (_AI files)
+    - Combined documents
+  - **Status**: ✅ Feature deployed and working
 - **Fixed**: Download button was opening files in browser instead of downloading
   - **Root Cause**: S3 presigned URLs weren't forcing download disposition
   - **Solution**: Added `ResponseContentDisposition: attachment` header to all presigned URLs
