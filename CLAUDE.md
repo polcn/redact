@@ -42,7 +42,7 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
-### 2025-07-24: Download Button Fix, Batch AI Summary & Model Selection
+### 2025-07-24: Download Button Fix, Batch AI Summary, Model Selection & UI Improvements
 - **Fixed**: Download button was opening files in browser instead of downloading
   - **Root Cause**: S3 presigned URLs weren't forcing download disposition
   - **Solution**: Added `ResponseContentDisposition: attachment` header to all presigned URLs
