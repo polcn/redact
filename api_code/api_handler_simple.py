@@ -56,6 +56,55 @@ def get_user_s3_prefix(user_id):
     """Get S3 prefix for user isolation"""
     return f"users/{user_id}"
 
+def get_unique_filename(bucket, prefix, base_filename):
+    """
+    Generate a unique filename by adding (1), (2), etc. if the file already exists
+    Similar to Windows naming convention
+    
+    Args:
+        bucket: S3 bucket name
+        prefix: S3 prefix/directory path
+        base_filename: Original filename
+        
+    Returns:
+        Unique filename that doesn't exist in S3
+    """
+    # Split filename and extension
+    if '.' in base_filename:
+        name_part, extension = base_filename.rsplit('.', 1)
+        extension = '.' + extension
+    else:
+        name_part = base_filename
+        extension = ''
+    
+    # Check if original filename exists
+    original_key = f"{prefix}/{base_filename}"
+    try:
+        s3.head_object(Bucket=bucket, Key=original_key)
+        # File exists, need to find a unique name
+        counter = 1
+        while counter < 1000:  # Reasonable limit
+            new_filename = f"{name_part} ({counter}){extension}"
+            new_key = f"{prefix}/{new_filename}"
+            try:
+                s3.head_object(Bucket=bucket, Key=new_key)
+                # This name also exists, try next
+                counter += 1
+            except ClientError as e:
+                if e.response['Error']['Code'] == '404':
+                    # File doesn't exist, we can use this name
+                    return new_filename
+                else:
+                    raise
+        # If we get here, too many duplicates
+        raise ValueError(f"Too many duplicates of {base_filename}")
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            # Original file doesn't exist, can use original name
+            return base_filename
+        else:
+            raise
+
 def lambda_handler(event, context):
     """
     API Gateway Lambda handler for document redaction REST API
@@ -279,24 +328,9 @@ def handle_document_upload(event, headers, context, user_context):
         base_key = f"{user_prefix}/{filename}"
         s3_key = base_key
         
-        # Check if file exists and find next available version
-        version = 1
-        while True:
-            try:
-                s3.head_object(Bucket=INPUT_BUCKET, Key=s3_key)
-                # File exists, try next version
-                if '.' in filename:
-                    name, ext = filename.rsplit('.', 1)
-                    s3_key = f"{user_prefix}/{name} ({version}).{ext}"
-                else:
-                    s3_key = f"{user_prefix}/{filename} ({version})"
-                version += 1
-            except ClientError as e:
-                if e.response['Error']['Code'] == '404':
-                    # File doesn't exist, we can use this key
-                    break
-                else:
-                    raise
+        # Use smart naming function to get unique filename
+        unique_filename = get_unique_filename(INPUT_BUCKET, user_prefix, filename)
+        s3_key = f"{user_prefix}/{unique_filename}"
         
         # Upload to S3
         s3.put_object(
@@ -332,7 +366,7 @@ def handle_document_upload(event, headers, context, user_context):
             'body': json.dumps({
                 'message': 'Document uploaded successfully',
                 'document_id': document_id,
-                'filename': filename,
+                'filename': unique_filename,
                 'status': 'processing',
                 'status_url': f'/documents/status/{document_id}'
             })
@@ -1112,8 +1146,12 @@ SOURCE: {processed_file}
         document_id = str(uuid.uuid4())
         timestamp = int(time.time())
         
+        # Get unique filename using our smart naming function
+        prefix = f"processed/{user_prefix}/{document_id}"
+        unique_filename = get_unique_filename(PROCESSED_BUCKET, prefix, output_filename)
+        
         # Save combined file to processed bucket
-        combined_key = f"processed/{user_prefix}/{document_id}/{output_filename}"
+        combined_key = f"{prefix}/{unique_filename}"
         
         s3.put_object(
             Bucket=PROCESSED_BUCKET,
@@ -1143,7 +1181,7 @@ SOURCE: {processed_file}
             'body': json.dumps({
                 'message': 'Documents combined successfully',
                 'document_id': document_id,
-                'filename': output_filename,
+                'filename': unique_filename,
                 'file_count': len(combined_content),
                 's3_key': combined_key,
                 'size': len(final_content)
@@ -1923,12 +1961,16 @@ def handle_ai_summary(event, headers, context, user_context):
         # Create new filename with _AI suffix
         original_filename = s3_key.split('/')[-1]
         if original_filename.endswith('.md'):
-            new_filename = original_filename[:-3] + '_AI.md'
+            base_new_filename = original_filename[:-3] + '_AI.md'
         else:
-            new_filename = original_filename.rsplit('.', 1)[0] + '_AI.' + original_filename.rsplit('.', 1)[1]
+            base_new_filename = original_filename.rsplit('.', 1)[0] + '_AI.' + original_filename.rsplit('.', 1)[1]
+        
+        # Get unique filename
+        prefix = '/'.join(s3_key.split('/')[:-1])
+        new_filename = get_unique_filename(PROCESSED_BUCKET, prefix, base_new_filename)
         
         # Save to S3
-        new_key = '/'.join(s3_key.split('/')[:-1]) + '/' + new_filename
+        new_key = prefix + '/' + new_filename
         
         try:
             s3.put_object(
