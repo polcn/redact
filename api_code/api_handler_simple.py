@@ -1599,8 +1599,8 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         # 2. Admin override model (if user is admin)
         # 3. Default model
         available_models = [
-            'anthropic.claude-3-haiku-20240307',
-            'anthropic.claude-3-sonnet-20240229',
+            'anthropic.claude-3-haiku-20240307-v1:0',
+            'anthropic.claude-3-sonnet-20240229-v1:0',
             'anthropic.claude-instant-v1'
         ]
         
@@ -1609,7 +1609,7 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         elif user_role == 'admin' and ai_config.get('admin_override_model'):
             model_id = ai_config['admin_override_model']
         else:
-            model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307')
+            model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307-v1:0')
         
         # Get summary configuration
         summary_configs = ai_config.get('summary_types', {})
