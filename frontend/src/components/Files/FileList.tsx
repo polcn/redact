@@ -26,11 +26,13 @@ export const FileList: React.FC = () => {
   const [showAISummaryModal, setShowAISummaryModal] = useState(false);
   const [selectedFileForAI, setSelectedFileForAI] = useState<FileData | null>(null);
   const [selectedSummaryType, setSelectedSummaryType] = useState<'brief' | 'standard' | 'detailed'>('standard');
+  const [selectedModel, setSelectedModel] = useState<string>('');  // Empty means use default
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   
   // Batch AI Summary state
   const [showBatchAIModal, setShowBatchAIModal] = useState(false);
   const [batchSummaryType, setBatchSummaryType] = useState<'brief' | 'standard' | 'detailed'>('standard');
+  const [batchModel, setBatchModel] = useState<string>('');  // Empty means use default
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
@@ -61,7 +63,7 @@ export const FileList: React.FC = () => {
     setIsGeneratingAI(true);
     try {
       const { generateAISummary } = await import('../../services/api');
-      const result = await generateAISummary(selectedFileForAI.id, selectedSummaryType);
+      const result = await generateAISummary(selectedFileForAI.id, selectedSummaryType, selectedModel);
       
       console.log('AI Summary result:', result);
       
@@ -109,7 +111,7 @@ export const FileList: React.FC = () => {
         
         try {
           console.log(`Processing file ${i + 1}/${filesToProcess.length}: ${file.filename}`);
-          await generateAISummary(file.id, batchSummaryType);
+          await generateAISummary(file.id, batchSummaryType, batchModel);
           successCount++;
         } catch (err: any) {
           console.error(`Failed to generate AI summary for ${file.filename}:`, err);
@@ -544,6 +546,23 @@ export const FileList: React.FC = () => {
               </select>
             </div>
             
+            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-sm)' }}>
+                AI Model:
+              </label>
+              <select 
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="input-anthropic"
+                style={{ width: '100%' }}
+              >
+                <option value="">Default (Claude 3 Haiku - Fast)</option>
+                <option value="anthropic.claude-3-haiku-20240307">Claude 3 Haiku (Fast)</option>
+                <option value="anthropic.claude-3-sonnet-20240229">Claude 3 Sonnet (Balanced)</option>
+                <option value="anthropic.claude-instant-v1">Claude Instant (Legacy)</option>
+              </select>
+            </div>
+            
             <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => {
@@ -639,6 +658,24 @@ export const FileList: React.FC = () => {
                 <option value="brief">Brief (2-3 sentences)</option>
                 <option value="standard">Standard (comprehensive)</option>
                 <option value="detailed">Detailed (in-depth analysis)</option>
+              </select>
+            </div>
+            
+            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-sm)' }}>
+                AI Model:
+              </label>
+              <select 
+                value={batchModel}
+                onChange={(e) => setBatchModel(e.target.value)}
+                className="input-anthropic"
+                style={{ width: '100%' }}
+                disabled={isBatchProcessing}
+              >
+                <option value="">Default (Claude 3 Haiku - Fast)</option>
+                <option value="anthropic.claude-3-haiku-20240307">Claude 3 Haiku (Fast)</option>
+                <option value="anthropic.claude-3-sonnet-20240229">Claude 3 Sonnet (Balanced)</option>
+                <option value="anthropic.claude-instant-v1">Claude Instant (Legacy)</option>
               </select>
             </div>
             

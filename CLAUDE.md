@@ -42,7 +42,7 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
-### 2025-07-24: Download Button Fix & Batch AI Summary Feature
+### 2025-07-24: Download Button Fix, Batch AI Summary & Model Selection
 - **Fixed**: Download button was opening files in browser instead of downloading
   - **Root Cause**: S3 presigned URLs weren't forcing download disposition
   - **Solution**: Added `ResponseContentDisposition: attachment` header to all presigned URLs
@@ -52,6 +52,18 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
   - **UI**: "Batch AI Summary" button appears when multiple completed files are selected
   - **Functionality**: Processes each file individually, showing progress (e.g., "3/10 files")
   - **Smart**: Skips files that already have AI summaries (_AI suffix)
+  - **Status**: ✅ Feature deployed and working
+- **New Feature**: AI Model Selection
+  - **Purpose**: Allow users to choose which AI model to use for summaries
+  - **Available Models**:
+    - Claude 3 Haiku (Default - Fast)
+    - Claude 3 Sonnet (Balanced)
+    - Claude Instant (Legacy)
+  - **UI Updates**: 
+    - Model dropdown added to AI Summary modal
+    - Model dropdown added to Batch AI Summary modal
+  - **Backend**: Fixed user role checking bug (was checking 'user_role' instead of 'role' from Cognito)
+  - **API**: Updated `/documents/ai-summary` to accept optional 'model' parameter
   - **Status**: ✅ Feature deployed and working
 
 ### 2025-07-24: Combined Files Auto-Download Fix

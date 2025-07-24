@@ -1586,7 +1586,7 @@ def get_ai_config():
             'error': f'Failed to load AI config: {str(e)}'
         }
 
-def generate_ai_summary_internal(text, summary_type='standard', user_role='user'):
+def generate_ai_summary_internal(text, summary_type='standard', user_role='user', selected_model=None):
     """Generate AI summary for document text using AWS Bedrock"""
     try:
         ai_config = get_ai_config()
@@ -1594,8 +1594,19 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         if not ai_config.get('enabled', False):
             raise ValueError("AI summaries are not enabled")
         
-        # Select model based on user role
-        if user_role == 'admin' and ai_config.get('admin_override_model'):
+        # Model selection priority:
+        # 1. User-selected model (if provided and allowed)
+        # 2. Admin override model (if user is admin)
+        # 3. Default model
+        available_models = [
+            'anthropic.claude-3-haiku-20240307',
+            'anthropic.claude-3-sonnet-20240229',
+            'anthropic.claude-instant-v1'
+        ]
+        
+        if selected_model and selected_model in available_models:
+            model_id = selected_model
+        elif user_role == 'admin' and ai_config.get('admin_override_model'):
             model_id = ai_config['admin_override_model']
         else:
             model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307')
@@ -1726,6 +1737,9 @@ def handle_ai_summary(event, headers, context, user_context):
                 'body': json.dumps({'error': 'Invalid summary_type. Must be brief, standard, or detailed'})
             }
         
+        # Get model selection (optional)
+        selected_model = body.get('model')  # Will be None if not provided
+        
         # Decode document ID to get S3 key
         from urllib.parse import unquote
         s3_key = unquote(document_id)
@@ -1766,7 +1780,8 @@ def handle_ai_summary(event, headers, context, user_context):
             summary_text, summary_metadata = generate_ai_summary_internal(
                 document_content,
                 summary_type=summary_type,
-                user_role=user_context.get('user_role', 'user')
+                user_role=user_context.get('role', 'user'),
+                selected_model=selected_model
             )
             logger.info("AI summary generated successfully")
         except Exception as e:
