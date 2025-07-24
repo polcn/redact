@@ -27,6 +27,12 @@ export const FileList: React.FC = () => {
   const [selectedFileForAI, setSelectedFileForAI] = useState<FileData | null>(null);
   const [selectedSummaryType, setSelectedSummaryType] = useState<'brief' | 'standard' | 'detailed'>('standard');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  
+  // Batch AI Summary state
+  const [showBatchAIModal, setShowBatchAIModal] = useState(false);
+  const [batchSummaryType, setBatchSummaryType] = useState<'brief' | 'standard' | 'detailed'>('standard');
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   const loadFiles = async () => {
     try {
@@ -71,17 +77,81 @@ export const FileList: React.FC = () => {
     }
   };
 
+  const handleBatchAISummary = async () => {
+    console.log('Starting batch AI summary generation');
+    setIsBatchProcessing(true);
+    setBatchProgress({ current: 0, total: 0 });
+    
+    try {
+      // Get list of selected files that are completed and don't already have AI summaries
+      const filesToProcess = files.filter(f => 
+        selectedFiles.has(f.id) && 
+        f.status === 'completed' &&
+        !f.filename.includes('_AI.')
+      );
+      
+      if (filesToProcess.length === 0) {
+        setError('No eligible files selected for AI summary');
+        setIsBatchProcessing(false);
+        return;
+      }
+      
+      setBatchProgress({ current: 0, total: filesToProcess.length });
+      
+      // Process each file
+      const { generateAISummary } = await import('../../services/api');
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < filesToProcess.length; i++) {
+        const file = filesToProcess[i];
+        setBatchProgress({ current: i + 1, total: filesToProcess.length });
+        
+        try {
+          console.log(`Processing file ${i + 1}/${filesToProcess.length}: ${file.filename}`);
+          await generateAISummary(file.id, batchSummaryType);
+          successCount++;
+        } catch (err: any) {
+          console.error(`Failed to generate AI summary for ${file.filename}:`, err);
+          errorCount++;
+        }
+      }
+      
+      // Show results
+      if (errorCount > 0) {
+        alert(`Batch AI Summary Complete\n\nSuccess: ${successCount}\nFailed: ${errorCount}`);
+      } else {
+        console.log(`Batch AI summary complete: ${successCount} files processed`);
+      }
+      
+      // Clear selection and close modal
+      setSelectedFiles(new Set());
+      setShowBatchAIModal(false);
+      setBatchSummaryType('standard');
+      
+      // Refresh the file list to show new AI summaries
+      await loadFiles();
+      
+    } catch (err: any) {
+      console.error('Batch AI Summary Error:', err);
+      alert('Failed to process batch AI summaries');
+    } finally {
+      setIsBatchProcessing(false);
+      setBatchProgress({ current: 0, total: 0 });
+    }
+  };
+
   useEffect(() => {
     loadFiles();
     // Refresh every 10 seconds to check for status updates, but not when modals are open
     const interval = setInterval(() => {
       // Don't refresh if any modal is open
-      if (!showAISummaryModal && !showCombineModal) {
+      if (!showAISummaryModal && !showCombineModal && !showBatchAIModal) {
         loadFiles();
       }
     }, 10000);
     return () => clearInterval(interval);
-  }, [showAISummaryModal, showCombineModal]);
+  }, [showAISummaryModal, showCombineModal, showBatchAIModal]);
 
   if (loading) {
     return (
@@ -310,6 +380,13 @@ export const FileList: React.FC = () => {
               {hasCompletedFiles && (
                 <>
                   <button
+                    onClick={() => setShowBatchAIModal(true)}
+                    className="btn-anthropic btn-anthropic-primary"
+                    style={{ padding: '0.5rem 1rem' }}
+                  >
+                    Batch AI Summary
+                  </button>
+                  <button
                     onClick={() => setShowCombineModal(true)}
                     className="btn-anthropic btn-anthropic-primary"
                     style={{ padding: '0.5rem 1rem' }}
@@ -484,6 +561,101 @@ export const FileList: React.FC = () => {
                 disabled={isGeneratingAI}
               >
                 {isGeneratingAI ? 'Generating...' : 'Generate Summary'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch AI Summary Modal */}
+      {showBatchAIModal && (
+        <div 
+          onClick={(e) => {
+            setShowBatchAIModal(false);
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="card-anthropic" 
+            style={{ 
+              width: '90%', 
+              maxWidth: '500px',
+              padding: 'var(--spacing-lg)'
+            }}
+          >
+            <h2 className="text-primary" style={{ marginBottom: 'var(--spacing-md)' }}>
+              Batch AI Summary
+            </h2>
+            
+            <p className="text-secondary" style={{ marginBottom: 'var(--spacing-lg)' }}>
+              Generate AI summaries for {files.filter(f => selectedFiles.has(f.id) && f.status === 'completed' && !f.filename.includes('_AI.')).length} selected files.
+            </p>
+            
+            {isBatchProcessing && (
+              <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+                  Progress: {batchProgress.current} / {batchProgress.total}
+                </div>
+                <div style={{
+                  width: '100%',
+                  height: '20px',
+                  background: 'var(--color-background)',
+                  borderRadius: 'var(--radius-sm)',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: `${batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}%`,
+                    height: '100%',
+                    background: 'var(--color-primary)',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+              </div>
+            )}
+            
+            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+              <label style={{ display: 'block', marginBottom: 'var(--spacing-sm)' }}>
+                Summary Type:
+              </label>
+              <select 
+                value={batchSummaryType}
+                onChange={(e) => setBatchSummaryType(e.target.value as 'brief' | 'standard' | 'detailed')}
+                className="input-anthropic"
+                style={{ width: '100%' }}
+                disabled={isBatchProcessing}
+              >
+                <option value="brief">Brief (2-3 sentences)</option>
+                <option value="standard">Standard (comprehensive)</option>
+                <option value="detailed">Detailed (in-depth analysis)</option>
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowBatchAIModal(false)}
+                className="btn-anthropic btn-anthropic-secondary"
+                disabled={isBatchProcessing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBatchAISummary}
+                className="btn-anthropic btn-anthropic-primary"
+                disabled={isBatchProcessing}
+              >
+                {isBatchProcessing ? 'Processing...' : 'Generate Summaries'}
               </button>
             </div>
           </div>
