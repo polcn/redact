@@ -781,9 +781,16 @@ def handle_update_config(event, headers, user_context):
 def generate_presigned_url(bucket, key, expiration=3600):
     """Generate a presigned URL for downloading processed documents"""
     try:
+        # Extract filename from key for Content-Disposition header
+        filename = key.split('/')[-1]
+        
         url = s3.generate_presigned_url(
             'get_object',
-            Params={'Bucket': bucket, 'Key': key},
+            Params={
+                'Bucket': bucket, 
+                'Key': key,
+                'ResponseContentDisposition': f'attachment; filename="{filename}"'
+            },
             ExpiresIn=expiration
         )
         return url
@@ -1829,12 +1836,13 @@ def handle_ai_summary(event, headers, context, user_context):
                 }
             )
             
-            # Generate presigned URL
+            # Generate presigned URL with download disposition
             download_url = s3.generate_presigned_url(
                 'get_object',
                 Params={
                     'Bucket': PROCESSED_BUCKET,
-                    'Key': new_key
+                    'Key': new_key,
+                    'ResponseContentDisposition': f'attachment; filename="{new_filename}"'
                 },
                 ExpiresIn=3600
             )

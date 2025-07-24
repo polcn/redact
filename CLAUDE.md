@@ -42,6 +42,18 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Recent Updates
 
+### 2025-07-24: Download Button Fix & Batch AI Summary Feature
+- **Fixed**: Download button was opening files in browser instead of downloading
+  - **Root Cause**: S3 presigned URLs weren't forcing download disposition
+  - **Solution**: Added `ResponseContentDisposition: attachment` header to all presigned URLs
+  - **Status**: ✅ Fix deployed - all files now download properly instead of opening in browser
+- **New Feature**: Batch AI Summary for multiple files
+  - **Purpose**: Generate AI summaries for multiple files at once
+  - **UI**: "Batch AI Summary" button appears when multiple completed files are selected
+  - **Functionality**: Processes each file individually, showing progress (e.g., "3/10 files")
+  - **Smart**: Skips files that already have AI summaries (_AI suffix)
+  - **Status**: ✅ Feature deployed and working
+
 ### 2025-07-24: Combined Files Auto-Download Fix
 - **Fixed**: Combined files were auto-downloading instead of just appearing in file list
   - **Root Cause**: Lambda function was returning `download_url` in response, causing frontend to auto-download
