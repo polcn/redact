@@ -23,10 +23,10 @@ graph TB
     
     subgraph "API Gateway Layer"
         D[API Gateway REST<br/>101pi5aiv5.execute-api.us-east-1.amazonaws.com]
-        D1[/documents/* Routes]
-        D2[/api/config Routes]
-        D3[/api/string/redact]
-        D4[/api/external-ai-keys]
+        D1["/documents Routes"]
+        D2["/api/config Routes"]
+        D3["/api/string/redact"]
+        D4["/api/external-ai-keys"]
         D5[Rate Limiting<br/>10k req/month]
     end
     
@@ -47,7 +47,7 @@ graph TB
         H[redact-processed-*<br/>Clean Files]
         I[redact-quarantine-*<br/>Failed/Dangerous]
         J[redact-config-*<br/>User Settings]
-        G1[User Isolation<br/>prefix: users/{id}/]
+        G1["User Isolation<br/>prefix: users/id/"]
     end
     
     subgraph "AI/ML Services"
