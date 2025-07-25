@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 # Deploy API Handler
 echo -e "${YELLOW}Updating API Handler Lambda...${NC}"
 cd api_code
-zip -r ../api_handler.zip api_handler_simple.py
+zip -r ../api_handler.zip api_handler_simple.py external_ai_providers.py
 cd ..
 aws lambda update-function-code \
     --function-name redact-api-handler \

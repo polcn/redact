@@ -56,6 +56,7 @@ export const ConfigEditor: React.FC = () => {
     try {
       setError('');
       const data = await getConfig();
+      console.log('Config API response:', data);
       // Ensure patterns object exists with defaults
       setConfig({
         ...data,
@@ -70,8 +71,10 @@ export const ConfigEditor: React.FC = () => {
         }
       });
     } catch (err: any) {
-      setError('Failed to load configuration');
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to load configuration';
+      setError(errorMsg);
       console.error('Error loading config:', err);
+      console.error('Error details:', err.response);
     } finally {
       setLoading(false);
     }

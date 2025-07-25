@@ -1,7 +1,6 @@
 import os
 import json
 import boto3
-import requests
 import logging
 from typing import Dict, Tuple, Optional
 
@@ -76,6 +75,7 @@ class OpenAIProvider(ExternalAIProvider):
             }
             
             # Make the API request
+            import requests
             response = requests.post(
                 'https://api.openai.com/v1/chat/completions',
                 headers=headers,
@@ -146,6 +146,7 @@ class GeminiProvider(ExternalAIProvider):
             }
             
             # Make the API request
+            import requests
             response = requests.post(url, json=payload, timeout=30)
             
             if response.status_code != 200:

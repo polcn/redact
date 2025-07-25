@@ -504,12 +504,17 @@ def handle_list_user_files(event, headers, context, user_context):
         user_prefix = get_user_s3_prefix(user_context['user_id'])
         files = []
         
+        # Log the bucket and prefix we're using
+        logger.info(f"Listing files for user {user_context['user_id']} in bucket {PROCESSED_BUCKET} with prefix: processed/{user_prefix}/")
+        
         # List files in processed bucket
         try:
             processed_response = s3.list_objects_v2(
                 Bucket=PROCESSED_BUCKET,
                 Prefix=f"processed/{user_prefix}/"
             )
+            
+            logger.info(f"S3 response: Found {len(processed_response.get('Contents', []))} files in processed bucket")
             
             for obj in processed_response.get('Contents', []):
                 # Parse filename from key
@@ -526,15 +531,19 @@ def handle_list_user_files(event, headers, context, user_context):
                     'last_modified': obj['LastModified'].isoformat(),
                     'download_url': generate_presigned_url(PROCESSED_BUCKET, obj['Key'])
                 })
-        except ClientError:
-            pass
+        except ClientError as e:
+            logger.error(f"Error listing processed files: {str(e)}")
         
         # List files in input bucket (still processing)
         try:
+            logger.info(f"Listing input files in bucket {INPUT_BUCKET} with prefix: {user_prefix}/")
+            
             input_response = s3.list_objects_v2(
                 Bucket=INPUT_BUCKET,
                 Prefix=f"{user_prefix}/"
             )
+            
+            logger.info(f"S3 response: Found {len(input_response.get('Contents', []))} files in input bucket")
             
             for obj in input_response.get('Contents', []):
                 filename = obj['Key'].split('/')[-1]
@@ -551,8 +560,13 @@ def handle_list_user_files(event, headers, context, user_context):
                         'size': obj['Size'],
                         'last_modified': obj['LastModified'].isoformat()
                     })
-        except ClientError:
-            pass
+        except ClientError as e:
+            logger.error(f"Error listing input files: {str(e)}")
+        
+        # Sort by last modified date, most recent first
+        files.sort(key=lambda x: x['last_modified'], reverse=True)
+        
+        logger.info(f"Returning {len(files)} total files for user {user_context['user_id']}")
         
         return {
             'statusCode': 200,

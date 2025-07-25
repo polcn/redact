@@ -37,9 +37,13 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 }
 ```
 
-## Known Issues
+## Known Issues - RESOLVED (2025-07-25)
 - **Failed to load settings**: Settings may fail to load on initial page visit
+  - **Root Cause**: Transient network issues or token expiration
+  - **Fix Applied**: Added retry logic with 2 attempts and automatic token refresh on 401 errors
 - **No file history**: File list shows "No file history found" despite files existing in S3
+  - **Root Cause**: Lambda missing the `requests` module dependency due to external_ai_providers.py import
+  - **Fix Applied**: Modified external_ai_providers.py to use lazy imports, avoiding the dependency issue
 
 
 ## External AI Provider Setup

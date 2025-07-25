@@ -40,7 +40,11 @@ export const FileList: React.FC = () => {
     try {
       setError('');
       const response = await listUserFiles();
+      console.log('Files API response:', response);
       console.log('Files loaded:', response.files?.length || 0, 'files');
+      if (response.files && response.files.length > 0) {
+        console.log('First file:', response.files[0]);
+      }
       setFiles(response.files || []);
     } catch (err: any) {
       setError('Failed to load files');

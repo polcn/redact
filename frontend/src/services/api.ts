@@ -24,6 +24,28 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Add response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      // Token might be expired, try to refresh
+      console.log('401 error, attempting to refresh token...');
+      try {
+        const session = await fetchAuthSession({ forceRefresh: true });
+        if (session.tokens?.idToken) {
+          // Retry the original request with new token
+          error.config.headers.Authorization = `Bearer ${session.tokens.idToken.toString()}`;
+          return api.request(error.config);
+        }
+      } catch (refreshError) {
+        console.error('Failed to refresh token:', refreshError);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // File upload
 export const uploadFile = async (file: File): Promise<any> => {
   return new Promise((resolve, reject) => {
@@ -53,14 +75,39 @@ export const checkFileStatus = async (documentId: string): Promise<any> => {
 
 // List user files
 export const listUserFiles = async (): Promise<any> => {
-  const response = await api.get('/user/files');
-  return response.data;
+  try {
+    const response = await api.get('/user/files');
+    return response.data;
+  } catch (error: any) {
+    console.error('Error listing user files:', error);
+    // Return empty data structure instead of throwing
+    return { files: [] };
+  }
 };
 
-// Get configuration
+// Get configuration with retry
 export const getConfig = async (): Promise<any> => {
-  const response = await api.get('/api/config');
-  return response.data;
+  let retries = 2;
+  let lastError: any = null;
+  
+  while (retries >= 0) {
+    try {
+      const response = await api.get('/api/config');
+      return response.data;
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Error getting config (${2 - retries}/2 retries):`, error);
+      
+      if (retries > 0) {
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      retries--;
+    }
+  }
+  
+  // If all retries failed, throw the last error
+  throw lastError;
 };
 
 // Update configuration (admin only)
