@@ -22,7 +22,11 @@ React → CloudFront → Cognito Auth → API Gateway → Lambda
                                       S3 (User Isolated)
                                               ↓
                                     Document Processing
+                                              ↓
+                              AI Services (Bedrock/OpenAI/Gemini)
 ```
+
+See [architecture-diagram.mmd](architecture-diagram.mmd) for the complete system diagram and [architecture-diagram-detailed.mmd](architecture-diagram-detailed.mmd) for detailed component interactions.
 
 ## Quick Start
 

@@ -1,0 +1,217 @@
+graph TB
+    subgraph "User Interface Layer"
+        A[React SPA<br/>redact.9thcube.com]
+        A1[File Upload UI]
+        A2[File List & Status]
+        A3[Config Editor]
+        A4[AI Summary Modal]
+        A5[External AI Keys UI<br/>Admin Only]
+        A6[Batch Operations UI]
+    end
+    
+    subgraph "Authentication & Authorization"
+        B[AWS Cognito<br/>us-east-1_4Uv3seGwS]
+        B1[User Pool]
+        B2[Identity Pool]
+        B3[Admin Role Check]
+    end
+    
+    subgraph "Content Delivery"
+        C[CloudFront CDN<br/>EOG2DS78ES8MD]
+        C1[S3 Origin<br/>Static Assets]
+    end
+    
+    subgraph "API Gateway Layer"
+        D[API Gateway REST<br/>101pi5aiv5.execute-api.us-east-1.amazonaws.com]
+        D1[/documents/* Routes]
+        D2[/api/config Routes]
+        D3[/api/string/redact]
+        D4[/api/external-ai-keys]
+        D5[Rate Limiting<br/>10k req/month]
+    end
+    
+    subgraph "Lambda Functions"
+        E[API Handler Lambda<br/>api_handler_simple.py]
+        F[Document Processor<br/>lambda_function_v2.py]
+        E1[Request Router]
+        E2[Auth Validator]
+        E3[File Operations]
+        F1[Format Converter<br/>PDF/DOCX/XLSX→MD/CSV]
+        F2[Pattern Detector<br/>SSN/CC/Phone/Email]
+        F3[AI Summary Engine]
+        F4[Document Combiner]
+    end
+    
+    subgraph "S3 Storage Buckets"
+        G[redact-input-*<br/>Raw Uploads]
+        H[redact-processed-*<br/>Clean Files]
+        I[redact-quarantine-*<br/>Failed/Dangerous]
+        J[redact-config-*<br/>User Settings]
+        G1[User Isolation<br/>prefix: users/{id}/]
+    end
+    
+    subgraph "AI/ML Services"
+        L[AWS Bedrock]
+        L1[Claude 3/3.5<br/>Haiku/Sonnet/Opus]
+        L2[Amazon Nova<br/>Micro/Lite/Pro]
+        L3[Meta Llama<br/>3.2/3]
+        L4[Mistral/DeepSeek]
+        M[OpenAI Platform]
+        M1[GPT-4o/4o-mini]
+        M2[GPT-4 Turbo]
+        M3[GPT-3.5 Turbo]
+        N[Google AI]
+        N1[Gemini 1.5 Pro]
+        N2[Gemini 1.5 Flash]
+        N3[Gemini 1.0 Pro]
+    end
+    
+    subgraph "External Services"
+        K[String.com API]
+        K1[Content Rules<br/>Choice Hotels→CH]
+        K2[API Key Rotation<br/>EventBridge/30 days]
+    end
+    
+    subgraph "Configuration & Secrets"
+        O[AWS Systems Manager]
+        O1[Parameter Store<br/>Encrypted Keys]
+        O2[String.com Keys]
+        O3[OpenAI API Key]
+        O4[Gemini API Key]
+        O5[AI Model Config]
+    end
+    
+    subgraph "Development Tools"
+        P[Claude Code MCP Servers]
+        P1[Jina AI<br/>Web Extract/Search]
+        P2[AWS MCP Suite<br/>Docs/CDK/Core/Serverless]
+        P3[Playwright<br/>Browser Automation]
+        P4[BrightData<br/>Web Scraping]
+    end
+    
+    subgraph "Monitoring & Logs"
+        Q[CloudWatch]
+        Q1[Lambda Logs]
+        Q2[API Gateway Metrics]
+        Q3[Usage Alarms<br/>80% Quota]
+    end
+
+    %% User Flow
+    A --> A1
+    A1 -->|Upload File| D1
+    A --> A2
+    A2 -->|List/Download/Delete| D1
+    A --> A3
+    A3 -->|Save Config| D2
+    A --> A4
+    A4 -->|Generate Summary| D1
+    A --> A5
+    A5 -->|Update Keys| D4
+    A --> A6
+    A6 -->|Batch Download/Summary| D1
+
+    %% Authentication Flow
+    A -->|Login| B
+    B --> B1
+    B1 -->|JWT Token| D
+    B3 -->|Admin Check| A5
+
+    %% CDN Flow
+    A -->|Static Assets| C
+    C --> C1
+
+    %% API Flow
+    D --> E
+    D1 --> E1
+    D2 --> E1
+    D3 --> E1
+    D4 --> E1
+    D5 -->|Throttle| D
+    E1 --> E2
+    E2 -->|Validate User| E3
+
+    %% Processing Flow
+    E3 -->|Upload| G
+    E3 -->|Process| F
+    E3 -->|Config| J
+    F --> F1
+    F1 --> F2
+    F2 -->|Save| H
+    F2 -->|Error| I
+    F -->|AI Summary| F3
+    F -->|Combine| F4
+    F3 --> L
+    F3 --> M
+    F3 --> N
+
+    %% Storage Flow
+    G --> G1
+    H --> G1
+    I --> G1
+    J --> G1
+
+    %% AI Service Flow
+    L --> L1
+    L --> L2
+    L --> L3
+    L --> L4
+    M --> M1
+    M --> M2
+    M --> M3
+    N --> N1
+    N --> N2
+    N --> N3
+
+    %% Configuration Flow
+    O --> O1
+    O1 --> O2
+    O1 --> O3
+    O1 --> O4
+    O1 --> O5
+    O3 -->|API Key| M
+    O4 -->|API Key| N
+    O2 -->|API Key| K
+    O5 -->|Model Config| F3
+
+    %% External API Flow
+    E -->|Redact Text| K
+    K --> K1
+    K2 -->|Rotate Keys| O2
+
+    %% Development Support
+    P -.->|MCP Tools| A
+    P --> P1
+    P --> P2
+    P --> P3
+    P --> P4
+
+    %% Monitoring
+    E -.->|Logs| Q1
+    F -.->|Logs| Q1
+    D -.->|Metrics| Q2
+    Q2 -->|Alert| Q3
+
+    %% Styling
+    classDef frontend fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef auth fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef cdn fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef api fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    classDef lambda fill:#fff8e1,stroke:#fbc02d,stroke-width:2px
+    classDef storage fill:#ffebee,stroke:#d32f2f,stroke-width:2px
+    classDef ai fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    classDef external fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef config fill:#f0f4c3,stroke:#827717,stroke-width:2px
+    classDef dev fill:#efebe9,stroke:#5d4037,stroke-width:2px
+    classDef monitor fill:#e0e0e0,stroke:#616161,stroke-width:2px
+
+    class A,A1,A2,A3,A4,A5,A6 frontend
+    class B,B1,B2,B3 auth
+    class C,C1 cdn
+    class D,D1,D2,D3,D4,D5 api
+    class E,E1,E2,E3,F,F1,F2,F3,F4 lambda
+    class G,G1,H,I,J storage
+    class L,L1,L2,L3,L4,M,M1,M2,M3,N,N1,N2,N3 ai
+    class K,K1,K2 external
+    class O,O1,O2,O3,O4,O5 config
+    class P,P1,P2,P3,P4 dev
+    class Q,Q1,Q2,Q3 monitor

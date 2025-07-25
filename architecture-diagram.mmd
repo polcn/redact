@@ -1,6 +1,7 @@
 graph TB
     subgraph "Frontend"
         A[React App<br/>redact.9thcube.com]
+        A1[External AI Key Management UI<br/>Admin Only]
     end
     
     subgraph "Authentication"
@@ -18,6 +19,8 @@ graph TB
     
     subgraph "Processing Layer"
         F[Document Processor Lambda<br/>lambda_function_v2.py]
+        F1[AI Summary Generator]
+        F2[Document Combiner]
     end
     
     subgraph "Storage Layer"
@@ -27,32 +30,63 @@ graph TB
         J[S3: redact-config-*<br/>User Configs]
     end
     
+    subgraph "AI Services"
+        L[AWS Bedrock<br/>Claude, Nova, Llama, Mistral]
+        M[OpenAI API<br/>GPT-4, GPT-3.5]
+        N[Google Gemini API<br/>1.5 Pro, Flash]
+    end
+    
     subgraph "External APIs"
         K[String.com API<br/>Content Redaction]
+    end
+    
+    subgraph "Configuration Store"
+        O[AWS SSM Parameter Store<br/>API Keys & Settings]
+    end
+    
+    subgraph "MCP Servers"
+        P[Claude Code MCP<br/>Jina, AWS, Playwright]
     end
     
     A -->|Static Assets| C
     A -->|Authentication| B
     A -->|API Calls| D
+    A1 -->|Update Keys| E
     B -->|JWT Token| D
     D --> E
     E -->|Upload| G
     E -->|Process Request| F
     E -->|Config Management| J
     E -->|String.com Redact| K
+    E -->|Key Management| O
     F -->|Read| G
     F -->|Write| H
     F -->|Error| I
     F -->|Read Config| J
+    F1 -->|Generate Summary| L
+    F1 -->|Generate Summary| M
+    F1 -->|Generate Summary| N
+    F2 -->|Combine Files| H
+    O -->|API Keys| M
+    O -->|API Keys| N
+    P -.->|Development Support| A
     
     style A fill:#e1f5fe
+    style A1 fill:#e1f5fe
     style B fill:#fff3e0
     style C fill:#f3e5f5
     style D fill:#e8f5e9
     style E fill:#e8f5e9
     style F fill:#fff8e1
+    style F1 fill:#fff8e1
+    style F2 fill:#fff8e1
     style G fill:#ffebee
     style H fill:#ffebee
     style I fill:#ffebee
     style J fill:#ffebee
     style K fill:#fce4ec
+    style L fill:#e3f2fd
+    style M fill:#e3f2fd
+    style N fill:#e3f2fd
+    style O fill:#f0f4c3
+    style P fill:#d7ccc8
