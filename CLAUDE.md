@@ -353,6 +353,95 @@ aws logs tail /aws/lambda/document-scrubbing-processor --follow
 - `lambda_code/lambda_function_v2.py` - Document processor
 - `frontend/src/contexts/AuthContext.tsx` - Auth management
 
+## Claude Code MCP Integration
+
+Claude Code supports Model Context Protocol (MCP) servers to extend functionality. MCP servers provide specialized tools and capabilities.
+
+### Currently Configured MCP Servers
+
+#### 1. AWS Documentation Server
+Provides access to AWS service documentation and examples.
+- **Command**: `awslabs.aws-documentation-mcp-server`
+- **Features**: Search and retrieve AWS documentation, service examples, and best practices
+
+#### 2. AWS CDK Server
+Enables AWS CDK (Cloud Development Kit) operations.
+- **Command**: `awslabs.cdk-mcp-server`
+- **Features**: CDK stack management, synthesis, and deployment operations
+
+#### 3. AWS Core Services Server
+Provides tools for core AWS service operations.
+- **Command**: `awslabs.core-mcp-server`
+- **Features**: EC2, S3, IAM, and other core AWS service interactions
+
+#### 4. AWS Serverless Server
+Specialized tools for AWS serverless services.
+- **Command**: `awslabs.aws-serverless-mcp-server`
+- **Features**: Lambda, API Gateway, DynamoDB, and other serverless service management
+
+#### 5. Playwright Browser Automation
+Enables browser automation and web scraping.
+- **Command**: `npx @modelcontextprotocol/server-playwright`
+- **Features**: Browser automation, web scraping, screenshot capture, form filling
+
+#### 6. BrightData API Server
+Provides web data collection capabilities.
+- **Command**: `npx @brightdata/mcp-server`
+- **Features**: Web scraping, proxy management, data collection
+- **Note**: Requires API key configuration
+
+#### 7. Jina AI MCP Tools
+Provides web content extraction, search, and fact-checking capabilities.
+
+**Installation & Configuration**:
+```bash
+# Install globally
+npm install -g jina-mcp-tools
+
+# Add to Claude Code with API key
+claude mcp add jina npx jina-mcp-tools --env JINA_API_KEY=your-api-key-here
+
+# Check configuration
+claude mcp get jina
+
+# Remove if needed
+claude mcp remove jina -s local
+```
+
+**Features**:
+- **Web Reading**: Extract and parse content from any URL
+- **Web Search**: Search the internet using Jina's search API
+- **Fact Checking**: Verify information against web sources
+
+**API Key**: Get your Jina API key from [jina.ai](https://jina.ai/)
+
+### Managing MCP Servers
+
+```bash
+# List all configured servers
+claude mcp list
+
+# Add a stdio server
+claude mcp add server-name /path/to/server
+
+# Add an SSE server
+claude mcp add --transport sse server-name https://example.com/endpoint
+
+# Add an HTTP server
+claude mcp add --transport http server-name https://example.com/mcp
+
+# Get server details
+claude mcp get server-name
+
+# Remove a server
+claude mcp remove server-name
+```
+
+### Configuration Scopes
+- **local**: Private to you in the current project (default)
+- **project**: Shared with all users in the project
+- **user**: Available in all your projects
+
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.

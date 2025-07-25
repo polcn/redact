@@ -7,7 +7,8 @@ Production-ready document redaction system with React frontend at https://redact
 - **Pattern Detection**: SSN, credit cards, phones, emails, IPs, licenses
 - **Link Stripping**: Removes URLs while preserving link text for redaction
 - **User Isolation**: Secure file storage per user
-- **AI Summaries**: On-demand AI-powered document summaries using AWS Bedrock
+- **AI Summaries**: On-demand AI-powered document summaries using AWS Bedrock, OpenAI, or Google Gemini
+- **External AI Support**: Web UI for managing OpenAI and Google Gemini API keys
 - **File Combination**: Combine multiple processed files into one document
 - **Batch Operations**: Download multiple files as ZIP or delete in bulk
 - **String.com API**: Content-based redaction rules with rate limiting
@@ -141,14 +142,24 @@ curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/d
 ```
 
 ### AI Summary Feature
-- **Models**: AWS Bedrock with Claude 3 (Haiku, Sonnet, Instant)
+- **Models**: 
+  - AWS Bedrock: Claude 3/3.5 (Haiku, Sonnet, Opus), Amazon Nova, Meta Llama, Mistral, DeepSeek
+  - External AI (with API keys): OpenAI GPT-4/3.5, Google Gemini 1.5/1.0
 - **Summary Types**: 
   - Brief: 2-3 sentence summary
   - Standard: Comprehensive summary
   - Detailed: In-depth analysis
 - **File Naming**: AI-enhanced files get "_AI" suffix (e.g., `report.md` → `report_AI.md`)
 - **Admin Controls**: Change default model via `/api/ai-config` endpoint
-- **Cost**: Pay-per-use based on AWS Bedrock pricing
+- **Cost**: Pay-per-use based on provider pricing
+
+### External AI Providers
+- **Web UI**: Config page → External AI Providers section (admin only)
+- **Supported Providers**:
+  - OpenAI: GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo
+  - Google Gemini: 1.5 Pro, 1.5 Flash, 1.0 Pro
+- **Security**: API keys stored encrypted in AWS Systems Manager
+- **Setup**: Get API keys from [OpenAI Platform](https://platform.openai.com/api-keys) or [Google AI Studio](https://makersuite.google.com/app/apikey)
 
 ## Troubleshooting
 ```bash
