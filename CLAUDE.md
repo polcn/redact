@@ -90,6 +90,16 @@ aws ssm get-parameter --name "/redact/api-keys/gemini-api-key" --with-decryption
 
 ## Recent Updates
 
+### 2025-07-25: File Processing Fix
+- **Issue**: Files were uploading but not processing
+- **Root Causes**: 
+  1. S3 bucket notification was not configured to trigger Lambda
+  2. Lambda IAM role had permissions for old buckets (suffix 32a4ee51) instead of new ones (469be391)
+- **Fix Applied**:
+  1. Configured S3 bucket notification: `aws s3api put-bucket-notification-configuration`
+  2. Updated Lambda IAM policy with correct bucket ARNs
+- **Status**: ✅ Files now process correctly
+
 ### 2025-07-25: API Key Management UI & Infrastructure Fixes
 - **New Feature**: Web UI for Managing External AI API Keys
   - **Purpose**: Allow admins to configure OpenAI and Gemini API keys through the web interface
