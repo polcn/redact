@@ -581,6 +581,17 @@ export const FileList: React.FC = () => {
                 <optgroup label="DeepSeek">
                   <option value="deepseek.r1-v1:0">DeepSeek R1 (Advanced Reasoning)</option>
                 </optgroup>
+                <optgroup label="OpenAI (Requires API Key)">
+                  <option value="openai.gpt-4o">GPT-4o (Most Capable)</option>
+                  <option value="openai.gpt-4o-mini">GPT-4o Mini (Fast & Cheap)</option>
+                  <option value="openai.gpt-4-turbo">GPT-4 Turbo</option>
+                  <option value="openai.gpt-3.5-turbo">GPT-3.5 Turbo (Legacy)</option>
+                </optgroup>
+                <optgroup label="Google Gemini (Requires API Key)">
+                  <option value="gemini.gemini-1.5-pro">Gemini 1.5 Pro (Advanced)</option>
+                  <option value="gemini.gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
+                  <option value="gemini.gemini-1.0-pro">Gemini 1.0 Pro (Stable)</option>
+                </optgroup>
               </select>
             </div>
             
@@ -761,6 +772,17 @@ export const FileList: React.FC = () => {
                 </optgroup>
                 <optgroup label="DeepSeek">
                   <option value="deepseek.r1-v1:0">DeepSeek R1 (Advanced Reasoning)</option>
+                </optgroup>
+                <optgroup label="OpenAI (Requires API Key)">
+                  <option value="openai.gpt-4o">GPT-4o (Most Capable)</option>
+                  <option value="openai.gpt-4o-mini">GPT-4o Mini (Fast & Cheap)</option>
+                  <option value="openai.gpt-4-turbo">GPT-4 Turbo</option>
+                  <option value="openai.gpt-3.5-turbo">GPT-3.5 Turbo (Legacy)</option>
+                </optgroup>
+                <optgroup label="Google Gemini (Requires API Key)">
+                  <option value="gemini.gemini-1.5-pro">Gemini 1.5 Pro (Advanced)</option>
+                  <option value="gemini.gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
+                  <option value="gemini.gemini-1.0-pro">Gemini 1.0 Pro (Stable)</option>
                 </optgroup>
               </select>
             </div>

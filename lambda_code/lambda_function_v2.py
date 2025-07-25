@@ -14,6 +14,15 @@ from botocore.exceptions import ClientError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import external AI providers
+try:
+    from external_ai_providers import get_external_ai_provider
+    EXTERNAL_AI_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"External AI providers import failed: {str(e)}")
+    get_external_ai_provider = None
+    EXTERNAL_AI_AVAILABLE = False
+
 # Document processing libraries with better error handling
 try:
     from docx import Document

@@ -40,7 +40,71 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 ## Known Issues
 
 
+## External AI Provider Setup
+
+### Via Web UI (Recommended)
+
+1. Navigate to the **Config** page in the web interface
+2. Look for the **External AI Providers** section
+3. Click **Update API Keys** (admin access required)
+4. Enter your API keys:
+   - **OpenAI**: Get from [OpenAI Platform](https://platform.openai.com/api-keys)
+   - **Google Gemini**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
+5. Click **Update Keys** to save
+
+### Via AWS CLI
+
+If you prefer command-line setup:
+
+```bash
+# Set OpenAI API key:
+aws ssm put-parameter --name "/redact/api-keys/openai-api-key" \
+  --value "YOUR_OPENAI_API_KEY" \
+  --type SecureString \
+  --overwrite
+
+# Set Google Gemini API key:
+aws ssm put-parameter --name "/redact/api-keys/gemini-api-key" \
+  --value "YOUR_GEMINI_API_KEY" \
+  --type SecureString \
+  --overwrite
+
+# Verify API keys are set (shows first 10 characters only):
+aws ssm get-parameter --name "/redact/api-keys/openai-api-key" --with-decryption --query 'Parameter.Value' --output text | head -c 10
+aws ssm get-parameter --name "/redact/api-keys/gemini-api-key" --with-decryption --query 'Parameter.Value' --output text | head -c 10
+```
+
+**Implementation Details**:
+- API keys are stored securely in AWS Systems Manager Parameter Store
+- Keys are encrypted at rest using AWS KMS
+- Lambda functions have IAM permissions to decrypt and retrieve keys
+- External AI providers are automatically available when API keys are configured
+- Error handling gracefully falls back to AWS Bedrock models if keys are not set
+- Only admins can manage API keys through the UI
+
 ## Recent Updates
+
+### 2025-07-25: API Key Management UI & Infrastructure Fixes
+- **New Feature**: Web UI for Managing External AI API Keys
+  - **Purpose**: Allow admins to configure OpenAI and Gemini API keys through the web interface
+  - **Location**: Config page → External AI Providers section
+  - **Security**: Keys are stored encrypted, never exposed in UI, admin-only access
+  - **UI Features**:
+    - Shows configuration status for all users
+    - Admin-only "Update API Keys" interface
+    - Direct links to OpenAI Platform and Google AI Studio
+    - Real-time status updates after key changes
+  - **API Endpoints**:
+    - `GET /api/external-ai-keys` - Check key status
+    - `PUT /api/external-ai-keys` - Update keys (admin only)
+- **Fixed**: Configuration Loading Issues
+  - **Root Cause**: Lambda functions were pointing to old S3 buckets from previous deployment
+  - **Solution**: Updated Lambda environment variables to correct bucket names
+  - **Data Migration**: Migrated all user data from old buckets to new ones
+- **Infrastructure**: External AI Provider Support
+  - Created Terraform configuration for API key storage in SSM
+  - Added IAM policies for Lambda access to encrypted keys
+  - Deployed external AI provider modules to both Lambda functions
 
 ### 2025-07-24: Smart File Naming, Download Fix, Batch AI Summary, Model Selection & UI
 - **New Feature**: Smart File Naming with Duplicate Handling
@@ -73,6 +137,8 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
     - **Meta Llama**: 3.2 1B/3B, 3 8B
     - **Mistral**: 7B, Small
     - **DeepSeek**: R1 (Advanced Reasoning)
+    - **OpenAI** (Requires API Key): GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo
+    - **Google Gemini** (Requires API Key): Gemini 1.5 Pro, 1.5 Flash, 1.0 Pro
   - **UI Updates**: 
     - Model dropdown added to AI Summary modal
     - Model dropdown added to Batch AI Summary modal
@@ -236,6 +302,7 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 - `GET /user/files` - List user files
 - `GET/PUT /api/config` - Manage redaction rules
 - `GET/PUT /api/ai-config` - AI configuration (GET: all users, PUT: admin only)
+- `GET/PUT /api/external-ai-keys` - External AI API keys (GET: all users see status, PUT: admin only)
 - `POST /api/string/redact` - String.com API (Bearer auth)
 
 ## String.com API

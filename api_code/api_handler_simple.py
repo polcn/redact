@@ -13,6 +13,9 @@ from datetime import datetime
 import sys
 import importlib.util
 
+# Import external AI providers
+from external_ai_providers import get_external_ai_provider
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -181,6 +184,12 @@ def lambda_handler(event, context):
             
         elif path == '/api/ai-config' and method == 'PUT':
             return handle_update_ai_config(event, headers, user_context)
+            
+        elif path == '/api/external-ai-keys' and method == 'GET':
+            return handle_get_external_ai_keys(headers, user_context)
+            
+        elif path == '/api/external-ai-keys' and method == 'PUT':
+            return handle_update_external_ai_keys(event, headers, user_context)
             
         elif path.startswith('/documents/') and method == 'DELETE':
             return handle_document_delete(event, headers, context, user_context)
@@ -1655,7 +1664,16 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
             'mistral.mistral-7b-instruct-v0:2',
             'mistral.mistral-small-2402-v1:0',
             # DeepSeek models
-            'deepseek.r1-v1:0'
+            'deepseek.r1-v1:0',
+            # OpenAI models
+            'openai.gpt-4o',
+            'openai.gpt-4o-mini',
+            'openai.gpt-4-turbo',
+            'openai.gpt-3.5-turbo',
+            # Google Gemini models
+            'gemini.gemini-1.5-pro',
+            'gemini.gemini-1.5-flash',
+            'gemini.gemini-1.0-pro'
         ]
         
         if selected_model and selected_model in available_models:
@@ -1685,6 +1703,68 @@ Document content:
 
 Please provide a clear, well-structured summary."""
         
+        # Check if this is an external provider model
+        if model_id.startswith('openai.'):
+            # Use OpenAI provider
+            provider = get_external_ai_provider('openai')
+            if not provider:
+                raise ValueError("OpenAI provider not available. Please configure API key.")
+            
+            # Extract model name from model_id
+            model_name = model_id.replace('openai.', '')
+            summary, provider_metadata = provider.generate_summary(
+                text=text,
+                summary_type=summary_type,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                model=model_name
+            )
+            
+            # Create metadata
+            metadata = {
+                'model': model_id,
+                'summary_type': summary_type,
+                'generated_at': datetime.utcnow().isoformat(),
+                'user_role': user_role,
+                'max_tokens': str(max_tokens),
+                'temperature': str(temperature),
+                'provider': 'openai',
+                **provider_metadata
+            }
+            
+            return summary, metadata
+            
+        elif model_id.startswith('gemini.'):
+            # Use Gemini provider
+            provider = get_external_ai_provider('gemini')
+            if not provider:
+                raise ValueError("Gemini provider not available. Please configure API key.")
+            
+            # Extract model name from model_id
+            model_name = model_id.replace('gemini.', '')
+            summary, provider_metadata = provider.generate_summary(
+                text=text,
+                summary_type=summary_type,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                model=model_name
+            )
+            
+            # Create metadata
+            metadata = {
+                'model': model_id,
+                'summary_type': summary_type,
+                'generated_at': datetime.utcnow().isoformat(),
+                'user_role': user_role,
+                'max_tokens': str(max_tokens),
+                'temperature': str(temperature),
+                'provider': 'gemini',
+                **provider_metadata
+            }
+            
+            return summary, metadata
+        
+        # Otherwise, use Bedrock for AWS models
         # Prepare request for Bedrock
         bedrock = get_bedrock_client()
         
@@ -2154,4 +2234,131 @@ def handle_update_ai_config(event, headers, user_context):
             'statusCode': 500,
             'headers': headers,
             'body': json.dumps({'error': 'Failed to update AI configuration'})
+        }
+
+def handle_get_external_ai_keys(headers, user_context):
+    """Get external AI key status (doesn't return actual keys)"""
+    try:
+        # Check if keys are configured (without returning the actual keys)
+        key_status = {
+            'openai': {'configured': False, 'last_updated': None},
+            'gemini': {'configured': False, 'last_updated': None}
+        }
+        
+        # Check OpenAI key
+        try:
+            response = ssm.get_parameter(Name='/redact/api-keys/openai-api-key', WithDecryption=False)
+            key_status['openai']['configured'] = response['Parameter']['Value'] != 'placeholder-will-be-updated-manually'
+            key_status['openai']['last_updated'] = response['Parameter']['LastModifiedDate'].isoformat()
+        except ssm.exceptions.ParameterNotFound:
+            pass
+        except Exception as e:
+            logger.warning(f"Error checking OpenAI key: {str(e)}")
+        
+        # Check Gemini key
+        try:
+            response = ssm.get_parameter(Name='/redact/api-keys/gemini-api-key', WithDecryption=False)
+            key_status['gemini']['configured'] = response['Parameter']['Value'] != 'placeholder-will-be-updated-manually'
+            key_status['gemini']['last_updated'] = response['Parameter']['LastModifiedDate'].isoformat()
+        except ssm.exceptions.ParameterNotFound:
+            pass
+        except Exception as e:
+            logger.warning(f"Error checking Gemini key: {str(e)}")
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'key_status': key_status,
+                'user_role': user_context.get('role', 'user')
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting external AI key status: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to get API key status'})
+        }
+
+def handle_update_external_ai_keys(event, headers, user_context):
+    """Update external AI API keys (admin only)"""
+    if user_context.get('role') != 'admin':
+        return {
+            'statusCode': 403,
+            'headers': headers,
+            'body': json.dumps({'error': 'Admin access required to manage API keys'})
+        }
+    
+    try:
+        body = json.loads(event.get('body', '{}'))
+        updated_keys = []
+        
+        # Update OpenAI key if provided
+        if 'openai_key' in body and body['openai_key']:
+            try:
+                ssm.put_parameter(
+                    Name='/redact/api-keys/openai-api-key',
+                    Value=body['openai_key'],
+                    Type='SecureString',
+                    Overwrite=True
+                )
+                updated_keys.append('openai')
+                logger.info("OpenAI API key updated successfully")
+            except Exception as e:
+                logger.error(f"Error updating OpenAI key: {str(e)}")
+                return {
+                    'statusCode': 500,
+                    'headers': headers,
+                    'body': json.dumps({'error': f'Failed to update OpenAI key: {str(e)}'})
+                }
+        
+        # Update Gemini key if provided
+        if 'gemini_key' in body and body['gemini_key']:
+            try:
+                ssm.put_parameter(
+                    Name='/redact/api-keys/gemini-api-key',
+                    Value=body['gemini_key'],
+                    Type='SecureString',
+                    Overwrite=True
+                )
+                updated_keys.append('gemini')
+                logger.info("Gemini API key updated successfully")
+            except Exception as e:
+                logger.error(f"Error updating Gemini key: {str(e)}")
+                return {
+                    'statusCode': 500,
+                    'headers': headers,
+                    'body': json.dumps({'error': f'Failed to update Gemini key: {str(e)}'})
+                }
+        
+        if not updated_keys:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'No API keys provided to update'})
+            }
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'message': f'Successfully updated API keys: {", ".join(updated_keys)}',
+                'updated_keys': updated_keys
+            })
+        }
+        
+    except json.JSONDecodeError:
+        return {
+            'statusCode': 400,
+            'headers': headers,
+            'body': json.dumps({'error': 'Invalid JSON in request body'})
+        }
+    except Exception as e:
+        logger.error(f"Error updating external AI keys: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to update API keys'})
         }

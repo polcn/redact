@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfigEditor } from '../components/Config/ConfigEditor';
+import ExternalAIKeys from '../components/Config/ExternalAIKeys';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Config: React.FC = () => {
@@ -45,8 +46,9 @@ export const Config: React.FC = () => {
       </nav>
 
       <main className="container-anthropic" style={{ paddingTop: 'var(--space-3xl)', paddingBottom: 'var(--space-3xl)' }}>
-        <div className="fade-in">
+        <div className="fade-in space-y-8">
           <ConfigEditor />
+          <ExternalAIKeys />
         </div>
       </main>
     </div>

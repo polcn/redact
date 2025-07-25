@@ -148,4 +148,16 @@ export const updateAIConfig = async (config: any): Promise<any> => {
   return response.data;
 };
 
+// Get external AI key status
+export const getExternalAIKeys = async (): Promise<any> => {
+  const response = await api.get('/api/external-ai-keys');
+  return response.data;
+};
+
+// Update external AI keys (admin only)
+export const updateExternalAIKeys = async (keys: { openai_key?: string; gemini_key?: string }): Promise<any> => {
+  const response = await api.put('/api/external-ai-keys', keys);
+  return response.data;
+};
+
 export default api;
