@@ -1,0 +1,98 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "primaryColor": "#e67e22",
+    "primaryTextColor": "#fff",
+    "primaryBorderColor": "#2c3e50",
+    "lineColor": "#34495e",
+    "secondaryColor": "#3498db",
+    "tertiaryColor": "#27ae60",
+    "background": "#fff",
+    "mainBkg": "#3498db",
+    "secondBkg": "#e67e22",
+    "tertiaryBkg": "#27ae60",
+    "secondaryBorderColor": "#2c3e50",
+    "tertiaryBorderColor": "#2c3e50",
+    "textColor": "#2c3e50",
+    "clusterBkg": "#ecf0f1",
+    "clusterBorder": "#95a5a6",
+    "defaultLinkColor": "#7f8c8d",
+    "titleColor": "#2c3e50",
+    "edgeLabelBackground": "#f8f9fa"
+  }
+}}%%
+
+graph TB
+    %% User Interface Layer
+    subgraph "🌐 User Interface"
+        U[👤 User]
+        CF[☁️ CloudFront CDN<br/>EOG2DS78ES8MD]
+        WEB[🖥️ React App<br/>Responsive UI]
+    end
+
+    %% Authentication & API Layer
+    subgraph "🔐 Security & API"
+        COG[🛡️ AWS Cognito<br/>User Authentication]
+        API[🚪 API Gateway<br/>RESTful Endpoints]
+    end
+
+    %% Processing Layer
+    subgraph "⚙️ Processing Engine"
+        LAMBDA1[⚡ API Handler<br/>Request Processing]
+        LAMBDA2[🔄 Document Processor<br/>AI-Enhanced Redaction]
+        AI[🤖 AI Services<br/>Bedrock/OpenAI/Gemini]
+    end
+
+    %% Storage Layer
+    subgraph "💾 Storage"
+        S3_IN[📥 Input Bucket<br/>Original Files]
+        S3_OUT[📤 Processed Bucket<br/>Redacted Files]
+        S3_CONFIG[⚙️ Config Bucket<br/>User Settings]
+        SSM[🔑 Parameter Store<br/>API Keys & Config]
+    end
+
+    %% User Flow
+    U -->|HTTPS| CF
+    CF -->|Static Files| WEB
+    WEB -->|Auth| COG
+    WEB -->|API Calls| API
+
+    %% API Flow
+    COG -.->|Authorize| API
+    API -->|Invoke| LAMBDA1
+    LAMBDA1 -->|Upload| S3_IN
+    LAMBDA1 -->|Trigger| LAMBDA2
+    LAMBDA1 -->|Read/Write| S3_CONFIG
+
+    %% Processing Flow
+    LAMBDA2 -->|Read| S3_IN
+    LAMBDA2 -->|AI Summary| AI
+    AI -->|Enhanced Content| LAMBDA2
+    LAMBDA2 -->|Save| S3_OUT
+    LAMBDA2 -->|Get Keys| SSM
+
+    %% Configuration Flow
+    LAMBDA1 -->|API Keys| SSM
+    LAMBDA2 -->|Settings| S3_CONFIG
+
+    %% Styling
+    classDef userLayer fill:#3498db,stroke:#2980b9,stroke-width:3px,color:#fff
+    classDef authLayer fill:#e74c3c,stroke:#c0392b,stroke-width:3px,color:#fff
+    classDef processLayer fill:#f39c12,stroke:#d68910,stroke-width:3px,color:#fff
+    classDef storageLayer fill:#27ae60,stroke:#229954,stroke-width:3px,color:#fff
+    classDef aiLayer fill:#9b59b6,stroke:#7d3c98,stroke-width:3px,color:#fff
+
+    class U,CF,WEB userLayer
+    class COG,API authLayer
+    class LAMBDA1,LAMBDA2 processLayer
+    class S3_IN,S3_OUT,S3_CONFIG,SSM storageLayer
+    class AI aiLayer
+
+    %% Annotations
+    API -.- APINOTE[📊 10K req/month<br/>Rate Limited]
+    AI -.- AINOTE[🎯 Multiple Models<br/>Claude, GPT, Gemini]
+    S3_OUT -.- S3NOTE[🔒 User Isolated<br/>Secure Storage]
+
+    style APINOTE fill:#ecf0f1,stroke:#bdc3c7,stroke-dasharray: 5 5
+    style AINOTE fill:#ecf0f1,stroke:#bdc3c7,stroke-dasharray: 5 5
+    style S3NOTE fill:#ecf0f1,stroke:#bdc3c7,stroke-dasharray: 5 5

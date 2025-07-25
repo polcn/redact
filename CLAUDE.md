@@ -38,6 +38,8 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 ```
 
 ## Known Issues
+- **Failed to load settings**: Settings may fail to load on initial page visit
+- **No file history**: File list shows "No file history found" despite files existing in S3
 
 
 ## External AI Provider Setup
