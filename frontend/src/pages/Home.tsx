@@ -62,6 +62,17 @@ export const Home: React.FC = () => {
                 >
                   Upload Documents →
                 </button>
+                <button
+                  onClick={() => navigate('/quarantine')}
+                  className="btn-anthropic"
+                  style={{ 
+                    backgroundColor: 'var(--accent-orange)', 
+                    color: 'white',
+                    padding: 'var(--space-md) var(--space-xl)'
+                  }}
+                >
+                  View Quarantine →
+                </button>
               </div>
             </div>
           </div>

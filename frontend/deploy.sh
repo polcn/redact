@@ -8,8 +8,9 @@ echo "Building React app..."
 npm run build
 
 echo "Getting CloudFront distribution ID and S3 bucket..."
-BUCKET_NAME=$(cd .. && terraform output -raw frontend_bucket_name 2>/dev/null || echo "")
-DISTRIBUTION_ID=$(cd .. && terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
+# Frontend is managed outside of terraform, using hardcoded values
+BUCKET_NAME="redact-frontend-9thcube-12476920"
+DISTRIBUTION_ID="EOG2DS78ES8MD"
 
 if [ -z "$BUCKET_NAME" ]; then
     echo "Error: Could not get S3 bucket name from Terraform outputs"

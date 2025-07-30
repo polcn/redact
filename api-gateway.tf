@@ -134,6 +134,34 @@ resource "aws_api_gateway_resource" "documents_id" {
   path_part   = "{id}"
 }
 
+# API Gateway Resource - /quarantine
+resource "aws_api_gateway_resource" "quarantine" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_rest_api.redact_api.root_resource_id
+  path_part   = "quarantine"
+}
+
+# API Gateway Resource - /quarantine/files
+resource "aws_api_gateway_resource" "quarantine_files" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.quarantine.id
+  path_part   = "files"
+}
+
+# API Gateway Resource - /quarantine/delete-all
+resource "aws_api_gateway_resource" "quarantine_delete_all" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.quarantine.id
+  path_part   = "delete-all"
+}
+
+# API Gateway Resource - /quarantine/{id} for DELETE
+resource "aws_api_gateway_resource" "quarantine_id" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  parent_id   = aws_api_gateway_resource.quarantine.id
+  path_part   = "{id}"
+}
+
 # POST /documents/upload - Upload document for redaction
 resource "aws_api_gateway_method" "upload_post" {
   rest_api_id   = aws_api_gateway_rest_api.redact_api.id
@@ -299,6 +327,37 @@ resource "aws_api_gateway_method" "documents_ai_summary_post" {
   request_parameters = {
     "method.request.header.Content-Type" = true
   }
+}
+
+# GET /quarantine/files - List quarantine files
+resource "aws_api_gateway_method" "quarantine_files_get" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.quarantine_files.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+}
+
+# DELETE /quarantine/{id} - Delete specific quarantine file
+resource "aws_api_gateway_method" "quarantine_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.quarantine_id.id
+  http_method   = "DELETE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
+
+  request_parameters = {
+    "method.request.path.id" = true
+  }
+}
+
+# POST /quarantine/delete-all - Delete all quarantine files
+resource "aws_api_gateway_method" "quarantine_delete_all_post" {
+  rest_api_id   = aws_api_gateway_rest_api.redact_api.id
+  resource_id   = aws_api_gateway_resource.quarantine_delete_all.id
+  http_method   = "POST"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito_authorizer.id
 }
 
 # Lambda function for API Gateway integration
@@ -564,6 +623,37 @@ resource "aws_api_gateway_integration" "documents_ai_summary_integration" {
   uri                     = aws_lambda_function.api_handler.invoke_arn
 }
 
+# Quarantine integrations
+resource "aws_api_gateway_integration" "quarantine_files_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.quarantine_files.id
+  http_method = aws_api_gateway_method.quarantine_files_get.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "quarantine_delete_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.quarantine_id.id
+  http_method = aws_api_gateway_method.quarantine_delete.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
+}
+
+resource "aws_api_gateway_integration" "quarantine_delete_all_integration" {
+  rest_api_id = aws_api_gateway_rest_api.redact_api.id
+  resource_id = aws_api_gateway_resource.quarantine_delete_all.id
+  http_method = aws_api_gateway_method.quarantine_delete_all_post.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.api_handler.invoke_arn
+}
+
 # Lambda permissions for API Gateway
 resource "aws_lambda_permission" "api_gateway_invoke" {
   statement_id  = "AllowExecutionFromAPIGateway"
@@ -586,12 +676,18 @@ resource "aws_api_gateway_deployment" "redact_api_deployment" {
     aws_api_gateway_integration.api_ai_config_get_integration,
     aws_api_gateway_integration.api_ai_config_put_integration,
     aws_api_gateway_integration.documents_ai_summary_integration,
+    aws_api_gateway_integration.quarantine_files_integration,
+    aws_api_gateway_integration.quarantine_delete_integration,
+    aws_api_gateway_integration.quarantine_delete_all_integration,
     # CORS integrations
     aws_api_gateway_integration_response.upload_options_integration_response,
     aws_api_gateway_integration_response.status_id_options_integration_response,
     aws_api_gateway_integration_response.user_files_options_integration_response,
     aws_api_gateway_integration_response.api_config_options_integration_response,
     aws_api_gateway_integration_response.documents_id_options_integration_response,
+    aws_api_gateway_integration_response.quarantine_files_options_integration_response,
+    aws_api_gateway_integration_response.quarantine_id_options_integration_response,
+    aws_api_gateway_integration_response.quarantine_delete_all_options_integration_response,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.redact_api.id

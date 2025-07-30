@@ -1210,9 +1210,9 @@ def process_xlsx_file(bucket, key, config, user_info=None):
         # Apply redaction rules
         processed_text, redacted = apply_redaction_rules(full_text, config)
         
-        # Save as CSV file
+        # Save as markdown file (content is markdown formatted, not CSV)
         file_path = user_info['file_path'] if user_info else key
-        text_key = file_path.rsplit('.', 1)[0] + '.csv'
+        text_key = file_path.rsplit('.', 1)[0] + '.md'
         
         # Update user_info with the new filename for proper handling
         if user_info:

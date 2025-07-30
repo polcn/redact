@@ -150,6 +150,18 @@ curl -X POST https://101pi5aiv5.execute-api.us-east-1.amazonaws.com/production/d
 - **Admin Controls**: Change default model via `/api/ai-config` endpoint
 - **Cost**: Pay-per-use based on AWS Bedrock pricing
 
+### Quarantine File Management
+- **Purpose**: Manage files that failed processing due to security or format issues
+- **Features**:
+  - View all quarantined files with reasons
+  - Delete individual files or all files at once
+  - User-isolated (users only see their own files)
+- **Access**: Click "View Quarantine" button on home page
+- **API Endpoints**:
+  - `GET /quarantine/files` - List user's quarantine files
+  - `DELETE /quarantine/{id}` - Delete specific file
+  - `POST /quarantine/delete-all` - Delete all user's quarantine files
+
 ## Troubleshooting
 ```bash
 # CloudFront cache

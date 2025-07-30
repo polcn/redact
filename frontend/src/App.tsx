@@ -6,6 +6,7 @@ import { PrivateRoute } from './components/Auth/PrivateRoute';
 import { Dashboard } from './pages/Dashboard';
 import { Config } from './pages/Config';
 import { Home } from './pages/Home';
+import { Quarantine } from './pages/Quarantine';
 import './aws-config';
 import './anthropic-theme.css';
 
@@ -36,6 +37,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Config />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/quarantine"
+            element={
+              <PrivateRoute>
+                <Quarantine />
               </PrivateRoute>
             }
           />

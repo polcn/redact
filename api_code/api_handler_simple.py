@@ -147,6 +147,19 @@ def lambda_handler(event, context):
             logger.info(f"Handling AI summary request for path: {path}")
             return handle_ai_summary(event, headers, context, user_context)
             
+        # Quarantine file management
+        elif path == '/quarantine/files' and method == 'GET':
+            logger.info(f"Handling list quarantine files request for path: {path}")
+            return handle_list_quarantine_files(event, headers, context, user_context)
+            
+        elif path.startswith('/quarantine/') and method == 'DELETE':
+            logger.info(f"Handling delete quarantine file request for path: {path}")
+            return handle_delete_quarantine_file(event, headers, context, user_context)
+            
+        elif path == '/quarantine/delete-all' and method == 'POST':
+            logger.info(f"Handling delete all quarantine files request for path: {path}")
+            return handle_delete_all_quarantine_files(event, headers, context, user_context)
+            
         # Test redaction endpoint
         elif path == '/api/test-redaction' and method == 'POST':
             return handle_test_redaction(event, headers, context, user_context)
@@ -1996,4 +2009,173 @@ def handle_update_ai_config(event, headers, user_context):
             'statusCode': 500,
             'headers': headers,
             'body': json.dumps({'error': 'Failed to update AI configuration'})
+        }
+
+def handle_list_quarantine_files(event, headers, context, user_context):
+    """Handle GET /quarantine/files endpoint to list user's quarantined files"""
+    try:
+        user_id = user_context.get('user_id', 'anonymous')
+        
+        # List objects in the quarantine bucket for this user
+        prefix = f'quarantine/users/{user_id}/'
+        
+        response = s3.list_objects_v2(
+            Bucket=QUARANTINE_BUCKET,
+            Prefix=prefix,
+            MaxKeys=1000
+        )
+        
+        files = []
+        if 'Contents' in response:
+            for obj in response['Contents']:
+                # Skip the directory itself
+                if obj['Key'] == prefix:
+                    continue
+                    
+                # Extract filename from the key
+                filename = obj['Key'].replace(prefix, '')
+                
+                # Get object metadata to find the quarantine reason
+                try:
+                    metadata_response = s3.head_object(
+                        Bucket=QUARANTINE_BUCKET,
+                        Key=obj['Key']
+                    )
+                    quarantine_reason = metadata_response.get('Metadata', {}).get('quarantine-reason', 'Unknown')
+                    original_filename = metadata_response.get('Metadata', {}).get('original-filename', filename)
+                except Exception as e:
+                    logger.error(f"Error getting metadata for {obj['Key']}: {str(e)}")
+                    quarantine_reason = 'Unknown'
+                    original_filename = filename
+                
+                files.append({
+                    'id': obj['Key'],
+                    'filename': original_filename,
+                    'quarantine_filename': filename,
+                    'size': obj['Size'],
+                    'last_modified': obj['LastModified'].isoformat(),
+                    'quarantine_reason': quarantine_reason
+                })
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'files': files,
+                'count': len(files)
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing quarantine files: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to list quarantine files'})
+        }
+
+def handle_delete_quarantine_file(event, headers, context, user_context):
+    """Handle DELETE /quarantine/{id} endpoint to delete a specific quarantined file"""
+    try:
+        user_id = user_context.get('user_id', 'anonymous')
+        path = event.get('path', '')
+        
+        # Extract file ID from path
+        if path.startswith('/quarantine/'):
+            file_id = path[12:]  # Remove '/quarantine/' prefix
+            file_id = unquote_plus(file_id)
+        else:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid path'})
+            }
+        
+        # Validate that the file belongs to the user
+        expected_prefix = f'quarantine/users/{user_id}/'
+        if not file_id.startswith(expected_prefix):
+            logger.warning(f"Unauthorized delete attempt by user {user_id} for file {file_id}")
+            return {
+                'statusCode': 403,
+                'headers': headers,
+                'body': json.dumps({'error': 'Forbidden'})
+            }
+        
+        # Delete the file
+        s3.delete_object(
+            Bucket=QUARANTINE_BUCKET,
+            Key=file_id
+        )
+        
+        logger.info(f"Deleted quarantine file: {file_id} for user: {user_id}")
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'message': 'File deleted successfully',
+                'file_id': file_id
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error deleting quarantine file: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to delete file'})
+        }
+
+def handle_delete_all_quarantine_files(event, headers, context, user_context):
+    """Handle POST /quarantine/delete-all endpoint to delete all quarantined files for a user"""
+    try:
+        user_id = user_context.get('user_id', 'anonymous')
+        
+        # List all files for the user
+        prefix = f'quarantine/users/{user_id}/'
+        
+        # Use paginator for large number of files
+        paginator = s3.get_paginator('list_objects_v2')
+        page_iterator = paginator.paginate(
+            Bucket=QUARANTINE_BUCKET,
+            Prefix=prefix
+        )
+        
+        deleted_count = 0
+        for page in page_iterator:
+            if 'Contents' in page:
+                # Prepare delete batch
+                objects_to_delete = []
+                for obj in page['Contents']:
+                    if obj['Key'] != prefix:  # Skip directory
+                        objects_to_delete.append({'Key': obj['Key']})
+                
+                # Delete in batches of up to 1000 objects
+                if objects_to_delete:
+                    response = s3.delete_objects(
+                        Bucket=QUARANTINE_BUCKET,
+                        Delete={
+                            'Objects': objects_to_delete,
+                            'Quiet': True
+                        }
+                    )
+                    deleted_count += len(objects_to_delete)
+        
+        logger.info(f"Deleted {deleted_count} quarantine files for user: {user_id}")
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'message': f'Deleted {deleted_count} quarantine files',
+                'deleted_count': deleted_count
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error deleting all quarantine files: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to delete quarantine files'})
         }
