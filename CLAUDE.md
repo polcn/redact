@@ -37,6 +37,36 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 }
 ```
 
+## Quarantine File Management
+
+### Overview
+- **Purpose**: Allow users to view and manage files that failed processing
+- **Location**: Accessible via "View Quarantine" button on home page
+- **User Isolation**: Each user can only see/manage their own quarantined files
+
+### Features
+- **List Files**: View all quarantined files with:
+  - Original filename
+  - Quarantine reason
+  - File size
+  - Quarantine date/time
+- **Delete Individual**: Remove specific files with confirmation
+- **Delete All**: Bulk delete all quarantine files with confirmation
+- **Visual Indicators**: Icons show quarantine reason type (security, format, etc.)
+
+### Implementation Details
+- **Frontend**: 
+  - `/src/components/Quarantine/QuarantineList.tsx` - Main component
+  - `/src/pages/Quarantine.tsx` - Page wrapper
+  - Route: `/quarantine`
+- **Backend**:
+  - Handlers in `api_handler_simple.py`:
+    - `handle_list_quarantine_files()` - GET /quarantine/files
+    - `handle_delete_quarantine_file()` - DELETE /quarantine/{id}
+    - `handle_delete_all_quarantine_files()` - POST /quarantine/delete-all
+- **S3 Structure**: `quarantine/users/{user_id}/{filename}`
+- **Metadata**: Files include `quarantine-reason` and `original-filename` in S3 metadata
+
 ## Known Issues
 
 ### AI Summary & Combined Documents Browser Behavior
@@ -50,6 +80,20 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 - **Status**: To be fixed
 
 ## Recent Updates
+
+### 2025-07-30: Quarantine File Management
+- **New Feature**: Interface for viewing and managing quarantined files
+  - **Purpose**: Allow users to manage files that failed processing due to security or format issues
+  - **UI**: New "View Quarantine" button on home page leads to quarantine management interface
+  - **Features**: 
+    - List all quarantined files with reason, size, and date
+    - Delete individual files with confirmation
+    - Delete all files at once with confirmation
+    - Visual indicators for different quarantine reasons
+  - **Security**: Users can only see and manage their own quarantined files
+  - **API Endpoints**: Added `/quarantine/files` (GET), `/quarantine/{id}` (DELETE), `/quarantine/delete-all` (POST)
+  - **Implementation**: Frontend components in React, backend handlers in API Lambda
+  - **Status**: ✅ Deployed to production
 
 ### 2025-07-23: AI Summary Feature & Metadata Fix
 - **Fixed**: AI summary was failing with "Failed to save AI document" error
@@ -196,6 +240,9 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 - `GET/PUT /api/config` - Manage redaction rules
 - `GET/PUT /api/ai-config` - AI configuration (GET: all users, PUT: admin only)
 - `POST /api/string/redact` - String.com API (Bearer auth)
+- `GET /quarantine/files` - List user's quarantine files
+- `DELETE /quarantine/{id}` - Delete specific quarantine file
+- `POST /quarantine/delete-all` - Delete all quarantine files for user
 
 ## String.com API
 ```bash
