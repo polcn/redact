@@ -231,6 +231,26 @@ a:focus-visible {
   align-items: center;
 }
 
+/* Navigation Links */
+.nav-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background-color: var(--background-secondary);
+}
+
+.nav-link-active {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
 /* Container */
 .container-anthropic {
   width: 100%;
