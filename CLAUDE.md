@@ -79,6 +79,44 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 - **Workaround**: Users can right-click and "Save As" or use browser's save function
 - **Status**: To be fixed
 
+## Planned Updates
+
+### 2025-07-31: UI/UX Navigation Improvements (Planned)
+- **Issue**: Current navigation is inconsistent and quarantine button placement is odd
+- **Analysis Completed**: 
+  - Quarantine button has too much prominence in hero section
+  - No persistent navigation across pages
+  - Configuration embedded in home page creates confusing user flow
+  - Missing global navigation for quick section jumping
+- **Proposed Changes**:
+  1. **Consistent Navigation Bar**:
+     - Persistent nav with Logo, Documents, Configuration
+     - User dropdown menu with Profile, Quarantine, Sign Out
+     - Active page highlighting
+  2. **Restructured Home Page**:
+     - Remove inline ConfigEditor
+     - Clear landing page with single CTA
+     - Add "How it Works" section
+  3. **Consolidated Documents Page**:
+     - Merge upload and file list
+     - Add filters for file status
+     - Better empty states
+  4. **Quarantine Relocation**:
+     - Move from hero to user dropdown
+     - Add badge counter for pending items
+     - Less prominent but accessible
+- **Information Architecture**:
+  - `/` - Landing page (marketing/info)
+  - `/documents` - Main app (upload + file management)
+  - `/config` - Configuration settings  
+  - `/quarantine` - Via user menu dropdown
+- **Implementation Plan**:
+  1. Create shared Navigation component
+  2. Simplify Home page
+  3. Enhance Documents page
+  4. Update routing structure
+- **Status**: Planning complete, awaiting implementation
+
 ## Recent Updates
 
 ### 2025-07-30: Quarantine File Management
