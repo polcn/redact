@@ -41,7 +41,7 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ### Overview
 - **Purpose**: Allow users to view and manage files that failed processing
-- **Location**: Accessible via "View Quarantine" button on home page
+- **Location**: Accessible via user dropdown menu in navigation bar
 - **User Isolation**: Each user can only see/manage their own quarantined files
 
 ### Features
@@ -81,43 +81,40 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Planned Updates
 
-### 2025-07-31: UI/UX Navigation Improvements (Planned)
-- **Issue**: Current navigation is inconsistent and quarantine button placement is odd
-- **Analysis Completed**: 
-  - Quarantine button has too much prominence in hero section
-  - No persistent navigation across pages
-  - Configuration embedded in home page creates confusing user flow
-  - Missing global navigation for quick section jumping
-- **Proposed Changes**:
-  1. **Consistent Navigation Bar**:
-     - Persistent nav with Logo, Documents, Configuration
-     - User dropdown menu with Profile, Quarantine, Sign Out
-     - Active page highlighting
-  2. **Restructured Home Page**:
-     - Remove inline ConfigEditor
-     - Clear landing page with single CTA
-     - Add "How it Works" section
-  3. **Consolidated Documents Page**:
-     - Merge upload and file list
-     - Add filters for file status
-     - Better empty states
-  4. **Quarantine Relocation**:
-     - Move from hero to user dropdown
-     - Add badge counter for pending items
-     - Less prominent but accessible
-- **Information Architecture**:
-  - `/` - Landing page (marketing/info)
-  - `/documents` - Main app (upload + file management)
-  - `/config` - Configuration settings  
-  - `/quarantine` - Via user menu dropdown
-- **Implementation Plan**:
-  1. Create shared Navigation component
-  2. Simplify Home page
-  3. Enhance Documents page
-  4. Update routing structure
-- **Status**: Planning complete, awaiting implementation
-
 ## Recent Updates
+
+### 2025-07-31: UI/UX Navigation Improvements
+- **Issue**: Current navigation was inconsistent and quarantine button placement was odd
+- **Implementation Completed**: 
+  - Created persistent navigation bar across all pages
+  - Moved quarantine from prominent hero button to user dropdown menu
+  - Removed configuration from home page into dedicated page
+  - Consolidated document upload and file list into single Documents page
+- **Changes Made**:
+  1. **Navigation Component** (`/src/components/Navigation/Navigation.tsx`):
+     - Persistent nav with Logo, Documents, Configuration links
+     - User dropdown menu with Quarantine and Sign Out
+     - Active page highlighting with visual indicators
+  2. **Restructured Home Page**:
+     - Removed inline ConfigEditor
+     - Clean landing page with single "Get Started" CTA
+     - Added "How It Works" section with numbered steps
+     - CTA buttons now route to Configuration first
+  3. **Consolidated Documents Page** (`/src/pages/Documents.tsx`):
+     - Merged upload and file list functionality
+     - Upload section in card layout
+     - File list below for better organization
+  4. **Updated Information Architecture**:
+     - `/` - Landing page (marketing/info)
+     - `/config` - Configuration settings (first step in user flow)
+     - `/documents` - Main app (upload + file management)
+     - `/quarantine` - Via user dropdown menu
+     - Old `/dashboard` route redirects to `/documents`
+  5. **User Flow**:
+     - Home → Configuration → Documents
+     - "Proceed to Documents" button added to Config page
+- **Status**: ✅ Deployed to production
+- **Still Needs Work**: Further UI refinements and user experience improvements planned
 
 ### 2025-07-30: Quarantine File Management
 - **New Feature**: Interface for viewing and managing quarantined files

@@ -1,42 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ConfigEditor } from '../components/Config/ConfigEditor';
-import { useAuth } from '../contexts/AuthContext';
+import { Navigation } from '../components/Navigation/Navigation';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-secondary">
-      <nav className="nav-anthropic">
-        <div className="container-anthropic">
-          <div className="flex justify-between">
-            <div className="flex items-center">
-              <h1 className="text-primary" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 500 }}>
-                Document Redaction System
-              </h1>
-            </div>
-            <div className="flex items-center gap-md">
-              <button
-                onClick={handleSignOut}
-                className="btn-anthropic btn-anthropic-secondary"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation />
 
       <main>
         {/* Hero Section */}
@@ -50,47 +21,47 @@ export const Home: React.FC = () => {
                 Automatically remove sensitive information from your documents with configurable rules. 
                 Supporting PDF, DOCX, XLSX, and TXT formats.
               </p>
-              <div className="flex justify-center gap-md">
-                <button
-                  onClick={() => navigate('/dashboard')}
-                  className="btn-anthropic"
-                  style={{ 
-                    backgroundColor: 'white', 
-                    color: 'var(--color-primary)',
-                    padding: 'var(--space-md) var(--space-xl)'
-                  }}
-                >
-                  Upload Documents →
-                </button>
-                <button
-                  onClick={() => navigate('/quarantine')}
-                  className="btn-anthropic"
-                  style={{ 
-                    backgroundColor: 'var(--accent-orange)', 
-                    color: 'white',
-                    padding: 'var(--space-md) var(--space-xl)'
-                  }}
-                >
-                  View Quarantine →
-                </button>
-              </div>
+              <button
+                onClick={() => navigate('/config')}
+                className="btn-anthropic"
+                style={{ 
+                  backgroundColor: 'white', 
+                  color: 'var(--color-primary)',
+                  padding: 'var(--space-md) var(--space-xl)'
+                }}
+              >
+                Get Started →
+              </button>
             </div>
           </div>
         </section>
 
-        {/* Configuration Section */}
+        {/* How It Works Section */}
         <section className="container-anthropic" style={{ paddingTop: 'var(--space-2xl)', paddingBottom: 'var(--space-3xl)' }}>
           <div className="fade-in">
             <div className="text-center" style={{ marginBottom: 'var(--space-2xl)' }}>
               <h3 style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--space-md)' }}>
-                Configure Your Redaction Rules
+                How It Works
               </h3>
-              <p className="text-secondary" style={{ fontSize: 'var(--font-size-md)' }}>
-                Set up your redaction patterns before uploading documents
-              </p>
             </div>
             
-            <ConfigEditor />
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--space-xl)' }}>
+              <div className="text-center">
+                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-md)' }}>1️⃣</div>
+                <h4 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-sm)' }}>Configure Rules</h4>
+                <p className="text-secondary">Set up your redaction patterns and replacements</p>
+              </div>
+              <div className="text-center">
+                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-md)' }}>2️⃣</div>
+                <h4 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-sm)' }}>Upload Documents</h4>
+                <p className="text-secondary">Upload PDFs, DOCX, XLSX, or TXT files</p>
+              </div>
+              <div className="text-center">
+                <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-md)' }}>3️⃣</div>
+                <h4 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-sm)' }}>Download Results</h4>
+                <p className="text-secondary">Get your redacted documents instantly</p>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -142,14 +113,14 @@ export const Home: React.FC = () => {
                 Ready to Get Started?
               </h3>
               <p className="text-secondary" style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-xl)' }}>
-                Configure your rules above, then upload your documents for redaction.
+                Start redacting sensitive information from your documents in seconds.
               </p>
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/config')}
                 className="btn-anthropic btn-anthropic-primary"
                 style={{ padding: 'var(--space-md) var(--space-xl)' }}
               >
-                Go to Document Upload →
+                Start Now →
               </button>
             </div>
           </div>

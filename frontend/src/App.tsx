@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { Login } from './components/Auth/Login';
 import { PrivateRoute } from './components/Auth/PrivateRoute';
-import { Dashboard } from './pages/Dashboard';
+import { Documents } from './pages/Documents';
 import { Config } from './pages/Config';
 import { Home } from './pages/Home';
 import { Quarantine } from './pages/Quarantine';
@@ -28,7 +28,15 @@ function App() {
             path="/dashboard"
             element={
               <PrivateRoute>
-                <Dashboard />
+                <Navigate to="/documents" replace />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/documents"
+            element={
+              <PrivateRoute>
+                <Documents />
               </PrivateRoute>
             }
           />
