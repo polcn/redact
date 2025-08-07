@@ -92,6 +92,7 @@ Use these agents for targeted assistance with specific aspects of the codebase:
 - **`aws-infrastructure-expert`**: Lambda optimization, API Gateway, S3, CloudFront, Terraform
 - **`cost-optimizer`**: AWS cost analysis, resource right-sizing, savings recommendations
 - **`devops-automation`**: CI/CD pipelines, GitHub Actions, deployment automation
+- **`bedrock-ai-specialist`**: AWS Bedrock integration, AI model configuration, prompt engineering
 
 ### Application Development
 - **`python-lambda-specialist`**: Lambda functions, document processing, PII detection
@@ -99,3 +100,9 @@ Use these agents for targeted assistance with specific aspects of the codebase:
 
 **Usage**: When working on specific areas, invoke the relevant agent for expert guidance.
 Example: Use `security-auditor` before deployments, `cost-optimizer` for monthly reviews.
+
+## Code Review Findings (2025-08-07)
+See `CODE_REVIEW_FINDINGS.md` for comprehensive security audit results including:
+- 4 critical security vulnerabilities requiring immediate fixes
+- High priority performance and architectural improvements
+- Detailed remediation code examples and action plan
