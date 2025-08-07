@@ -113,7 +113,11 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({ file, onDelete, o
               onClick={(e) => {
                 e.preventDefault();
                 const link = document.createElement('a');
-                link.href = file.download_url!;
+                // Add disposition parameter to force download
+                const downloadUrl = file.download_url!.includes('?') 
+                  ? `${file.download_url}&response-content-disposition=attachment%3B%20filename%3D%22${encodeURIComponent(file.filename)}%22`
+                  : `${file.download_url}?response-content-disposition=attachment%3B%20filename%3D%22${encodeURIComponent(file.filename)}%22`;
+                link.href = downloadUrl;
                 link.download = file.filename;
                 link.style.display = 'none';
                 document.body.appendChild(link);

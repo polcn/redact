@@ -69,19 +69,44 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Known Issues
 
-### AI Summary & Combined Documents Browser Behavior
-- **Issue**: When generating an AI summary or combining documents, the new document opens directly in the browser instead of downloading
+### AI Summary Browser Behavior
+- **Issue**: When AI summary generation completes, the new file opens in the browser instead of just appearing in the file list
 - **Current Behavior**: 
-  - AI Summary creates a new file with "_AI" suffix and displays it in the browser
-  - Combined documents also display in the browser instead of downloading
-  - Download button on these files also opens them in the browser
-- **Expected Behavior**: Files should download to the user's computer
-- **Workaround**: Users can right-click and "Save As" or use browser's save function
-- **Status**: To be fixed
+  - AI Summary file IS created in S3 successfully
+  - File DOES appear in the file list after refresh
+  - But the file also opens/displays in the browser window, taking user away from the documents page
+- **Root Cause**: Complex interaction between:
+  - S3 presigned URLs
+  - Browser behavior with text/plain content
+  - React component state management
+  - Possible browser caching of redirect responses
+- **Attempted Fixes**:
+  - Removed auto-download behavior from frontend
+  - Removed Content-Disposition headers from view URLs
+  - Added success message instead of download
+- **Status**: Partially fixed - file is created correctly but still opens in browser
+- **Workaround**: Use browser back button to return to documents page after AI summary opens
 
 ## Planned Updates
 
 ## Recent Updates
+
+### 2025-08-07: Fixed Download & AI Summary Issues
+- **Fixed**: AI summary was failing with model identifier and encoding errors
+  - Updated model IDs to include version suffixes (e.g., `anthropic.claude-3-haiku-20240307-v1:0`)
+  - Fixed IAM permissions for Bedrock InvokeModel
+  - Added proper string conversion for all metadata values before S3 upload
+  - Added error handling for content concatenation
+- **Fixed**: Documents were opening in browser instead of downloading
+  - Added `ResponseContentDisposition: attachment` parameter to all presigned URLs
+  - Now forces browser to download files instead of displaying them
+  - Applies to: individual file downloads, batch ZIP downloads, combined documents
+- **Fixed**: AI summary UX improvements
+  - Removed auto-download of AI summary files after generation
+  - AI summary files now appear in the file list immediately after generation
+  - Added success message to inform users when AI summary is complete
+  - Users can download AI summary files using the regular download button
+- **Status**: ✅ Deployed to production and tested
 
 ### 2025-07-31: UI/UX Navigation Improvements
 - **Issue**: Current navigation was inconsistent and quarantine button placement was odd
