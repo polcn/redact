@@ -11,6 +11,32 @@ A serverless document redaction system that automatically removes sensitive info
 - **File Management**: Combine files, batch download, quarantine handling
 - **User Isolation**: Secure, isolated storage per user
 
+## Recent Updates
+
+**2025-08-07**
+- Added 9 specialized AI agents for enhanced development support
+- Implemented comprehensive agent documentation in CLAUDE.md
+- Security improvements and exposed API key removal from git history
+- Fixed AI summary browser navigation and metadata encoding issues
+- Enhanced download behavior with proper Content-Disposition headers
+
+**2025-07-22**
+- Enhanced document combination with LLM-optimized delineation
+- Added table of contents with document listing
+- Clear document headers with source paths for citation
+- Structured separators for vector DB indexing
+- Automatic datetime naming: filename_YYYYMMDD_HHMMSS.ext
+- Fixed combine files feature - now properly handles URL-encoded document IDs
+
+**2025-07-18**
+- Added .md (Markdown) file support and file combination feature
+
+**2025-07-13**
+- Fixed file deletion (403 errors) and batch download (404 errors)
+
+**2025-07-12**
+- Removed legacy .doc support, improved error handling
+
 ## Quick Start
 
 ### Prerequisites
