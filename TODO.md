@@ -52,7 +52,7 @@
    - Root causes fixed:
      - Added SSM permissions to API Lambda IAM role
      - Updated Lambda environment variable STAGE from "production" to "prod"
-   - API key: `REMOVED`
+   - API key: `[REMOVED - KEY WAS EXPOSED]`
    - Endpoint now working successfully with content-based redaction rules
 
 ### 📋 Remaining Tasks
