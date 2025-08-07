@@ -77,3 +77,25 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
 - Cognito JWT required for all API calls
 - API rate limiting: 10,000 req/month, 100 req/sec
 - Never commit API keys or secrets to repository
+
+## Specialized AI Agents
+Use these agents for targeted assistance with specific aspects of the codebase:
+
+### Code Quality & Review
+- **`code-reviewer`**: Code review, security checks, AWS best practices, performance optimization
+- **`testing-qa-specialist`**: Unit/integration/e2e testing, test coverage, mock strategies
+
+### Security & Compliance  
+- **`security-auditor`**: IAM policies, authentication, S3 isolation, vulnerability assessment
+
+### AWS & Infrastructure
+- **`aws-infrastructure-expert`**: Lambda optimization, API Gateway, S3, CloudFront, Terraform
+- **`cost-optimizer`**: AWS cost analysis, resource right-sizing, savings recommendations
+- **`devops-automation`**: CI/CD pipelines, GitHub Actions, deployment automation
+
+### Application Development
+- **`python-lambda-specialist`**: Lambda functions, document processing, PII detection
+- **`frontend-ux-specialist`**: React/TypeScript, AWS Amplify, accessibility, performance
+
+**Usage**: When working on specific areas, invoke the relevant agent for expert guidance.
+Example: Use `security-auditor` before deployments, `cost-optimizer` for monthly reviews.
