@@ -1914,6 +1914,7 @@ def handle_ai_summary(event, headers, context, user_context):
             }
         
         # Return success response
+        # Don't include download_url to avoid potential browser navigation issues
         return {
             'statusCode': 200,
             'headers': headers,
@@ -1922,7 +1923,7 @@ def handle_ai_summary(event, headers, context, user_context):
                 'message': 'AI summary added successfully',
                 'document_id': document_id,
                 'new_filename': result['filename'],
-                'download_url': result['download_url'],
+                # 'download_url': result['download_url'],  # Removed to prevent browser navigation
                 'summary_metadata': result['metadata']
             })
         }

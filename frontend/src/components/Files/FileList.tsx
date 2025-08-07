@@ -54,6 +54,9 @@ export const FileList: React.FC = () => {
       const { generateAISummary } = await import('../../services/api');
       const result = await generateAISummary(selectedFileForAI.id, selectedSummaryType);
       
+      // Log the result to debug
+      console.log('AI Summary Result:', result);
+      
       // Close modal and show success message
       setShowAISummaryModal(false);
       setSelectedFileForAI(null);
@@ -61,7 +64,8 @@ export const FileList: React.FC = () => {
       // Show success message
       alert(`AI summary generated successfully! File "${result.new_filename}" has been added to your documents.`);
       
-      // Refresh the file list to show the new AI-enhanced file
+      // Don't use the download_url from the result - it might cause navigation
+      // Just refresh the file list
       await loadFiles();
     } catch (err: any) {
       console.error('AI Summary Error:', err);

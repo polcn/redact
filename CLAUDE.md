@@ -69,27 +69,22 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
 
 ## Known Issues
 
-### AI Summary Browser Behavior
-- **Issue**: When AI summary generation completes, the new file opens in the browser instead of just appearing in the file list
-- **Current Behavior**: 
-  - AI Summary file IS created in S3 successfully
-  - File DOES appear in the file list after refresh
-  - But the file also opens/displays in the browser window, taking user away from the documents page
-- **Root Cause**: Complex interaction between:
-  - S3 presigned URLs
-  - Browser behavior with text/plain content
-  - React component state management
-  - Possible browser caching of redirect responses
-- **Attempted Fixes**:
-  - Removed auto-download behavior from frontend
-  - Removed Content-Disposition headers from view URLs
-  - Added success message instead of download
-- **Status**: Partially fixed - file is created correctly but still opens in browser
-- **Workaround**: Use browser back button to return to documents page after AI summary opens
+None currently - all previous issues have been resolved.
 
 ## Planned Updates
 
 ## Recent Updates
+
+### 2025-08-07: Security - Removed Exposed API Key
+- **Action Taken**: Deleted String.com API key from AWS Parameter Store
+- **Location**: `/redact/api-keys/string-prod` has been removed
+- **Reason**: API key was accidentally exposed in git history
+- **Impact**: String.com API endpoint will no longer work until a new key is configured
+- **Next Steps**: 
+  - Generate new API key if String.com functionality is needed
+  - Store new key securely in Parameter Store
+  - Never commit API keys to git repository
+- **Status**: ✅ Key removed from AWS
 
 ### 2025-08-07: Fixed Download & AI Summary Issues
 - **Fixed**: AI summary was failing with model identifier and encoding errors
@@ -101,11 +96,11 @@ React → Cognito → API Gateway → Lambda → S3 (User Isolated)
   - Added `ResponseContentDisposition: attachment` parameter to all presigned URLs
   - Now forces browser to download files instead of displaying them
   - Applies to: individual file downloads, batch ZIP downloads, combined documents
-- **Fixed**: AI summary UX improvements
-  - Removed auto-download of AI summary files after generation
-  - AI summary files now appear in the file list immediately after generation
-  - Added success message to inform users when AI summary is complete
-  - Users can download AI summary files using the regular download button
+- **Fixed**: AI summary browser navigation issue
+  - Removed `download_url` from AI summary API response to prevent browser navigation
+  - AI summary files now appear in the file list without opening in browser
+  - Added console logging for debugging
+  - Users stay on documents page after AI summary generation
 - **Status**: ✅ Deployed to production and tested
 
 ### 2025-07-31: UI/UX Navigation Improvements
