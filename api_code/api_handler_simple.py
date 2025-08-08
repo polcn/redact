@@ -403,28 +403,16 @@ def handle_document_upload(event, headers, context, user_context):
         # Generate unique key with user prefix
         user_prefix = get_user_s3_prefix(user_context['user_id'])
         
-        # Check for existing files and add version number if needed
-        base_key = f"{user_prefix}/{filename}"
-        s3_key = base_key
+        # Generate unique filename using timestamp to avoid collision checks
+        from datetime import datetime
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         
-        # Check if file exists and find next available version
-        version = 1
-        while True:
-            try:
-                s3.head_object(Bucket=INPUT_BUCKET, Key=s3_key)
-                # File exists, try next version
-                if '.' in filename:
-                    name, ext = filename.rsplit('.', 1)
-                    s3_key = f"{user_prefix}/{name} ({version}).{ext}"
-                else:
-                    s3_key = f"{user_prefix}/{filename} ({version})"
-                version += 1
-            except ClientError as e:
-                if e.response['Error']['Code'] == '404':
-                    # File doesn't exist, we can use this key
-                    break
-                else:
-                    raise
+        # Add timestamp to filename to ensure uniqueness
+        if '.' in filename:
+            name, ext = filename.rsplit('.', 1)
+            s3_key = f"{user_prefix}/{name}_{timestamp}.{ext}"
+        else:
+            s3_key = f"{user_prefix}/{filename}_{timestamp}"
         
         # Upload to S3
         s3.put_object(

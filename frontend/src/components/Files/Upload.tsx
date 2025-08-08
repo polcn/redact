@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { uploadFile } from '../../services/api';
 
 interface UploadProps {
@@ -17,6 +17,13 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
+  const [, forceUpdate] = useState({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Debug effect to log state changes
+  useEffect(() => {
+    console.log('Upload state changed - uploading:', uploading);
+  }, [uploading]);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -47,9 +54,14 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('handleFileSelect called');
     const files = e.target.files;
+    console.log('Files selected:', files);
     if (files && files.length > 0) {
+      console.log('Calling handleMultipleFileUpload with', files.length, 'files');
       handleMultipleFileUpload(Array.from(files));
+      // Reset the input so the same file can be selected again
+      e.target.value = '';
     }
   };
 
@@ -69,11 +81,14 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
     return null;
   };
 
-  const handleMultipleFileUpload = async (files: File[]) => {
+  const handleMultipleFileUpload = useCallback(async (files: File[]) => {
+    console.log('handleMultipleFileUpload started with', files.length, 'files');
     setError('');
     setSuccess('');
     setUploading(true);
     setUploadProgress([]);
+    
+    try {
 
     // Validate all files first
     const validFiles: File[] = [];
@@ -116,7 +131,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
         setUploadProgress(prev => {
           const newProgress = [...prev];
           newProgress[progressIndex].status = 'success';
-          newProgress[progressIndex].message = `ID: ${response.document_id}`;
+          newProgress[progressIndex].message = 'Uploaded';
           return newProgress;
         });
       } catch (err: any) {
@@ -135,27 +150,49 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
       }
     }
 
+    // Always set uploading to false when done
     setUploading(false);
+    forceUpdate({});  // Force re-render
+    console.log('Setting uploading to false');
 
     // Show summary
+    console.log('Upload complete - Success:', successCount, 'Errors:', errorCount);
     if (successCount > 0 && errorCount === 0) {
       setSuccess(`Successfully uploaded ${successCount} file${successCount > 1 ? 's' : ''}`);
+      // Refresh the file list immediately
+      onUploadComplete();
+      // Clear progress after delay
       setTimeout(() => {
         setSuccess('');
         setUploadProgress([]);
-        onUploadComplete();
       }, 3000);
     } else if (successCount > 0 && errorCount > 0) {
       setSuccess(`Uploaded ${successCount} file${successCount > 1 ? 's' : ''}, ${errorCount} failed`);
+      // Refresh the file list immediately
+      onUploadComplete();
+      // Clear progress after delay
       setTimeout(() => {
         setSuccess('');
         setUploadProgress([]);
-        onUploadComplete();
       }, 5000);
     } else if (errorCount > 0 && successCount === 0) {
       setError(`Failed to upload ${errorCount} file${errorCount > 1 ? 's' : ''}`);
+      // Clear error after delay
+      setTimeout(() => {
+        setError('');
+        setUploadProgress([]);
+      }, 5000);
     }
-  };
+    } catch (error) {
+      console.error('Unexpected error in handleMultipleFileUpload:', error);
+      setUploading(false);
+      setError('An unexpected error occurred');
+      setTimeout(() => {
+        setError('');
+        setUploadProgress([]);
+      }, 5000);
+    }
+  }, [onUploadComplete]);
 
   return (
     <div className="w-full">
@@ -185,6 +222,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
         </p>
         
         <input
+          ref={fileInputRef}
           type="file"
           className="hidden"
           id="file-upload"
