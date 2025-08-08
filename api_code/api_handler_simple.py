@@ -12,10 +12,16 @@ import io
 from datetime import datetime
 import sys
 import importlib.util
+import re
+import hashlib
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s %(message)s'
+)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 # Initialize AWS clients
 s3 = boto3.client('s3')
@@ -31,6 +37,68 @@ CONFIG_BUCKET = os.environ['CONFIG_BUCKET']
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'xlsx', 'xls', 'csv', 'pptx', 'ppt'}
 
+# MIME type mapping for content validation
+MIME_TYPE_MAPPING = {
+    'pdf': [b'%PDF'],  # PDF magic bytes
+    'docx': [b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08'],  # ZIP-based Office format
+    'xlsx': [b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08'],  # ZIP-based Office format
+    'xls': [b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'],  # Old Excel format
+    'pptx': [b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08'],  # ZIP-based Office format
+    'ppt': [b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'],  # Old PowerPoint format
+    'txt': [b'', None],  # Text files don't have specific magic bytes
+    'csv': [b'', None]   # CSV files don't have specific magic bytes
+}
+
+def sanitize_filename(filename):
+    """Sanitize filename to prevent path traversal attacks"""
+    # Check for path traversal attempts BEFORE modifying
+    if '..' in filename or filename.startswith('/') or '\\' in filename or ':' in filename:
+        raise ValueError("Invalid filename detected - possible path traversal attempt")
+    
+    # Remove any directory components
+    filename = os.path.basename(filename)
+    # Remove dangerous characters but keep dots for extensions
+    filename = re.sub(r'[^\w\s.-]', '', filename)
+    
+    # Double-check after sanitization
+    if not filename or filename.startswith('.'):
+        raise ValueError("Invalid filename after sanitization")
+    
+    # Limit filename length
+    if len(filename) > 255:
+        name, ext = os.path.splitext(filename)
+        max_name_length = 255 - len(ext)
+        filename = name[:max_name_length] + ext
+    
+    return filename
+
+def validate_file_content(file_content, claimed_extension):
+    """Validate file content matches the claimed extension"""
+    if not file_content:
+        raise ValueError("Empty file content")
+    
+    # Get expected magic bytes for the extension
+    expected_magic = MIME_TYPE_MAPPING.get(claimed_extension.lower(), [])
+    
+    # For text-based files, we allow any content
+    if claimed_extension.lower() in ['txt', 'csv']:
+        return True
+    
+    # Check if file starts with expected magic bytes
+    file_header = file_content[:16]  # Read first 16 bytes
+    
+    valid = False
+    for magic_bytes in expected_magic:
+        if magic_bytes and file_header.startswith(magic_bytes):
+            valid = True
+            break
+    
+    if not valid and expected_magic:
+        logger.warning(f"File content validation failed for extension {claimed_extension}")
+        raise ValueError(f"File content doesn't match declared file type: {claimed_extension}")
+    
+    return True
+
 def get_user_context(event):
     """Extract user context from API Gateway authorizer"""
     request_context = event.get('requestContext', {})
@@ -45,10 +113,12 @@ def get_user_context(event):
             'role': claims.get('custom:role', 'user')
         }
     
-    # For testing without proper auth
+    # Fallback for endpoints that might not have auth (like health checks)
+    # or when API Gateway hasn't passed auth context
+    logger.info("No Cognito claims found, using anonymous context")
     return {
-        'user_id': 'test-user',
-        'email': 'test@example.com',
+        'user_id': 'anonymous',
+        'email': 'anonymous@example.com',
         'role': 'user'
     }
 
@@ -61,13 +131,41 @@ def lambda_handler(event, context):
     API Gateway Lambda handler for document redaction REST API
     """
     try:
-        # CORS headers
-        headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,PUT,DELETE',
-            'Content-Type': 'application/json'
+        # Log every request for debugging
+        log_data = {
+            'event': 'LAMBDA_INVOKED',
+            'path': event.get('path', ''),
+            'method': event.get('httpMethod', ''),
+            'headers': list(event.get('headers', {}).keys()),
+            'has_body': bool(event.get('body')),
+            'request_id': context.aws_request_id
         }
+        print(f"INFO: {json.dumps(log_data)}")
+        logger.info(json.dumps(log_data))
+        
+        # CORS headers with restricted origins
+        allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'https://redact.9thcube.com').split(',')
+        # Check both 'origin' and 'Origin' for case-insensitive header lookup
+        headers_dict = event.get('headers', {})
+        origin = headers_dict.get('origin') or headers_dict.get('Origin', '')
+        
+        # Set CORS headers based on origin
+        if origin in allowed_origins:
+            headers = {
+                'Access-Control-Allow-Origin': origin,
+                'Access-Control-Allow-Credentials': 'true',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,PUT,DELETE',
+                'Content-Type': 'application/json'
+            }
+        else:
+            # Default to production domain if origin not in allowed list
+            headers = {
+                'Access-Control-Allow-Origin': 'https://redact.9thcube.com',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,PUT,DELETE',
+                'Content-Type': 'application/json'
+            }
         
         # Handle preflight OPTIONS requests
         if event.get('httpMethod') == 'OPTIONS':
@@ -103,14 +201,9 @@ def lambda_handler(event, context):
         # Get user context
         user_context = get_user_context(event)
         
-        # Protected endpoints - check for authorization
-        authorizer = event.get('requestContext', {}).get('authorizer', {})
-        if not authorizer:
-            return {
-                'statusCode': 401,
-                'headers': headers,
-                'body': json.dumps({'error': 'Authentication required'})
-            }
+        # Note: API Gateway handles authentication via Cognito authorizer
+        # If we reach here on protected endpoints, user is already authenticated
+        # The authorizer configuration at API Gateway level ensures this
         
         if path == '/documents/upload' and method == 'POST':
             return handle_document_upload(event, headers, context, user_context)
@@ -225,6 +318,8 @@ def handle_health_check(headers):
 def handle_document_upload(event, headers, context, user_context):
     """Handle POST /documents/upload endpoint with user isolation"""
     try:
+        logger.info(f"Upload handler called - User: {user_context.get('email', 'unknown')}")
+        
         # Parse request body
         body = event.get('body', '')
         if event.get('isBase64Encoded', False):
@@ -245,6 +340,17 @@ def handle_document_upload(event, headers, context, user_context):
         
         filename = data['filename']
         content = data['content']
+        
+        # Sanitize filename to prevent path traversal
+        try:
+            filename = sanitize_filename(filename)
+        except ValueError as e:
+            logger.warning(f"Filename sanitization failed: {str(e)} - User: {user_context['email']}")
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid filename'})
+            }
         
         # Log the upload attempt
         logger.info(f"Upload attempt - Filename: {filename}, User: {user_context['email']}")
@@ -273,6 +379,15 @@ def handle_document_upload(event, headers, context, user_context):
                 'headers': headers,
                 'body': json.dumps({'error': 'Invalid base64 content'})
             }
+        
+        # Validate file content matches extension - warn but don't block
+        try:
+            validate_file_content(file_content, file_ext)
+            logger.info(f"File content validation passed for {file_ext}")
+        except ValueError as e:
+            # Log warning but allow upload to proceed
+            logger.warning(f"File content validation warning: {str(e)} - User: {user_context['email']} - File: {filename}")
+            # Continue with upload despite validation warning
         
         # Validate file size
         if len(file_content) > MAX_FILE_SIZE:

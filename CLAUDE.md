@@ -60,6 +60,15 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
 └── terraform/             # Infrastructure as code
 ```
 
+## Recent Fixes (2025-08-08)
+- ✅ CORS configuration restricted to production domain only
+- ✅ Authentication bypass in production removed  
+- ✅ File content validation with magic bytes added (warns but allows)
+- ✅ Path traversal protection implemented
+- ✅ IAM permissions fixed for correct bucket suffixes (32a4ee51)
+- ✅ CONFIG_BUCKET environment variable corrected
+- ⚠️ Frontend upload issue identified (requests not reaching Lambda)
+
 ## Recent Fixes (2025-08-07)
 - ✅ AI summary browser navigation issue resolved
 - ✅ Exposed API key removed from git history

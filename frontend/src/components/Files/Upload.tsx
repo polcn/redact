@@ -107,7 +107,9 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
       });
 
       try {
+        console.log('Uploading file:', file.name, 'Size:', file.size);
         const response = await uploadFile(file);
+        console.log('Upload response:', response);
         successCount++;
         
         // Update progress to success
@@ -118,13 +120,16 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
           return newProgress;
         });
       } catch (err: any) {
+        console.error('Upload error for file:', file.name, err);
+        console.error('Error response:', err.response);
+        console.error('Error message:', err.message);
         errorCount++;
         
         // Update progress to error
         setUploadProgress(prev => {
           const newProgress = [...prev];
           newProgress[progressIndex].status = 'error';
-          newProgress[progressIndex].message = err.response?.data?.error || 'Upload failed';
+          newProgress[progressIndex].message = err.response?.data?.error || err.message || 'Upload failed';
           return newProgress;
         });
       }
