@@ -67,22 +67,96 @@ api.interceptors.response.use(
 
 // File upload with custom timeout
 export const uploadFile = async (file: File): Promise<any> => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     console.log('uploadFile: Starting upload for:', file.name, 'Size:', file.size);
     
-    // Set a timer to reject if upload takes too long
-    const uploadTimeout = setTimeout(() => {
-      console.error('uploadFile: Upload timed out after 10 seconds');
-      reject(new Error('Upload timeout - please try again'));
-    }, 10000); // 10 second timeout for uploads
+    // Use presigned URL for files over 3MB (to account for base64 overhead)
+    // 3MB * 1.33 (base64 overhead) = ~4MB which is safely under limits
+    // Note: API Gateway seems to have a lower practical limit than 10MB
+    const USE_PRESIGNED_URL_THRESHOLD = 3 * 1024 * 1024; // 3MB
     
-    const reader = new FileReader();
-    reader.onload = async () => {
+    if (file.size > USE_PRESIGNED_URL_THRESHOLD) {
+      console.log('uploadFile: File is large, using presigned URL upload');
+      try {
+        // Get presigned URL from backend
+        console.log('uploadFile: Requesting presigned URL');
+        const urlResponse = await api.post('/documents/upload-url', {
+          filename: file.name
+        });
+        
+        const { upload_url, fields, document_id, s3_key } = urlResponse.data;
+        console.log('uploadFile: Got presigned URL, uploading directly to S3');
+        
+        // Create FormData for S3 upload
+        const formData = new FormData();
+        
+        // Add all fields from presigned POST data
+        Object.keys(fields).forEach(key => {
+          formData.append(key, fields[key]);
+        });
+        
+        // File must be the last field
+        formData.append('file', file);
+        
+        // Upload directly to S3
+        // DO NOT set Content-Type header - let axios set it with the boundary
+        const uploadResponse = await axios.post(upload_url, formData, {
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = progressEvent.total ? Math.round((progressEvent.loaded * 100) / progressEvent.total) : 0;
+            console.log(`Upload progress: ${percentCompleted}% (${progressEvent.loaded}/${progressEvent.total} bytes)`);
+          }
+        });
+        
+        console.log('uploadFile: Direct S3 upload successful');
+        
+        // Return success response in same format as regular upload
+        resolve({
+          message: 'Document uploaded successfully',
+          document_id: document_id,
+          filename: file.name,
+          status: 'processing',
+          status_url: `/documents/status/${document_id}`
+        });
+        
+      } catch (error: any) {
+        console.error('uploadFile: Error during presigned URL upload:', error);
+        
+        // Log the actual S3 error response for debugging
+        if (error.response?.data) {
+          console.error('S3 Error Response:', error.response.data);
+          // Try to parse XML error response
+          try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(error.response.data, 'text/xml');
+            const errorCode = xmlDoc.getElementsByTagName('Code')[0]?.textContent;
+            const errorMessage = xmlDoc.getElementsByTagName('Message')[0]?.textContent;
+            console.error('S3 Error Details:', { code: errorCode, message: errorMessage });
+          } catch (e) {
+            // Not XML, ignore
+          }
+        }
+        
+        // Check for auth error
+        if (error.response?.status === 401) {
+          reject(new Error('Authentication expired. Please refresh the page and log in again.'));
+        }
+        // Check for server error
+        else if (error.response?.status >= 500) {
+          reject(new Error('Server error. Please try again in a few moments.'));
+        } else {
+          reject(new Error('Upload failed. Please try again.'));
+        }
+      }
+    } else {
+      // Use traditional base64 upload for smaller files
+      console.log('uploadFile: Using traditional base64 upload');
+      
+      const reader = new FileReader();
+      reader.onload = async () => {
       try {
         console.log('uploadFile: File read complete, converting to base64');
         const base64 = reader.result?.toString().split(',')[1];
         if (!base64) {
-          clearTimeout(uploadTimeout);
           throw new Error('Failed to convert file to base64');
         }
         console.log('uploadFile: Base64 length:', base64.length);
@@ -95,20 +169,19 @@ export const uploadFile = async (file: File): Promise<any> => {
           filename: file.name,
           content: base64,
         }, {
-          timeout: 10000, // 10 second timeout
+          timeout: 60000, // 60 second timeout for large files
           onUploadProgress: (progressEvent) => {
-            console.log('Upload progress:', progressEvent.loaded, '/', progressEvent.total);
+            const percentCompleted = progressEvent.total ? Math.round((progressEvent.loaded * 100) / progressEvent.total) : 0;
+            console.log(`Upload progress: ${percentCompleted}% (${progressEvent.loaded}/${progressEvent.total} bytes)`);
           }
         });
         
-        clearTimeout(uploadTimeout);
         console.timeEnd('upload-request');
         console.log('uploadFile: Success!', response.data);
         console.log('uploadFile: Response status:', response.status);
         console.log('uploadFile: Response headers:', response.headers);
         resolve(response.data);
       } catch (error: any) {
-        clearTimeout(uploadTimeout);
         console.timeEnd('upload-request');
         console.error('uploadFile: Error during upload:', error);
         console.error('uploadFile: Error details:', {
@@ -121,25 +194,36 @@ export const uploadFile = async (file: File): Promise<any> => {
         // Check for timeout
         if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
           console.error('uploadFile: Request timeout');
-          reject(new Error('Upload timeout - please try again'));
+          reject(new Error('Upload timeout - file may be too large. Please try a smaller file or check your connection.'));
         }
-        // Check for network error
+        // Check for network error or CORS issue
         else if (!error.response) {
           console.error('uploadFile: Network error - no response from server');
-          reject(new Error('Network error - please check your connection'));
+          console.error('Possible causes: CORS issue, network failure, or server not responding');
+          reject(new Error('Network error - unable to reach server. Please refresh the page and try again.'));
+        }
+        // Check for auth error
+        else if (error.response?.status === 401) {
+          console.error('uploadFile: Authentication error');
+          reject(new Error('Authentication expired. Please refresh the page and log in again.'));
+        }
+        // Check for server error
+        else if (error.response?.status >= 500) {
+          console.error('uploadFile: Server error:', error.response.status);
+          reject(new Error('Server error. Please try again in a few moments.'));
         } else {
           reject(error);
         }
       }
     };
     reader.onerror = (error) => {
-      clearTimeout(uploadTimeout);
       console.error('uploadFile: FileReader error:', error);
       reject(new Error('Failed to read file'));
     };
     
     console.log('uploadFile: Reading file as data URL...');
     reader.readAsDataURL(file);
+    }
   });
 };
 

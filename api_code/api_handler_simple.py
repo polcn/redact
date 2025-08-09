@@ -143,29 +143,14 @@ def lambda_handler(event, context):
         print(f"INFO: {json.dumps(log_data)}")
         logger.info(json.dumps(log_data))
         
-        # CORS headers with restricted origins
-        allowed_origins = os.environ.get('ALLOWED_ORIGINS', 'https://redact.9thcube.com').split(',')
-        # Check both 'origin' and 'Origin' for case-insensitive header lookup
-        headers_dict = event.get('headers', {})
-        origin = headers_dict.get('origin') or headers_dict.get('Origin', '')
-        
-        # Set CORS headers based on origin
-        if origin in allowed_origins:
-            headers = {
-                'Access-Control-Allow-Origin': origin,
-                'Access-Control-Allow-Credentials': 'true',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,PUT,DELETE',
-                'Content-Type': 'application/json'
-            }
-        else:
-            # Default to production domain if origin not in allowed list
-            headers = {
-                'Access-Control-Allow-Origin': 'https://redact.9thcube.com',
-                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,PUT,DELETE',
-                'Content-Type': 'application/json'
-            }
+        # CORS headers - always use production domain for consistency
+        # This matches what's configured in API Gateway OPTIONS methods
+        headers = {
+            'Access-Control-Allow-Origin': 'https://redact.9thcube.com',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,PUT,DELETE',
+            'Content-Type': 'application/json'
+        }
         
         # Handle preflight OPTIONS requests
         if event.get('httpMethod') == 'OPTIONS':
@@ -207,6 +192,9 @@ def lambda_handler(event, context):
         
         if path == '/documents/upload' and method == 'POST':
             return handle_document_upload(event, headers, context, user_context)
+        
+        elif path == '/documents/upload-url' and method == 'POST':
+            return handle_get_upload_url(event, headers, context, user_context)
             
         elif path.startswith('/documents/status') and method == 'GET':
             return handle_status_check(event, headers, context, user_context)
@@ -313,6 +301,127 @@ def handle_health_check(headers):
             'statusCode': 503,
             'headers': headers,
             'body': json.dumps(health_status)
+        }
+
+def handle_get_upload_url(event, headers, context, user_context):
+    """Generate a presigned URL for direct S3 upload"""
+    try:
+        logger.info(f"Upload URL handler called - User: {user_context.get('email', 'unknown')}")
+        
+        # Parse request body
+        body = event.get('body', '')
+        if event.get('isBase64Encoded', False):
+            body = base64.b64decode(body)
+        
+        if isinstance(body, bytes):
+            body = body.decode('utf-8')
+        
+        data = json.loads(body)
+        
+        # Validate request
+        if 'filename' not in data:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Missing filename'})
+            }
+        
+        filename = data['filename']
+        
+        # Sanitize filename to prevent path traversal
+        try:
+            filename = sanitize_filename(filename)
+        except ValueError as e:
+            logger.warning(f"Filename sanitization failed: {str(e)} - User: {user_context['email']}")
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid filename'})
+            }
+        
+        # Validate file extension
+        file_ext = filename.lower().split('.')[-1]
+        if file_ext not in ALLOWED_EXTENSIONS:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({
+                    'error': f'Unsupported file type: {file_ext}',
+                    'allowed_types': list(ALLOWED_EXTENSIONS)
+                })
+            }
+        
+        # Generate unique key with user prefix
+        user_prefix = get_user_s3_prefix(user_context['user_id'])
+        
+        # Generate unique filename using timestamp
+        from datetime import datetime
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        
+        # Add timestamp to filename to ensure uniqueness
+        if '.' in filename:
+            name, ext = filename.rsplit('.', 1)
+            s3_key = f"{user_prefix}/{name}_{timestamp}.{ext}"
+        else:
+            s3_key = f"{user_prefix}/{filename}_{timestamp}"
+        
+        # Generate presigned POST URL for upload
+        presigned_post = s3.generate_presigned_post(
+            Bucket=INPUT_BUCKET,
+            Key=s3_key,
+            Fields={
+                'x-amz-server-side-encryption': 'AES256',
+                'x-amz-meta-upload-method': 'presigned-url',
+                'x-amz-meta-original-filename': filename,
+                'x-amz-meta-user-id': user_context['user_id'],
+                'x-amz-meta-user-email': user_context['email']
+            },
+            Conditions=[
+                ['content-length-range', 0, MAX_FILE_SIZE],
+                {'x-amz-server-side-encryption': 'AES256'},
+                {'x-amz-meta-upload-method': 'presigned-url'},
+                {'x-amz-meta-original-filename': filename},
+                {'x-amz-meta-user-id': user_context['user_id']},
+                {'x-amz-meta-user-email': user_context['email']}
+            ],
+            ExpiresIn=3600  # URL valid for 1 hour
+        )
+        
+        # Generate a document ID for status tracking
+        from urllib.parse import quote
+        document_id = quote(s3_key, safe='')
+        
+        logger.info(json.dumps({
+            'event': 'PRESIGNED_URL_GENERATED',
+            'key': s3_key,
+            'user_id': user_context['user_id'],
+            'filename': filename
+        }))
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'upload_url': presigned_post['url'],
+                'fields': presigned_post['fields'],
+                'document_id': document_id,
+                's3_key': s3_key,
+                'filename': filename
+            })
+        }
+        
+    except json.JSONDecodeError:
+        return {
+            'statusCode': 400,
+            'headers': headers,
+            'body': json.dumps({'error': 'Invalid JSON'})
+        }
+    except Exception as e:
+        logger.error(f"Error generating upload URL: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': 'Failed to generate upload URL'})
         }
 
 def handle_document_upload(event, headers, context, user_context):
@@ -443,7 +552,7 @@ def handle_document_upload(event, headers, context, user_context):
         document_id = quote(s3_key, safe='')
         
         return {
-            'statusCode': 202,
+            'statusCode': 200,
             'headers': headers,
             'body': json.dumps({
                 'message': 'Document uploaded successfully',

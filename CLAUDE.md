@@ -60,7 +60,22 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
 └── terraform/             # Infrastructure as code
 ```
 
-## Recent Fixes (2025-08-08)
+## Known Issues
+- **Presigned URL Signature Mismatch**: Download links show XML error in browser instead of downloading
+  - Error: "SignatureDoesNotMatch" when clicking download links
+  - Files display as XML instead of downloading
+  - Likely caused by URL encoding or Content-Disposition header issues
+
+## Recent Fixes (2025-08-09)
+- ✅ **UPLOAD PIPELINE COMPLETELY FIXED**:
+  - Added missing S3 CORS configuration for input bucket
+  - Fixed presigned POST conditions to include all metadata fields
+  - Corrected processor Lambda IAM permissions (wrong bucket suffix)
+  - Fixed processor Lambda environment variables (wrong bucket suffix)
+  - Removed incorrect Content-Type header from FormData uploads
+  - Files now upload, process, and complete successfully
+
+## Previous Fixes (2025-08-08)
 - ✅ CORS configuration restricted to production domain only
 - ✅ Authentication bypass in production removed  
 - ✅ File content validation with magic bytes added (warns but allows)
