@@ -7,13 +7,15 @@ resource "aws_ssm_parameter" "ai_config" {
 
   value = jsonencode({
     enabled       = true
-    default_model = "anthropic.claude-3-haiku-20240307"
+    default_model = "anthropic.claude-3-haiku-20240307-v1:0"
     available_models = [
-      "anthropic.claude-3-haiku-20240307",
-      "anthropic.claude-3-sonnet-20240229",
+      "anthropic.claude-3-haiku-20240307-v1:0",
+      "anthropic.claude-3-sonnet-20240229-v1:0",
+      "anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "anthropic.claude-3-opus-20240229-v1:0",
       "anthropic.claude-instant-v1"
     ]
-    admin_override_model = "anthropic.claude-3-sonnet-20240229"
+    admin_override_model = "anthropic.claude-3-5-sonnet-20240620-v1:0"
     summary_types = {
       brief = {
         max_tokens  = 150
@@ -65,8 +67,10 @@ resource "aws_iam_role_policy" "api_lambda_ai_policy" {
           "bedrock:InvokeModel"
         ]
         Resource = [
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-haiku-20240307",
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-sonnet-20240229",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-opus-20240229-v1:0",
           "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-instant-v1"
         ]
       }

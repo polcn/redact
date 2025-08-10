@@ -1835,7 +1835,7 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         if user_role == 'admin' and ai_config.get('admin_override_model'):
             model_id = ai_config['admin_override_model']
         else:
-            model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307')
+            model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307-v1:0')
         
         # Get summary configuration
         summary_configs = ai_config.get('summary_types', {})
@@ -1857,7 +1857,7 @@ Please provide a clear, well-structured summary."""
         bedrock = get_bedrock_client()
         
         # Format request based on model type
-        if "claude-3" in model_id or "claude-3-5" in model_id:
+        if "claude-3" in model_id or "claude-3.5" in model_id:
             # Use Messages API for Claude 3 models
             request_body = json.dumps({
                 "anthropic_version": "bedrock-2023-05-31",
@@ -1895,7 +1895,7 @@ Please provide a clear, well-structured summary."""
         response_body = json.loads(response['body'].read())
         logger.info(f"Bedrock response: {json.dumps(response_body)[:500]}...")  # Log first 500 chars
         
-        if "claude-3" in model_id or "claude-3-5" in model_id:
+        if "claude-3" in model_id or "claude-3.5" in model_id:
             # Claude 3 uses Messages API response format
             content = response_body.get('content', [])
             if content and isinstance(content, list) and len(content) > 0:
@@ -2221,10 +2221,12 @@ def handle_update_ai_config(event, headers, user_context):
                     'body': json.dumps({'error': f'Missing required field: {field}'})
                 }
         
-        # Validate model IDs
+        # Validate model IDs - including latest Claude 3.5 models
         valid_models = [
-            'anthropic.claude-3-haiku-20240307',
-            'anthropic.claude-3-sonnet-20240229',
+            'anthropic.claude-3-haiku-20240307-v1:0',
+            'anthropic.claude-3-sonnet-20240229-v1:0',
+            'anthropic.claude-3-5-sonnet-20240620-v1:0',  # Claude 3.5 Sonnet
+            'anthropic.claude-3-opus-20240229-v1:0',       # Claude 3 Opus
             'anthropic.claude-instant-v1'
         ]
         

@@ -67,6 +67,15 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
   - Likely caused by URL encoding or Content-Disposition header issues
 
 ## Recent Fixes (2025-08-10)
+- ✅ **AI SUMMARY FEATURE FIXED**:
+  - Fixed Bedrock model IDs (added required `-v1:0` version suffix)
+  - Added bedrock:InvokeModel permissions to Lambda IAM role
+  - Updated SSM parameter with correct Claude model identifiers
+  - Added support for Claude 3.5 Sonnet model
+- ✅ **BUCKET CONFIGURATION MISMATCH RESOLVED**:
+  - Fixed Lambda environment variables to use correct bucket suffix (32a4ee51)
+  - Updated IAM policies to match production bucket names
+  - Resolved 500 errors on /api/config and other endpoints
 - ✅ **CRITICAL SECURITY FIXES APPLIED**:
   - Restricted CloudWatch logs permissions to specific log groups (was wildcard)
   - Added missing s3:HeadBucket permission for Lambda health checks
