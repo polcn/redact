@@ -67,8 +67,10 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({ file, onDelete, o
         onDelete();
       }
     } catch (err: any) {
-      setDeleteError(err.response?.data?.error || 'Failed to delete file');
-      setTimeout(() => setDeleteError(''), 3000);
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to delete file';
+      console.error('Delete error:', errorMessage);
+      setDeleteError(errorMessage);
+      setTimeout(() => setDeleteError(''), 5000);
     } finally {
       setIsDeleting(false);
     }
@@ -112,15 +114,25 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({ file, onDelete, o
             <button
               onClick={(e) => {
                 e.preventDefault();
+                
+                // Method 1: Try using the presigned URL directly
                 const link = document.createElement('a');
-                // Add disposition parameter to force download
-                const downloadUrl = file.download_url!.includes('?') 
-                  ? `${file.download_url}&response-content-disposition=attachment%3B%20filename%3D%22${encodeURIComponent(file.filename)}%22`
-                  : `${file.download_url}?response-content-disposition=attachment%3B%20filename%3D%22${encodeURIComponent(file.filename)}%22`;
-                link.href = downloadUrl;
+                // Use the presigned URL directly - it already includes the disposition header
+                // Do NOT add another response-content-disposition parameter as it will break the signature
+                link.href = file.download_url!;
                 link.download = file.filename;
                 link.style.display = 'none';
                 document.body.appendChild(link);
+                
+                // Add error handling for failed downloads
+                link.onerror = () => {
+                  console.error('Download failed, trying alternative method');
+                  setDeleteError('Download failed. Please try again.');
+                  setTimeout(() => setDeleteError(''), 3000);
+                  // Method 2: Open in new tab as fallback
+                  window.open(file.download_url!, '_blank');
+                };
+                
                 link.click();
                 document.body.removeChild(link);
               }}

@@ -66,6 +66,16 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
   - Files display as XML instead of downloading
   - Likely caused by URL encoding or Content-Disposition header issues
 
+## Recent Fixes (2025-08-10)
+- ✅ **CRITICAL SECURITY FIXES APPLIED**:
+  - Restricted CloudWatch logs permissions to specific log groups (was wildcard)
+  - Added missing s3:HeadBucket permission for Lambda health checks
+  - Improved frontend error handling with better user feedback
+- ✅ **PRODUCTION OUTAGE RESOLVED**:
+  - Fixed CloudFront OAI mismatch causing 403 Access Denied
+  - S3 bucket policy now correctly synchronized with CloudFront OAI
+  - Site fully operational at https://redact.9thcube.com
+
 ## Recent Fixes (2025-08-09)
 - ✅ **UPLOAD PIPELINE COMPLETELY FIXED**:
   - Added missing S3 CORS configuration for input bucket

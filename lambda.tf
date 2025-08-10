@@ -74,7 +74,10 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = "arn:aws:logs:*:*:*"
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/document-scrubbing-processor:*",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/redact-api-handler:*"
+        ]
       },
       {
         Effect = "Allow"
@@ -95,7 +98,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
       {
         Effect = "Allow"
         Action = [
-          "s3:ListBucket"
+          "s3:ListBucket",
+          "s3:HeadBucket"
         ]
         Resource = [
           aws_s3_bucket.input_documents.arn,

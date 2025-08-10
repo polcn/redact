@@ -706,7 +706,7 @@ def handle_list_user_files(event, headers, context, user_context):
                     'status': 'completed',
                     'size': obj['Size'],
                     'last_modified': obj['LastModified'].isoformat(),
-                    'download_url': generate_presigned_url(PROCESSED_BUCKET, obj['Key'], force_download=False)
+                    'download_url': generate_presigned_url(PROCESSED_BUCKET, obj['Key'], force_download=True)
                 })
         except ClientError:
             pass
@@ -1021,7 +1021,10 @@ def generate_presigned_url(bucket, key, expiration=3600, force_download=True):
         # Only add disposition header if we want to force download
         if force_download:
             filename = key.split('/')[-1]
-            params['ResponseContentDisposition'] = f'attachment; filename="{filename}"'
+            # Ensure filename is properly escaped for HTTP headers
+            # Replace quotes and control characters
+            safe_filename = filename.replace('"', '').replace('\n', '').replace('\r', '')
+            params['ResponseContentDisposition'] = f'attachment; filename="{safe_filename}"'
         
         url = s3.generate_presigned_url(
             'get_object',
