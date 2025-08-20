@@ -26,7 +26,7 @@ export const FileList: React.FC = () => {
   const [showAISummaryModal, setShowAISummaryModal] = useState(false);
   const [selectedFileForAI, setSelectedFileForAI] = useState<FileData | null>(null);
   const [selectedSummaryType, setSelectedSummaryType] = useState<'brief' | 'standard' | 'detailed'>('standard');
-  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>('anthropic.claude-3-haiku-20240307-v1:0');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [defaultModel, setDefaultModel] = useState<string>('');
@@ -587,7 +587,17 @@ export const FileList: React.FC = () => {
                   }}
                   aria-label="Select AI model"
                 >
-                  {availableModels.map((model) => (
+                  {(availableModels.length > 0 ? availableModels : [
+                    'anthropic.claude-3-haiku-20240307-v1:0',
+                    'anthropic.claude-3-5-haiku-20241022-v1:0',
+                    'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                    'anthropic.claude-3-5-sonnet-20241022-v2:0',
+                    'anthropic.claude-3-7-sonnet-20250219-v1:0',
+                    'anthropic.claude-sonnet-4-20250514-v1:0',
+                    'anthropic.claude-3-opus-20240229-v1:0',
+                    'anthropic.claude-opus-4-20250514-v1:0',
+                    'anthropic.claude-opus-4-1-20250805-v1:0'
+                  ]).map((model) => (
                     <option key={model} value={model}>
                       {formatModelName(model)}
                     </option>
