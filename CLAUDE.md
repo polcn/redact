@@ -61,10 +61,54 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
 ```
 
 ## Known Issues
+
+### Critical Issues
+- **AI Model Selection Not Working Properly**: Newer Claude models fail with inference profile errors
+  - Error: "Invocation of model ID ... with on-demand throughput isn't supported"
+  - Affects: Claude Opus 4.1, Opus 4, Sonnet 4, Sonnet 3.7, Haiku 3.5
+  - Current behavior: Falls back to Haiku 3 instead of using selected model
+  - Root cause: AWS Bedrock requires inference profiles for newer models
+  - **Investigation needed**: How to implement inference profile support
+
+### Other Issues  
 - **Presigned URL Signature Mismatch**: Download links show XML error in browser instead of downloading
   - Error: "SignatureDoesNotMatch" when clicking download links
   - Files display as XML instead of downloading
   - Likely caused by URL encoding or Content-Disposition header issues
+
+## Investigation Plan: AWS Bedrock Inference Profiles
+
+### Problem
+User selects advanced models (e.g., Claude Opus 4.1) but system falls back to basic models (Haiku 3) due to inference profile requirements.
+
+### Next Steps
+1. **Research AWS Documentation**
+   - Understand inference profile creation and usage
+   - Learn how to invoke models with inference profiles
+   - Check boto3 SDK requirements
+
+2. **Implementation Approach**
+   - Update `api_handler_simple.py` to detect models requiring profiles
+   - Create or use existing inference profiles for newer models
+   - Modify Bedrock invocation to use profile ARNs instead of model IDs
+   - Ensure proper model selection is respected
+
+3. **Models to Enable**
+   - Claude Opus 4.1 (anthropic.claude-opus-4-1-20250805)
+   - Claude Opus 4 (anthropic.claude-opus-4-20250514)
+   - Claude Sonnet 4 (anthropic.claude-sonnet-4-20250514)
+   - Claude Sonnet 3.7 (anthropic.claude-3-7-sonnet-20250219)
+   - Claude Haiku 3.5 (anthropic.claude-3-5-haiku-20241022)
+
+4. **Testing Required**
+   - Verify each model works with inference profiles
+   - Ensure fallback only happens when truly necessary
+   - Test cost implications of different models
+
+## Recent Fixes (2025-08-20)
+- ⚠️ **Temporary Fix for AI Models**: Removed unsupported models from list
+  - Only showing models that work with direct invocation
+  - Need to implement inference profile support for advanced models
 
 ## Recent Fixes (2025-08-10)
 - ✅ **AI SUMMARY FEATURE FIXED**:
