@@ -26,6 +26,7 @@ export const FileList: React.FC = () => {
   const [showAISummaryModal, setShowAISummaryModal] = useState(false);
   const [selectedFileForAI, setSelectedFileForAI] = useState<FileData | null>(null);
   const [selectedSummaryType, setSelectedSummaryType] = useState<'brief' | 'standard' | 'detailed'>('standard');
+  const [selectedModel, setSelectedModel] = useState<string>('anthropic.claude-3-haiku-20240307-v1:0');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const loadFiles = async () => {
@@ -52,7 +53,7 @@ export const FileList: React.FC = () => {
     setIsGeneratingAI(true);
     try {
       const { generateAISummary } = await import('../../services/api');
-      const result = await generateAISummary(selectedFileForAI.id, selectedSummaryType);
+      const result = await generateAISummary(selectedFileForAI.id, selectedSummaryType, selectedModel);
       
       // Log the result to debug
       console.log('AI Summary Result:', result);
@@ -424,62 +425,170 @@ export const FileList: React.FC = () => {
       {/* AI Summary Modal */}
       {showAISummaryModal && selectedFileForAI && (
         <div 
-          onClick={(e) => {
-            // Prevent closing modal when clicking backdrop
-            e.stopPropagation();
+          onClick={() => {
+            setShowAISummaryModal(false);
+            setSelectedFileForAI(null);
           }}
           style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem'
+          }}
+        >
           <div 
             onClick={(e) => e.stopPropagation()}
             className="card-anthropic" 
             style={{ 
-            width: '90%', 
-            maxWidth: '500px',
-            padding: 'var(--spacing-lg)'
-          }}>
-            <h2 className="text-primary" style={{ marginBottom: 'var(--spacing-md)' }}>
-              Generate AI Summary
-            </h2>
-            
-            <p className="text-secondary" style={{ marginBottom: 'var(--spacing-lg)' }}>
-              Select the type of summary you want to generate for "{selectedFileForAI.filename}":
-            </p>
-            
-            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-              <label style={{ display: 'block', marginBottom: 'var(--spacing-sm)' }}>
-                Summary Type:
-              </label>
-              <select 
-                value={selectedSummaryType}
-                onChange={(e) => setSelectedSummaryType(e.target.value as 'brief' | 'standard' | 'detailed')}
-                className="input-anthropic"
-                style={{ width: '100%' }}
-              >
-                <option value="brief">Brief (2-3 sentences)</option>
-                <option value="standard">Standard (comprehensive)</option>
-                <option value="detailed">Detailed (in-depth analysis)</option>
-              </select>
+              width: '100%',
+              maxWidth: '600px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '2rem',
+              backgroundColor: 'var(--background-primary, #FFFFFF)',
+              borderRadius: 'var(--radius-lg, 12px)',
+              boxShadow: 'var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1))'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h2 className="text-primary" style={{ 
+                fontSize: 'var(--font-size-xl, 1.5rem)',
+                fontWeight: 500,
+                marginBottom: '0.75rem'
+              }}>
+                Generate AI Summary
+              </h2>
+              
+              <p className="text-secondary" style={{ 
+                fontSize: 'var(--font-size-sm, 1rem)',
+                lineHeight: 'var(--line-height-relaxed, 1.75)',
+                color: 'var(--text-secondary, #666666)'
+              }}>
+                Configure AI summary generation for <strong>"{selectedFileForAI.filename}"</strong>
+              </p>
             </div>
             
-            <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
+            {/* Form Fields Container */}
+            <div style={{ marginBottom: '2rem' }}>
+              {/* Summary Type Field */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label 
+                  htmlFor="summary-type"
+                  style={{ 
+                    display: 'block', 
+                    marginBottom: '0.5rem',
+                    fontSize: 'var(--font-size-sm, 1rem)',
+                    fontWeight: 500,
+                    color: 'var(--text-primary, #191919)'
+                  }}
+                >
+                  Summary Type
+                </label>
+                <select 
+                  id="summary-type"
+                  value={selectedSummaryType}
+                  onChange={(e) => setSelectedSummaryType(e.target.value as 'brief' | 'standard' | 'detailed')}
+                  className="input-anthropic"
+                  style={{ 
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    fontSize: 'var(--font-size-sm, 1rem)',
+                    borderRadius: 'var(--radius-md, 8px)',
+                    border: '1px solid var(--border-color, #E5E5E5)',
+                    backgroundColor: 'var(--background-primary, #FFFFFF)',
+                    transition: 'border-color 0.2s ease',
+                    cursor: 'pointer'
+                  }}
+                  aria-label="Select summary type"
+                >
+                  <option value="brief">Brief (2-3 sentences)</option>
+                  <option value="standard">Standard (comprehensive overview)</option>
+                  <option value="detailed">Detailed (in-depth analysis)</option>
+                </select>
+              </div>
+              
+              {/* Model Selection Field */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label 
+                  htmlFor="ai-model"
+                  style={{ 
+                    display: 'block', 
+                    marginBottom: '0.5rem',
+                    fontSize: 'var(--font-size-sm, 1rem)',
+                    fontWeight: 500,
+                    color: 'var(--text-primary, #191919)'
+                  }}
+                >
+                  AI Model
+                </label>
+                <select 
+                  id="ai-model"
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="input-anthropic"
+                  style={{ 
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    fontSize: 'var(--font-size-sm, 1rem)',
+                    borderRadius: 'var(--radius-md, 8px)',
+                    border: '1px solid var(--border-color, #E5E5E5)',
+                    backgroundColor: 'var(--background-primary, #FFFFFF)',
+                    transition: 'border-color 0.2s ease',
+                    cursor: 'pointer'
+                  }}
+                  aria-label="Select AI model"
+                >
+                  <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Fast & Efficient)</option>
+                  <option value="anthropic.claude-3-5-sonnet-20240620-v1:0">Claude 3.5 Sonnet (Most Advanced Available)</option>
+                  <option value="anthropic.claude-3-sonnet-20240229-v1:0">Claude 3 Sonnet (Balanced)</option>
+                  <option value="anthropic.claude-v2:1">Claude 2.1 (Previous Generation)</option>
+                  <option value="anthropic.claude-v2">Claude 2.0 (Previous Generation)</option>
+                  <option value="anthropic.claude-instant-v1">Claude Instant (Fastest Response)</option>
+                </select>
+                <p style={{
+                  marginTop: '0.5rem',
+                  fontSize: 'var(--font-size-xs, 0.875rem)',
+                  color: 'var(--text-secondary, #666666)',
+                  fontStyle: 'italic'
+                }}>
+                  Higher capability models provide better analysis but may take longer to process.
+                </p>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '1rem', 
+              justifyContent: 'flex-end',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color, #E5E5E5)'
+            }}>
               <button
                 onClick={() => {
                   setShowAISummaryModal(false);
                   setSelectedFileForAI(null);
+                  setSelectedSummaryType('standard');
+                  setSelectedModel('anthropic.claude-3-haiku-20240307-v1:0');
                 }}
                 className="btn-anthropic btn-anthropic-secondary"
                 disabled={isGeneratingAI}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  fontSize: 'var(--font-size-sm, 1rem)',
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius-md, 8px)',
+                  transition: 'all 0.2s ease'
+                }}
+                aria-label="Cancel AI summary generation"
               >
                 Cancel
               </button>
@@ -487,8 +596,31 @@ export const FileList: React.FC = () => {
                 onClick={handleGenerateAISummary}
                 className="btn-anthropic btn-anthropic-primary"
                 disabled={isGeneratingAI}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  fontSize: 'var(--font-size-sm, 1rem)',
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius-md, 8px)',
+                  transition: 'all 0.2s ease',
+                  minWidth: '140px'
+                }}
+                aria-label={isGeneratingAI ? 'Generating summary' : 'Generate summary'}
               >
-                {isGeneratingAI ? 'Generating...' : 'Generate Summary'}
+                {isGeneratingAI ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span className="spinner-anthropic" style={{ 
+                      width: '1rem', 
+                      height: '1rem',
+                      border: '2px solid rgba(255, 255, 255, 0.3)',
+                      borderTopColor: 'white',
+                      borderRadius: '50%',
+                      animation: 'spin 0.6s linear infinite'
+                    }} />
+                    Generating...
+                  </span>
+                ) : (
+                  'Generate Summary'
+                )}
               </button>
             </div>
           </div>

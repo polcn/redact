@@ -295,7 +295,8 @@ export const combineFiles = async (
 // Generate AI summary for a document
 export const generateAISummary = async (
   documentId: string,
-  summaryType: 'brief' | 'standard' | 'detailed' = 'standard'
+  summaryType: 'brief' | 'standard' | 'detailed' = 'standard',
+  model?: string
 ): Promise<{
   success: boolean;
   message: string;
@@ -304,10 +305,17 @@ export const generateAISummary = async (
   download_url: string;
   summary_metadata: any;
 }> => {
-  const response = await api.post('/documents/ai-summary', {
+  const payload: any = {
     document_id: documentId,
     summary_type: summaryType
-  });
+  };
+  
+  // Only include model if provided
+  if (model) {
+    payload.model = model;
+  }
+  
+  const response = await api.post('/documents/ai-summary', payload);
   return response.data;
 };
 

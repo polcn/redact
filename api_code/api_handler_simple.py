@@ -1823,7 +1823,7 @@ def get_ai_config():
             'error': f'Failed to load AI config: {str(e)}'
         }
 
-def generate_ai_summary_internal(text, summary_type='standard', user_role='user'):
+def generate_ai_summary_internal(text, summary_type='standard', user_role='user', model_override=None):
     """Generate AI summary for document text using AWS Bedrock"""
     try:
         ai_config = get_ai_config()
@@ -1831,8 +1831,10 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         if not ai_config.get('enabled', False):
             raise ValueError("AI summaries are not enabled")
         
-        # Select model based on user role
-        if user_role == 'admin' and ai_config.get('admin_override_model'):
+        # Select model based on priority: model_override > admin override > default
+        if model_override:
+            model_id = model_override
+        elif user_role == 'admin' and ai_config.get('admin_override_model'):
             model_id = ai_config['admin_override_model']
         else:
             model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307-v1:0')
@@ -1857,8 +1859,9 @@ Please provide a clear, well-structured summary."""
         bedrock = get_bedrock_client()
         
         # Format request based on model type
-        if "claude-3" in model_id or "claude-3.5" in model_id:
-            # Use Messages API for Claude 3 models
+        # All Claude 3.x, 4.x models use Messages API
+        if any(x in model_id for x in ["claude-3", "claude-4", "opus-4", "sonnet-4"]):
+            # Use Messages API for Claude 3+ models
             request_body = json.dumps({
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": max_tokens,
@@ -1870,7 +1873,7 @@ Please provide a clear, well-structured summary."""
                     }
                 ]
             })
-        elif "claude" in model_id:
+        elif "claude-instant" in model_id or "claude-v2" in model_id:
             # Use legacy format for older Claude models
             request_body = json.dumps({
                 "prompt": prompt,
@@ -1880,8 +1883,18 @@ Please provide a clear, well-structured summary."""
                 "stop_sequences": ["\n\nHuman:"]
             })
         else:
-            # Add support for other models as needed
-            raise ValueError(f"Unsupported model: {model_id}")
+            # Default to Messages API for any unrecognized Claude model
+            request_body = json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"{instruction}\nDocument content:\n{text[:10000]}\nPlease provide a clear, well-structured summary."
+                    }
+                ]
+            })
         
         # Invoke the model
         response = bedrock.invoke_model(
@@ -1895,17 +1908,22 @@ Please provide a clear, well-structured summary."""
         response_body = json.loads(response['body'].read())
         logger.info(f"Bedrock response: {json.dumps(response_body)[:500]}...")  # Log first 500 chars
         
-        if "claude-3" in model_id or "claude-3.5" in model_id:
-            # Claude 3 uses Messages API response format
+        if any(x in model_id for x in ["claude-3", "claude-4", "opus-4", "sonnet-4"]):
+            # Claude 3+ uses Messages API response format
             content = response_body.get('content', [])
             if content and isinstance(content, list) and len(content) > 0:
                 summary = content[0].get('text', '').strip()
             else:
                 summary = ''
-        elif "claude" in model_id:
+        elif "claude-instant" in model_id or "claude-v2" in model_id:
             summary = response_body.get('completion', '').strip()
         else:
-            summary = response_body.get('text', '').strip()
+            # Default to Messages API response format
+            content = response_body.get('content', [])
+            if content and isinstance(content, list) and len(content) > 0:
+                summary = content[0].get('text', '').strip()
+            else:
+                summary = response_body.get('completion', '').strip()
         
         logger.info(f"Extracted summary type: {type(summary)}, value: {str(summary)[:200]}...")  # Log summary type
         
@@ -1963,6 +1981,23 @@ def handle_ai_summary(event, headers, context, user_context):
                 'body': json.dumps({'error': 'Invalid summary_type. Must be brief, standard, or detailed'})
             }
         
+        # Get model override if provided
+        model_override = body.get('model')
+        if model_override:
+            # Validate model ID format - only models that support on-demand invocation
+            valid_models = [
+                'anthropic.claude-3-haiku-20240307-v1:0',
+                'anthropic.claude-3-sonnet-20240229-v1:0',
+                'anthropic.claude-3-5-sonnet-20240620-v1:0',
+                'anthropic.claude-v2:1',
+                'anthropic.claude-v2',
+                'anthropic.claude-instant-v1'
+            ]
+            if model_override not in valid_models:
+                logger.warning(f"Invalid model requested: {model_override}")
+                # Don't fail, just ignore the invalid model
+                model_override = None
+        
         # Decode document ID to get S3 key
         from urllib.parse import unquote
         s3_key = unquote(document_id)
@@ -1999,11 +2034,12 @@ def handle_ai_summary(event, headers, context, user_context):
         
         # Generate AI summary
         try:
-            logger.info(f"Calling generate_ai_summary_internal with summary_type={summary_type}")
+            logger.info(f"Calling generate_ai_summary_internal with summary_type={summary_type}, model={model_override}")
             summary_text, summary_metadata = generate_ai_summary_internal(
                 document_content,
                 summary_type=summary_type,
-                user_role=user_context.get('user_role', 'user')
+                user_role=user_context.get('user_role', 'user'),
+                model_override=model_override
             )
             logger.info("AI summary generated successfully")
         except Exception as e:

@@ -162,9 +162,15 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "bedrock:InvokeModelWithResponseStream"
         ]
         Resource = [
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-haiku-20240307",
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-sonnet-20240229",
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-instant-v1"
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-7-sonnet-20250219-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-opus-20240229-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-opus-4-20250514-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-opus-4-1-20250805-v1:0"
         ]
       }
     ]

@@ -7,15 +7,19 @@ resource "aws_ssm_parameter" "ai_config" {
 
   value = jsonencode({
     enabled       = true
-    default_model = "anthropic.claude-3-haiku-20240307-v1:0"
+    default_model = "anthropic.claude-3-5-haiku-20241022-v1:0"
     available_models = [
       "anthropic.claude-3-haiku-20240307-v1:0",
-      "anthropic.claude-3-sonnet-20240229-v1:0",
+      "anthropic.claude-3-5-haiku-20241022-v1:0",
       "anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "anthropic.claude-sonnet-4-20250514-v1:0",
       "anthropic.claude-3-opus-20240229-v1:0",
-      "anthropic.claude-instant-v1"
+      "anthropic.claude-opus-4-20250514-v1:0",
+      "anthropic.claude-opus-4-1-20250805-v1:0"
     ]
-    admin_override_model = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+    admin_override_model = "anthropic.claude-opus-4-1-20250805-v1:0"
     summary_types = {
       brief = {
         max_tokens  = 150
@@ -68,10 +72,14 @@ resource "aws_iam_role_policy" "api_lambda_ai_policy" {
         ]
         Resource = [
           "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0",
           "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-7-sonnet-20250219-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0",
           "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-opus-20240229-v1:0",
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-instant-v1"
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-opus-4-20250514-v1:0",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-opus-4-1-20250805-v1:0"
         ]
       }
     ]
