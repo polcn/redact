@@ -2191,35 +2191,40 @@ def handle_get_ai_config(headers, user_context):
     """Handle GET /api/ai-config endpoint to retrieve AI configuration"""
     try:
         # Check if user has admin role
-        if user_context.get('role') != 'admin':
-            # Regular users get limited info
-            return {
-                'statusCode': 200,
-                'headers': headers,
-                'body': json.dumps({
-                    'enabled': True,
-                    'available_summary_types': ['brief', 'standard', 'detailed'],
-                    'default_summary_type': 'standard'
-                })
-            }
-        
-        # Admin users get full configuration
+        # Get AI configuration from SSM
         try:
             param_name = '/redact/ai-config'
             response = ssm.get_parameter(Name=param_name)
             ai_config = json.loads(response['Parameter']['Value'])
-            
+        except Exception as e:
+            logger.error(f"Error getting AI config: {str(e)}")
+            ai_config = {
+                'enabled': True,
+                'available_models': [],
+                'available_summary_types': ['brief', 'standard', 'detailed'],
+                'default_summary_type': 'standard'
+            }
+        
+        if user_context.get('role') != 'admin':
+            # Regular users get limited info but with available models
             return {
                 'statusCode': 200,
                 'headers': headers,
-                'body': json.dumps(ai_config)
+                'body': json.dumps({
+                    'enabled': ai_config.get('enabled', True),
+                    'available_models': ai_config.get('available_models', []),
+                    'available_summary_types': list(ai_config.get('summary_types', {}).keys()) or ['brief', 'standard', 'detailed'],
+                    'default_summary_type': ai_config.get('default_summary_type', 'standard'),
+                    'default_model': ai_config.get('default_model')
+                })
             }
-        except ssm.exceptions.ParameterNotFound:
-            return {
-                'statusCode': 404,
-                'headers': headers,
-                'body': json.dumps({'error': 'AI configuration not found'})
-            }
+        
+        # Admin users get full configuration
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps(ai_config)
+        }
         
     except Exception as e:
         logger.error(f"Error getting AI config: {str(e)}")

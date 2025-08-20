@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { listUserFiles, deleteFile, batchDownloadFiles, combineFiles } from '../../services/api';
+import { listUserFiles, deleteFile, batchDownloadFiles, combineFiles, getAIConfig } from '../../services/api';
 import { FileItem } from './FileItem';
 
 export interface FileData {
@@ -26,8 +26,10 @@ export const FileList: React.FC = () => {
   const [showAISummaryModal, setShowAISummaryModal] = useState(false);
   const [selectedFileForAI, setSelectedFileForAI] = useState<FileData | null>(null);
   const [selectedSummaryType, setSelectedSummaryType] = useState<'brief' | 'standard' | 'detailed'>('standard');
-  const [selectedModel, setSelectedModel] = useState<string>('anthropic.claude-3-haiku-20240307-v1:0');
+  const [selectedModel, setSelectedModel] = useState<string>('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [defaultModel, setDefaultModel] = useState<string>('');
 
   const loadFiles = async () => {
     try {
@@ -39,6 +41,44 @@ export const FileList: React.FC = () => {
       console.error('Error loading files:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const formatModelName = (modelId: string): string => {
+    const modelMap: { [key: string]: string } = {
+      'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku (Fast & Efficient)',
+      'anthropic.claude-3-5-haiku-20241022-v1:0': 'Claude 3.5 Haiku (Latest Fast)',
+      'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
+      'anthropic.claude-3-5-sonnet-20241022-v2:0': 'Claude 3.5 Sonnet v2',
+      'anthropic.claude-3-7-sonnet-20250219-v1:0': 'Claude 3.7 Sonnet (Latest)',
+      'anthropic.claude-sonnet-4-20250514-v1:0': 'Claude Sonnet 4 (Most Advanced)',
+      'anthropic.claude-3-opus-20240229-v1:0': 'Claude 3 Opus',
+      'anthropic.claude-opus-4-20250514-v1:0': 'Claude Opus 4',
+      'anthropic.claude-opus-4-1-20250805-v1:0': 'Claude Opus 4.1 (Most Powerful)',
+    };
+    return modelMap[modelId] || modelId;
+  };
+
+  const loadAIConfig = async () => {
+    try {
+      const config = await getAIConfig();
+      if (config.available_models) {
+        setAvailableModels(config.available_models);
+        const defaultModelFromConfig = config.default_model || config.available_models[0];
+        setDefaultModel(defaultModelFromConfig);
+        if (!selectedModel) {
+          setSelectedModel(defaultModelFromConfig);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading AI config:', err);
+      // Fallback models if API fails
+      const fallbackModels = ['anthropic.claude-3-haiku-20240307-v1:0'];
+      setAvailableModels(fallbackModels);
+      setDefaultModel(fallbackModels[0]);
+      if (!selectedModel) {
+        setSelectedModel(fallbackModels[0]);
+      }
     }
   };
 
@@ -78,6 +118,7 @@ export const FileList: React.FC = () => {
 
   useEffect(() => {
     loadFiles();
+    loadAIConfig();
     // Refresh every 10 seconds to check for status updates, but not when modals are open
     const interval = setInterval(() => {
       // Don't refresh if any modal is open
@@ -546,12 +587,11 @@ export const FileList: React.FC = () => {
                   }}
                   aria-label="Select AI model"
                 >
-                  <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Fast & Efficient)</option>
-                  <option value="anthropic.claude-3-5-sonnet-20240620-v1:0">Claude 3.5 Sonnet (Most Advanced Available)</option>
-                  <option value="anthropic.claude-3-sonnet-20240229-v1:0">Claude 3 Sonnet (Balanced)</option>
-                  <option value="anthropic.claude-v2:1">Claude 2.1 (Previous Generation)</option>
-                  <option value="anthropic.claude-v2">Claude 2.0 (Previous Generation)</option>
-                  <option value="anthropic.claude-instant-v1">Claude Instant (Fastest Response)</option>
+                  {availableModels.map((model) => (
+                    <option key={model} value={model}>
+                      {formatModelName(model)}
+                    </option>
+                  ))}
                 </select>
                 <p style={{
                   marginTop: '0.5rem',
@@ -577,7 +617,7 @@ export const FileList: React.FC = () => {
                   setShowAISummaryModal(false);
                   setSelectedFileForAI(null);
                   setSelectedSummaryType('standard');
-                  setSelectedModel('anthropic.claude-3-haiku-20240307-v1:0');
+                  setSelectedModel(defaultModel || availableModels[0] || 'anthropic.claude-3-haiku-20240307-v1:0');
                 }}
                 className="btn-anthropic btn-anthropic-secondary"
                 disabled={isGeneratingAI}
