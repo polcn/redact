@@ -47,14 +47,11 @@ export const FileList: React.FC = () => {
   const formatModelName = (modelId: string): string => {
     const modelMap: { [key: string]: string } = {
       'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku (Fast & Efficient)',
-      'anthropic.claude-3-5-haiku-20241022-v1:0': 'Claude 3.5 Haiku (Latest Fast)',
-      'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet',
-      'anthropic.claude-3-5-sonnet-20241022-v2:0': 'Claude 3.5 Sonnet v2',
-      'anthropic.claude-3-7-sonnet-20250219-v1:0': 'Claude 3.7 Sonnet (Latest)',
-      'anthropic.claude-sonnet-4-20250514-v1:0': 'Claude Sonnet 4 (Most Advanced)',
-      'anthropic.claude-3-opus-20240229-v1:0': 'Claude 3 Opus',
-      'anthropic.claude-opus-4-20250514-v1:0': 'Claude Opus 4',
-      'anthropic.claude-opus-4-1-20250805-v1:0': 'Claude Opus 4.1 (Most Powerful)',
+      'anthropic.claude-3-sonnet-20240229-v1:0': 'Claude 3 Sonnet (Balanced)',
+      'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet (Recommended)',
+      'anthropic.claude-3-5-sonnet-20241022-v2:0': 'Claude 3.5 Sonnet v2 (Latest)',
+      'anthropic.claude-3-opus-20240229-v1:0': 'Claude 3 Opus (Most Capable)',
+      'anthropic.claude-instant-v1': 'Claude Instant (Fastest)',
     };
     return modelMap[modelId] || modelId;
   };
@@ -589,14 +586,11 @@ export const FileList: React.FC = () => {
                 >
                   {(availableModels.length > 0 ? availableModels : [
                     'anthropic.claude-3-haiku-20240307-v1:0',
-                    'anthropic.claude-3-5-haiku-20241022-v1:0',
+                    'anthropic.claude-3-sonnet-20240229-v1:0',
                     'anthropic.claude-3-5-sonnet-20240620-v1:0',
                     'anthropic.claude-3-5-sonnet-20241022-v2:0',
-                    'anthropic.claude-3-7-sonnet-20250219-v1:0',
-                    'anthropic.claude-sonnet-4-20250514-v1:0',
                     'anthropic.claude-3-opus-20240229-v1:0',
-                    'anthropic.claude-opus-4-20250514-v1:0',
-                    'anthropic.claude-opus-4-1-20250805-v1:0'
+                    'anthropic.claude-instant-v1'
                   ]).map((model) => (
                     <option key={model} value={model}>
                       {formatModelName(model)}
