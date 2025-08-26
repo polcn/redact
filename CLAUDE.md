@@ -110,14 +110,15 @@ User selects advanced models (e.g., Claude Opus 4.1) but system falls back to ba
    - Ensure fallback only happens when truly necessary
    - Test cost implications of different models
 
-## Recent Enhancements (2025-08-26)
+## Recent Enhancements (2025-08-26) 
 - ✅ **CORE DESIGN IMPLEMENTATION COMPLETE**:
-  - **Claude SDK Integration**: Fixed inference profile issues, enhanced model selection
-  - **Metadata Extraction**: Comprehensive entity extraction, document analysis 
-  - **Vector Preparation**: Multiple chunking strategies for AI applications
+  - **Claude SDK Integration**: Enhanced error handling, fallback stability
+  - **Metadata Extraction**: Comprehensive entity extraction, document analysis
+  - **Vector Preparation**: Multiple chunking strategies for AI applications  
   - **Custom Redaction**: Built-in + user-defined pattern support
   - **New API Endpoints**: 6 new endpoints for enhanced document processing
-- ✅ **Production Deployed**: All features live and tested
+- ✅ **Production Deployed**: All features live and stable
+- ⚠️ **Model Selection**: Still limited to Claude 3.x models (inference profiles needed for 4.x)
 
 ## Recent Fixes (2025-08-10)
 - ✅ **AI SUMMARY FEATURE FIXED**:

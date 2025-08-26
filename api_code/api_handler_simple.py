@@ -1869,6 +1869,8 @@ def get_ai_config():
 
 def generate_ai_summary_internal(text, summary_type='standard', user_role='user', model_override=None):
     """Generate AI summary for document text using Claude SDK or AWS Bedrock"""
+    global anthropic_client, bedrock_runtime
+    
     try:
         ai_config = get_ai_config()
         
@@ -1915,10 +1917,9 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
             except Exception as sdk_error:
                 logger.error(f"Claude SDK error: {str(sdk_error)}")
                 # Fall through to Bedrock fallback
-                client = bedrock_runtime
-                if not client:
+                if not bedrock_runtime:
                     bedrock_runtime = boto3.client('bedrock-runtime', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-                    client = bedrock_runtime
+                client = bedrock_runtime
         
         # Use direct Bedrock if Claude SDK unavailable or failed
         if client == bedrock_runtime or not anthropic_client:
