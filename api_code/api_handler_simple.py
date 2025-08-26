@@ -14,6 +14,15 @@ import sys
 import importlib.util
 import re
 import hashlib
+from collections import defaultdict
+
+# Import Claude SDK
+try:
+    from anthropic import AnthropicBedrock
+except ImportError:
+    AnthropicBedrock = None
+    logger = logging.getLogger()
+    logger.warning("anthropic package not available - falling back to direct Bedrock calls")
 
 # Configure logging
 logging.basicConfig(
@@ -227,6 +236,26 @@ def lambda_handler(event, context):
         elif path == '/documents/ai-summary' and method == 'POST':
             logger.info(f"Handling AI summary request for path: {path}")
             return handle_ai_summary(event, headers, context, user_context)
+            
+        elif path == '/documents/extract-metadata' and method == 'POST':
+            logger.info(f"Handling metadata extraction request for path: {path}")
+            return handle_extract_metadata(event, headers, context, user_context)
+            
+        elif path == '/documents/prepare-vectors' and method == 'POST':
+            logger.info(f"Handling vector preparation request for path: {path}")
+            return handle_prepare_vectors(event, headers, context, user_context)
+            
+        elif path == '/redaction/patterns' and method == 'GET':
+            logger.info(f"Handling get redaction patterns request for path: {path}")
+            return handle_get_redaction_patterns(event, headers, context, user_context)
+            
+        elif path == '/redaction/patterns' and method == 'POST':
+            logger.info(f"Handling create redaction pattern request for path: {path}")
+            return handle_create_redaction_pattern(event, headers, context, user_context)
+            
+        elif path == '/redaction/apply' and method == 'POST':
+            logger.info(f"Handling apply redaction patterns request for path: {path}")
+            return handle_apply_redaction(event, headers, context, user_context)
             
         # Quarantine file management
         elif path == '/quarantine/files' and method == 'GET':
@@ -1795,20 +1824,35 @@ def apply_redaction_for_api(text, config):
     return processed_text, replacement_count
 
 # AI Summary Helper Functions
+anthropic_client = None
 bedrock_runtime = None
 
-def get_bedrock_client():
-    """Get or create Bedrock runtime client"""
-    global bedrock_runtime
-    if not bedrock_runtime:
-        logger.info("Creating new Bedrock runtime client")
+def get_claude_client():
+    """Get or create AnthropicBedrock client (preferred) or fallback to direct Bedrock"""
+    global anthropic_client, bedrock_runtime
+    
+    if AnthropicBedrock and not anthropic_client:
+        logger.info("Creating new AnthropicBedrock client")
+        try:
+            anthropic_client = AnthropicBedrock(
+                aws_region=os.environ.get('AWS_REGION', 'us-east-1')
+            )
+            logger.info("AnthropicBedrock client created successfully")
+        except Exception as e:
+            logger.error(f"Error creating AnthropicBedrock client: {str(e)}")
+            anthropic_client = None
+    
+    # Fallback to direct Bedrock client
+    if not anthropic_client and not bedrock_runtime:
+        logger.info("Creating fallback Bedrock runtime client")
         try:
             bedrock_runtime = boto3.client('bedrock-runtime', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-            logger.info("Bedrock client created successfully")
+            logger.info("Bedrock runtime client created successfully")
         except Exception as e:
             logger.error(f"Error creating Bedrock client: {str(e)}")
             raise
-    return bedrock_runtime
+    
+    return anthropic_client or bedrock_runtime
 
 def get_ai_config():
     """Get AI configuration from SSM Parameter Store"""
@@ -1824,7 +1868,7 @@ def get_ai_config():
         }
 
 def generate_ai_summary_internal(text, summary_type='standard', user_role='user', model_override=None):
-    """Generate AI summary for document text using AWS Bedrock"""
+    """Generate AI summary for document text using Claude SDK or AWS Bedrock"""
     try:
         ai_config = get_ai_config()
         
@@ -1847,81 +1891,82 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         temperature = summary_config.get('temperature', 0.5)
         instruction = summary_config.get('instruction', 'Summarize this document.')
         
-        # Prepare the prompt
-        prompt = f"""Human: {instruction}
-
-Document content:
-{text[:10000]}
-
-Please provide a clear, well-structured summary."""
+        # Get the Claude client (SDK or fallback to Bedrock)
+        client = get_claude_client()
         
-        # Prepare request for Bedrock
-        bedrock = get_bedrock_client()
+        # Use Claude SDK if available
+        if client == anthropic_client and anthropic_client:
+            logger.info(f"Using Claude SDK with model: {model_id}")
+            try:
+                message = anthropic_client.messages.create(
+                    model=model_id,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": f"{instruction}\n\nDocument content:\n{text[:10000]}\n\nPlease provide a clear, well-structured summary."
+                        }
+                    ]
+                )
+                summary = message.content[0].text.strip()
+                logger.info(f"Claude SDK response received, length: {len(summary)}")
+                
+            except Exception as sdk_error:
+                logger.error(f"Claude SDK error: {str(sdk_error)}")
+                # Fall through to Bedrock fallback
+                client = bedrock_runtime
+                if not client:
+                    bedrock_runtime = boto3.client('bedrock-runtime', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+                    client = bedrock_runtime
         
-        # Format request based on model type
-        # All Claude 3.x, 4.x models use Messages API
-        if any(x in model_id for x in ["claude-3", "claude-4", "opus-4", "sonnet-4"]):
-            # Use Messages API for Claude 3+ models
-            request_body = json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": f"{instruction}\nDocument content:\n{text[:10000]}\nPlease provide a clear, well-structured summary."
-                    }
-                ]
-            })
-        elif "claude-instant" in model_id or "claude-v2" in model_id:
-            # Use legacy format for older Claude models
-            request_body = json.dumps({
-                "prompt": prompt,
-                "max_tokens_to_sample": max_tokens,
-                "temperature": temperature,
-                "top_p": 0.9,
-                "stop_sequences": ["\n\nHuman:"]
-            })
-        else:
-            # Default to Messages API for any unrecognized Claude model
-            request_body = json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": f"{instruction}\nDocument content:\n{text[:10000]}\nPlease provide a clear, well-structured summary."
-                    }
-                ]
-            })
-        
-        # Invoke the model
-        response = bedrock.invoke_model(
-            modelId=model_id,
-            contentType='application/json',
-            accept='application/json',
-            body=request_body
-        )
-        
-        # Parse response
-        response_body = json.loads(response['body'].read())
-        logger.info(f"Bedrock response: {json.dumps(response_body)[:500]}...")  # Log first 500 chars
-        
-        if any(x in model_id for x in ["claude-3", "claude-4", "opus-4", "sonnet-4"]):
-            # Claude 3+ uses Messages API response format
-            content = response_body.get('content', [])
-            if content and isinstance(content, list) and len(content) > 0:
-                summary = content[0].get('text', '').strip()
+        # Use direct Bedrock if Claude SDK unavailable or failed
+        if client == bedrock_runtime or not anthropic_client:
+            logger.info(f"Using direct Bedrock with model: {model_id}")
+            
+            # Format request based on model type
+            if any(x in model_id for x in ["claude-3", "claude-4", "opus-4", "sonnet-4"]):
+                # Use Messages API for Claude 3+ models
+                request_body = json.dumps({
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": f"{instruction}\nDocument content:\n{text[:10000]}\nPlease provide a clear, well-structured summary."
+                        }
+                    ]
+                })
             else:
-                summary = ''
-        elif "claude-instant" in model_id or "claude-v2" in model_id:
-            summary = response_body.get('completion', '').strip()
-        else:
-            # Default to Messages API response format
-            content = response_body.get('content', [])
-            if content and isinstance(content, list) and len(content) > 0:
-                summary = content[0].get('text', '').strip()
+                # Legacy format for older models
+                request_body = json.dumps({
+                    "prompt": f"""Human: {instruction}\n\nDocument content:\n{text[:10000]}\n\nPlease provide a clear, well-structured summary.\n\nAssistant:""",
+                    "max_tokens_to_sample": max_tokens,
+                    "temperature": temperature,
+                    "top_p": 0.9,
+                    "stop_sequences": ["\n\nHuman:"]
+                })
+            
+            # Invoke the model
+            response = client.invoke_model(
+                modelId=model_id,
+                contentType='application/json',
+                accept='application/json',
+                body=request_body
+            )
+            
+            # Parse response
+            response_body = json.loads(response['body'].read())
+            logger.info(f"Bedrock response: {json.dumps(response_body)[:200]}...")
+            
+            if any(x in model_id for x in ["claude-3", "claude-4", "opus-4", "sonnet-4"]):
+                # Claude 3+ uses Messages API response format
+                content = response_body.get('content', [])
+                if content and isinstance(content, list) and len(content) > 0:
+                    summary = content[0].get('text', '').strip()
+                else:
+                    summary = ''
             else:
                 summary = response_body.get('completion', '').strip()
         
@@ -1947,6 +1992,628 @@ Please provide a clear, well-structured summary."""
     except Exception as e:
         logger.error(f"Error generating AI summary: {str(e)}")
         raise
+
+# Enhanced Metadata Extraction Functions
+def extract_document_metadata(content, filename, file_size=None):
+    """
+    Extract comprehensive metadata from document content
+    Based on the core design document requirements
+    """
+    try:
+        logger.info(f"Extracting metadata for document: {filename}")
+        
+        metadata = {
+            'document_properties': extract_document_properties(filename, file_size),
+            'extracted_entities': extract_entities(content),
+            'document_structure': analyze_document_structure(content),
+            'temporal_data': extract_temporal_data(content),
+            'topics_and_keywords': extract_topics_and_keywords(content)
+        }
+        
+        logger.info(f"Metadata extraction complete: {len(metadata)} categories")
+        return metadata
+        
+    except Exception as e:
+        logger.error(f"Error extracting metadata: {str(e)}")
+        return {
+            'error': str(e),
+            'extraction_timestamp': datetime.utcnow().isoformat()
+        }
+
+def extract_document_properties(filename, file_size):
+    """Extract basic document properties"""
+    file_ext = filename.split('.')[-1].lower() if '.' in filename else ''
+    
+    # Infer document type from filename and extension
+    doc_type = infer_document_type(filename)
+    
+    return {
+        'filename': filename,
+        'file_extension': file_ext,
+        'inferred_type': doc_type,
+        'file_size': file_size,
+        'processed_at': datetime.utcnow().isoformat()
+    }
+
+def infer_document_type(filename):
+    """Infer document type from filename patterns"""
+    filename_lower = filename.lower()
+    
+    # Policy and procedure patterns
+    if any(word in filename_lower for word in ['policy', 'policies', 'procedure', 'standard']):
+        return 'policy'
+    
+    # Evidence and report patterns
+    if any(word in filename_lower for word in ['report', 'evidence', 'audit', 'log', 'access']):
+        return 'evidence'
+    
+    # Configuration and technical patterns
+    if any(word in filename_lower for word in ['config', 'settings', 'technical', 'system']):
+        return 'technical'
+    
+    # Financial and business patterns
+    if any(word in filename_lower for word in ['financial', 'budget', 'invoice', 'contract']):
+        return 'financial'
+    
+    return 'document'
+
+def extract_entities(content):
+    """Extract named entities from document content"""
+    entities = {
+        'people': extract_people_names(content),
+        'organizations': extract_organizations(content),
+        'locations': extract_locations(content),
+        'monetary_values': extract_monetary_values(content),
+        'percentages': extract_percentages(content),
+        'email_addresses': extract_emails(content),
+        'phone_numbers': extract_phone_numbers(content),
+        'ip_addresses': extract_ip_addresses(content)
+    }
+    
+    # Remove empty lists
+    return {k: v for k, v in entities.items() if v}
+
+def extract_people_names(content):
+    """Extract potential people names (basic pattern matching)"""
+    # Pattern for common name formats (First Last, First Middle Last)
+    name_pattern = r'\b[A-Z][a-z]+ [A-Z][a-z]+(?:\s[A-Z][a-z]+)?\b'
+    names = re.findall(name_pattern, content)
+    
+    # Filter out common false positives
+    false_positives = {'New York', 'Los Angeles', 'San Francisco', 'United States', 'North America'}
+    names = [name for name in set(names) if name not in false_positives]
+    
+    return names[:10]  # Limit to first 10 unique names
+
+def extract_organizations(content):
+    """Extract organization names"""
+    # Patterns for common organization formats
+    org_patterns = [
+        r'\b[A-Z][A-Za-z\s&]+ (?:Inc|LLC|Corp|Corporation|Company|Ltd|Limited)\b',
+        r'\b[A-Z][A-Za-z\s&]+ (?:Group|Associates|Partners|Solutions)\b',
+        r'\b[A-Z]{2,}(?:\s[A-Z]{2,})*\b',  # Acronyms
+    ]
+    
+    orgs = []
+    for pattern in org_patterns:
+        orgs.extend(re.findall(pattern, content))
+    
+    return list(set(orgs))[:10]  # Unique organizations, limit 10
+
+def extract_locations(content):
+    """Extract location names"""
+    # Basic patterns for locations
+    location_patterns = [
+        r'\b[A-Z][a-z]+ (?:City|County|State|Province)\b',
+        r'\b[A-Z][a-z]+, [A-Z]{2}\b',  # City, State format
+        r'\b[A-Z][a-z]+ [A-Z][a-z]+(?:, [A-Z]{2})?\b'  # City State format
+    ]
+    
+    locations = []
+    for pattern in location_patterns:
+        locations.extend(re.findall(pattern, content))
+    
+    return list(set(locations))[:10]
+
+def extract_monetary_values(content):
+    """Extract monetary values"""
+    money_pattern = r'\$[\d,]+(?:\.\d{2})?(?:[KMB])?|\$[\d.]+[KMB]'
+    money_values = re.findall(money_pattern, content)
+    return list(set(money_values))[:20]
+
+def extract_percentages(content):
+    """Extract percentage values"""
+    percent_pattern = r'\d+(?:\.\d+)?%'
+    percentages = re.findall(percent_pattern, content)
+    return list(set(percentages))[:10]
+
+def extract_emails(content):
+    """Extract email addresses (redacted pattern)"""
+    # Look for [EMAIL] redacted patterns and original emails if present
+    email_patterns = [
+        r'\[EMAIL\]',
+        r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    ]
+    
+    emails = []
+    for pattern in email_patterns:
+        emails.extend(re.findall(pattern, content))
+    
+    return list(set(emails))
+
+def extract_phone_numbers(content):
+    """Extract phone numbers (including redacted patterns)"""
+    phone_patterns = [
+        r'\[PHONE\]',
+        r'\(\d{3}\)\s?\d{3}-\d{4}',
+        r'\d{3}-\d{3}-\d{4}',
+        r'\d{3}\.\d{3}\.\d{4}'
+    ]
+    
+    phones = []
+    for pattern in phone_patterns:
+        phones.extend(re.findall(pattern, content))
+    
+    return list(set(phones))
+
+def extract_ip_addresses(content):
+    """Extract IP addresses (including redacted patterns)"""
+    ip_patterns = [
+        r'\[IP_ADDRESS\]',
+        r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'
+    ]
+    
+    ips = []
+    for pattern in ip_patterns:
+        ips.extend(re.findall(pattern, content))
+    
+    return list(set(ips))
+
+def analyze_document_structure(content):
+    """Analyze document structure (sections, tables, lists)"""
+    structure = {
+        'total_length': len(content),
+        'word_count': len(content.split()),
+        'line_count': len(content.split('\n')),
+        'paragraph_count': len([p for p in content.split('\n\n') if p.strip()]),
+    }
+    
+    # Count markdown-style headers
+    headers = len(re.findall(r'^#+\s', content, re.MULTILINE))
+    if headers > 0:
+        structure['headers'] = headers
+    
+    # Count table-like structures
+    tables = len(re.findall(r'\|.*\|', content))
+    if tables > 2:  # At least header + 1 data row
+        structure['tables'] = tables // 2
+    
+    # Count list items
+    lists = len(re.findall(r'^\s*[-*+]\s', content, re.MULTILINE))
+    numbered_lists = len(re.findall(r'^\s*\d+\.\s', content, re.MULTILINE))
+    if lists > 0:
+        structure['bullet_lists'] = lists
+    if numbered_lists > 0:
+        structure['numbered_lists'] = numbered_lists
+    
+    return structure
+
+def extract_temporal_data(content):
+    """Extract dates and time-related information"""
+    temporal = {}
+    
+    # Date patterns
+    date_patterns = [
+        r'\b\d{1,2}/\d{1,2}/\d{4}\b',  # MM/DD/YYYY
+        r'\b\d{4}-\d{2}-\d{2}\b',      # YYYY-MM-DD
+        r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4}\b',  # Month DD, YYYY
+        r'\b\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{4}\b'     # DD Month YYYY
+    ]
+    
+    dates = []
+    for pattern in date_patterns:
+        dates.extend(re.findall(pattern, content, re.IGNORECASE))
+    
+    if dates:
+        temporal['dates_found'] = list(set(dates))[:10]
+    
+    # Time periods and quarters
+    periods = re.findall(r'\b(?:Q[1-4]|Quarter [1-4])\s+\d{4}\b', content, re.IGNORECASE)
+    if periods:
+        temporal['periods'] = list(set(periods))
+    
+    # Year references
+    years = re.findall(r'\b20\d{2}\b', content)
+    if years:
+        temporal['years'] = sorted(list(set(years)))
+    
+    return temporal
+
+def extract_topics_and_keywords(content):
+    """Extract key topics and important keywords"""
+    # Common business/technical keywords
+    business_keywords = [
+        'audit', 'compliance', 'security', 'risk', 'control', 'policy', 'procedure',
+        'approval', 'review', 'access', 'authentication', 'authorization', 'encryption',
+        'backup', 'monitoring', 'incident', 'vulnerability', 'assessment', 'testing'
+    ]
+    
+    found_keywords = []
+    content_lower = content.lower()
+    
+    for keyword in business_keywords:
+        if keyword in content_lower:
+            count = content_lower.count(keyword)
+            found_keywords.append({'keyword': keyword, 'frequency': count})
+    
+    # Sort by frequency
+    found_keywords.sort(key=lambda x: x['frequency'], reverse=True)
+    
+    # Extract potential topics (capitalized phrases)
+    topic_pattern = r'\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)*\b'
+    topics = re.findall(topic_pattern, content)
+    topic_counts = defaultdict(int)
+    for topic in topics:
+        if len(topic.split()) > 1 and len(topic) > 10:  # Multi-word, longer topics
+            topic_counts[topic] += 1
+    
+    top_topics = sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    return {
+        'keywords': found_keywords[:15],
+        'topics': [{'topic': topic, 'frequency': freq} for topic, freq in top_topics]
+    }
+
+# Vector-Ready Chunk Preparation Functions
+def prepare_document_for_vectors(content, filename, chunk_size=512, overlap=50, strategy='semantic'):
+    """
+    Prepare document content for vector database ingestion
+    Based on the core design document vector preparation requirements
+    """
+    try:
+        logger.info(f"Preparing document for vectors: {filename} (strategy: {strategy})")
+        
+        # Choose chunking strategy
+        if strategy == 'semantic':
+            chunks = semantic_chunking(content, chunk_size, overlap)
+        elif strategy == 'structure':
+            chunks = structure_based_chunking(content, chunk_size, overlap)
+        else:
+            chunks = size_based_chunking(content, chunk_size, overlap)
+        
+        # Process each chunk
+        processed_chunks = []
+        for i, chunk in enumerate(chunks):
+            processed_chunk = {
+                'chunk_index': i,
+                'text': chunk['text'],
+                'metadata': {
+                    'source_filename': filename,
+                    'chunk_index': i,
+                    'total_chunks': len(chunks),
+                    'chunk_size': len(chunk['text']),
+                    'word_count': len(chunk['text'].split()),
+                    'strategy': strategy,
+                    **chunk.get('metadata', {})
+                }
+            }
+            processed_chunks.append(processed_chunk)
+        
+        # Prepare response
+        vector_ready_data = {
+            'chunks': processed_chunks,
+            'total_chunks': len(processed_chunks),
+            'chunking_strategy': strategy,
+            'chunk_size': chunk_size,
+            'overlap': overlap,
+            'embedding_ready': True,
+            'recommended_embedding_model': 'text-embedding-ada-002',
+            'preparation_timestamp': datetime.utcnow().isoformat()
+        }
+        
+        logger.info(f"Vector preparation complete: {len(processed_chunks)} chunks created")
+        return vector_ready_data
+        
+    except Exception as e:
+        logger.error(f"Error preparing document for vectors: {str(e)}")
+        return {
+            'error': str(e),
+            'preparation_timestamp': datetime.utcnow().isoformat()
+        }
+
+def semantic_chunking(content, target_size, overlap):
+    """Semantic chunking that tries to preserve meaning by splitting on sentences/paragraphs"""
+    chunks = []
+    
+    # Split by paragraphs first
+    paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+    
+    current_chunk = ""
+    current_metadata = {'start_paragraph': 0}
+    
+    for i, paragraph in enumerate(paragraphs):
+        # If adding this paragraph would exceed target size, finalize current chunk
+        if current_chunk and len(current_chunk) + len(paragraph) > target_size:
+            chunks.append({
+                'text': current_chunk.strip(),
+                'metadata': {
+                    **current_metadata,
+                    'end_paragraph': i - 1,
+                    'paragraph_count': i - current_metadata['start_paragraph']
+                }
+            })
+            
+            # Start new chunk with overlap
+            if overlap > 0 and current_chunk:
+                overlap_text = current_chunk[-overlap:]
+                current_chunk = overlap_text + "\n\n" + paragraph
+            else:
+                current_chunk = paragraph
+            
+            current_metadata = {'start_paragraph': i}
+        else:
+            if current_chunk:
+                current_chunk += "\n\n" + paragraph
+            else:
+                current_chunk = paragraph
+    
+    # Add final chunk
+    if current_chunk:
+        chunks.append({
+            'text': current_chunk.strip(),
+            'metadata': {
+                **current_metadata,
+                'end_paragraph': len(paragraphs) - 1,
+                'paragraph_count': len(paragraphs) - current_metadata['start_paragraph']
+            }
+        })
+    
+    return chunks
+
+def structure_based_chunking(content, target_size, overlap):
+    """Structure-based chunking that splits on headers, sections, and structural elements"""
+    chunks = []
+    
+    # Split by headers first (markdown style)
+    header_pattern = r'^(#{1,6}\s.+)$'
+    lines = content.split('\n')
+    
+    current_chunk = ""
+    current_section = "Introduction"
+    section_start = 0
+    
+    for i, line in enumerate(lines):
+        # Check for header
+        header_match = re.match(header_pattern, line)
+        if header_match:
+            # Finalize previous chunk if it exists and is large enough
+            if current_chunk and len(current_chunk) > 100:
+                chunks.append({
+                    'text': current_chunk.strip(),
+                    'metadata': {
+                        'section': current_section,
+                        'section_start_line': section_start,
+                        'section_end_line': i - 1
+                    }
+                })
+            
+            # Start new chunk
+            current_section = header_match.group(1)
+            section_start = i
+            
+            if overlap > 0 and current_chunk:
+                overlap_text = current_chunk[-overlap:]
+                current_chunk = overlap_text + "\n" + line
+            else:
+                current_chunk = line
+        else:
+            if current_chunk:
+                current_chunk += "\n" + line
+            else:
+                current_chunk = line
+        
+        # If chunk is getting too large, split it
+        if len(current_chunk) > target_size:
+            chunk_text = current_chunk[:target_size]
+            # Try to end at a sentence boundary
+            last_period = chunk_text.rfind('.')
+            if last_period > target_size * 0.7:  # At least 70% of target size
+                chunk_text = chunk_text[:last_period + 1]
+                remaining = current_chunk[last_period + 1:]
+            else:
+                remaining = current_chunk[target_size:]
+            
+            chunks.append({
+                'text': chunk_text.strip(),
+                'metadata': {
+                    'section': current_section,
+                    'section_start_line': section_start,
+                    'partial_section': True
+                }
+            })
+            
+            current_chunk = remaining.strip()
+    
+    # Add final chunk
+    if current_chunk:
+        chunks.append({
+            'text': current_chunk.strip(),
+            'metadata': {
+                'section': current_section,
+                'section_start_line': section_start,
+                'section_end_line': len(lines) - 1
+            }
+        })
+    
+    return chunks
+
+def size_based_chunking(content, target_size, overlap):
+    """Simple size-based chunking with optional overlap"""
+    chunks = []
+    
+    # Split content into words for better boundary control
+    words = content.split()
+    
+    start = 0
+    chunk_index = 0
+    
+    while start < len(words):
+        # Calculate end position
+        end = start + target_size
+        if end > len(words):
+            end = len(words)
+        
+        # Get chunk text
+        chunk_words = words[start:end]
+        chunk_text = ' '.join(chunk_words)
+        
+        chunks.append({
+            'text': chunk_text,
+            'metadata': {
+                'start_word': start,
+                'end_word': end - 1,
+                'word_count': len(chunk_words),
+                'chunk_method': 'size_based'
+            }
+        })
+        
+        # Calculate next start position with overlap
+        if overlap > 0 and start + target_size < len(words):
+            start = end - overlap
+        else:
+            start = end
+        
+        chunk_index += 1
+    
+    return chunks
+
+# Custom Redaction Pattern Functions
+def create_custom_pattern(pattern_name, regex_pattern, replacement_text='[REDACTED]', description=''):
+    """Create a custom redaction pattern"""
+    return {
+        'pattern_name': pattern_name,
+        'regex': regex_pattern,
+        'replacement': replacement_text,
+        'description': description,
+        'created_at': datetime.utcnow().isoformat(),
+        'enabled': True,
+        'pattern_type': 'custom'
+    }
+
+def get_builtin_patterns():
+    """Get built-in redaction patterns as defined in the core design"""
+    return {
+        'ssn': {
+            'pattern_name': 'ssn',
+            'regex': r'\b\d{3}-\d{2}-\d{4}\b',
+            'replacement': '[SSN]',
+            'description': 'Social Security Numbers',
+            'pattern_type': 'builtin'
+        },
+        'credit_card': {
+            'pattern_name': 'credit_card',
+            'regex': r'\b(?:\d{4}[-\s]?){3}\d{4}\b',
+            'replacement': '[CREDIT_CARD]',
+            'description': 'Credit Card Numbers',
+            'pattern_type': 'builtin'
+        },
+        'phone': {
+            'pattern_name': 'phone',
+            'regex': r'\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b',
+            'replacement': '[PHONE]',
+            'description': 'Phone Numbers',
+            'pattern_type': 'builtin'
+        },
+        'email': {
+            'pattern_name': 'email',
+            'regex': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+            'replacement': '[EMAIL]',
+            'description': 'Email Addresses',
+            'pattern_type': 'builtin'
+        },
+        'ip_address': {
+            'pattern_name': 'ip_address',
+            'regex': r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b',
+            'replacement': '[IP_ADDRESS]',
+            'description': 'IP Addresses',
+            'pattern_type': 'builtin'
+        },
+        'driver_license': {
+            'pattern_name': 'driver_license',
+            'regex': r'\b[A-Z]{1,2}[0-9]{6,8}\b',
+            'replacement': '[DRIVER_LICENSE]',
+            'description': 'Driver License Numbers',
+            'pattern_type': 'builtin'
+        }
+    }
+
+def apply_custom_redaction_patterns(content, patterns, case_sensitive=False):
+    """Apply custom redaction patterns to content"""
+    try:
+        processed_content = content
+        total_replacements = 0
+        pattern_stats = {}
+        
+        for pattern_name, pattern_config in patterns.items():
+            if not pattern_config.get('enabled', True):
+                continue
+                
+            regex_pattern = pattern_config['regex']
+            replacement = pattern_config['replacement']
+            
+            # Apply pattern with proper flags
+            flags = 0 if case_sensitive else re.IGNORECASE
+            
+            # Count matches before replacement
+            matches = re.findall(regex_pattern, processed_content, flags)
+            match_count = len(matches)
+            
+            if match_count > 0:
+                # Apply replacement
+                processed_content = re.sub(regex_pattern, replacement, processed_content, flags=flags)
+                total_replacements += match_count
+                
+                pattern_stats[pattern_name] = {
+                    'matches_found': match_count,
+                    'replacement_text': replacement,
+                    'pattern_type': pattern_config.get('pattern_type', 'custom')
+                }
+        
+        return {
+            'processed_content': processed_content,
+            'total_replacements': total_replacements,
+            'pattern_statistics': pattern_stats,
+            'redaction_summary': {
+                'patterns_applied': len(pattern_stats),
+                'total_patterns_available': len(patterns),
+                'total_redactions': total_replacements
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error applying custom redaction patterns: {str(e)}")
+        return {
+            'error': str(e),
+            'processed_content': content,  # Return original content on error
+            'total_replacements': 0
+        }
+
+def validate_regex_pattern(pattern):
+    """Validate that a regex pattern is safe and functional"""
+    try:
+        # Test if pattern compiles
+        compiled_pattern = re.compile(pattern)
+        
+        # Test with sample text to ensure it doesn't cause catastrophic backtracking
+        test_text = "This is a test string with numbers 123-45-6789 and email@example.com"
+        matches = compiled_pattern.findall(test_text)
+        
+        return True, "Pattern is valid"
+        
+    except re.error as e:
+        return False, f"Invalid regex pattern: {str(e)}"
+    except Exception as e:
+        return False, f"Pattern validation error: {str(e)}"
 
 def handle_ai_summary(event, headers, context, user_context):
     logger.info("=== handle_ai_summary called ===")
@@ -2483,4 +3150,442 @@ def handle_delete_all_quarantine_files(event, headers, context, user_context):
             'statusCode': 500,
             'headers': headers,
             'body': json.dumps({'error': 'Failed to delete quarantine files'})
+        }
+
+def handle_extract_metadata(event, headers, context, user_context):
+    """Handle POST /documents/extract-metadata endpoint to extract metadata from document content"""
+    try:
+        logger.info("Starting metadata extraction process")
+        
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+        
+        # Get required parameters
+        document_id = body.get('document_id')
+        content = body.get('content')
+        filename = body.get('filename', 'unknown.txt')
+        file_size = body.get('file_size')
+        extraction_types = body.get('extraction_types', ['all'])
+        
+        if not content:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Document content is required'})
+            }
+        
+        # If document_id is provided, verify user owns the document
+        if document_id:
+            user_id = user_context.get('user_id', 'anonymous')
+            
+            # Check if document exists in user's processed bucket
+            try:
+                processed_key = f'users/{user_id}/processed/{document_id}'
+                s3.head_object(Bucket=PROCESSED_BUCKET, Key=processed_key)
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'NoSuchKey' or e.response['Error']['Code'] == '404':
+                    return {
+                        'statusCode': 403,
+                        'headers': headers,
+                        'body': json.dumps({'error': 'Access denied - you can only extract metadata from your own files'})
+                    }
+                else:
+                    raise
+        
+        # Extract metadata based on requested types
+        if 'all' in extraction_types:
+            logger.info("Extracting all metadata types")
+            metadata = extract_document_metadata(content, filename, file_size)
+        else:
+            logger.info(f"Extracting specific metadata types: {extraction_types}")
+            metadata = {}
+            
+            if 'entities' in extraction_types:
+                metadata['extracted_entities'] = extract_entities(content)
+            
+            if 'structure' in extraction_types:
+                metadata['document_structure'] = analyze_document_structure(content)
+            
+            if 'temporal' in extraction_types:
+                metadata['temporal_data'] = extract_temporal_data(content)
+            
+            if 'topics' in extraction_types:
+                metadata['topics_and_keywords'] = extract_topics_and_keywords(content)
+            
+            if 'properties' in extraction_types:
+                metadata['document_properties'] = extract_document_properties(filename, file_size)
+        
+        # Prepare response
+        response_data = {
+            'document_id': document_id,
+            'filename': filename,
+            'metadata': metadata,
+            'extraction_timestamp': datetime.utcnow().isoformat(),
+            'extraction_types': extraction_types
+        }
+        
+        logger.info(f"Metadata extraction completed for {filename}")
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps(response_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in metadata extraction: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Metadata extraction failed: {str(e)}'})
+        }
+
+def handle_prepare_vectors(event, headers, context, user_context):
+    """Handle POST /documents/prepare-vectors endpoint to prepare document content for vector databases"""
+    try:
+        logger.info("Starting vector preparation process")
+        
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+        
+        # Get required parameters
+        document_id = body.get('document_id')
+        content = body.get('content')
+        filename = body.get('filename', 'unknown.txt')
+        
+        # Vector preparation options
+        chunk_size = body.get('chunk_size', 512)
+        overlap = body.get('overlap', 50)
+        strategy = body.get('strategy', 'semantic')  # semantic, structure, size
+        
+        if not content:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Document content is required'})
+            }
+        
+        # Validate parameters
+        if chunk_size < 100 or chunk_size > 2000:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'chunk_size must be between 100 and 2000'})
+            }
+        
+        if overlap < 0 or overlap > chunk_size // 2:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'overlap must be between 0 and half of chunk_size'})
+            }
+        
+        if strategy not in ['semantic', 'structure', 'size']:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'strategy must be one of: semantic, structure, size'})
+            }
+        
+        # If document_id is provided, verify user owns the document
+        if document_id:
+            user_id = user_context.get('user_id', 'anonymous')
+            
+            # Check if document exists in user's processed bucket
+            try:
+                processed_key = f'users/{user_id}/processed/{document_id}'
+                s3.head_object(Bucket=PROCESSED_BUCKET, Key=processed_key)
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'NoSuchKey' or e.response['Error']['Code'] == '404':
+                    return {
+                        'statusCode': 403,
+                        'headers': headers,
+                        'body': json.dumps({'error': 'Access denied - you can only prepare vectors from your own files'})
+                    }
+                else:
+                    raise
+        
+        # Prepare document for vector database
+        vector_data = prepare_document_for_vectors(
+            content=content,
+            filename=filename,
+            chunk_size=chunk_size,
+            overlap=overlap,
+            strategy=strategy
+        )
+        
+        # Check for errors
+        if 'error' in vector_data:
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({
+                    'error': f'Vector preparation failed: {vector_data["error"]}'
+                })
+            }
+        
+        # Prepare response
+        response_data = {
+            'document_id': document_id,
+            'filename': filename,
+            'vector_ready': vector_data,
+            'preparation_summary': {
+                'total_chunks': vector_data['total_chunks'],
+                'strategy_used': strategy,
+                'avg_chunk_size': sum(chunk['metadata']['chunk_size'] for chunk in vector_data['chunks']) // len(vector_data['chunks']) if vector_data['chunks'] else 0,
+                'embedding_ready': True
+            }
+        }
+        
+        logger.info(f"Vector preparation completed: {vector_data['total_chunks']} chunks for {filename}")
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps(response_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in vector preparation: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Vector preparation failed: {str(e)}'})
+        }
+
+def handle_get_redaction_patterns(event, headers, context, user_context):
+    """Handle GET /redaction/patterns endpoint to list available redaction patterns"""
+    try:
+        logger.info("Getting available redaction patterns")
+        
+        # Get built-in patterns
+        builtin_patterns = get_builtin_patterns()
+        
+        # For now, we'll return built-in patterns
+        # In a full implementation, you'd also load custom patterns from a database/S3
+        all_patterns = builtin_patterns.copy()
+        
+        pattern_summary = {
+            'total_patterns': len(all_patterns),
+            'builtin_patterns': len([p for p in all_patterns.values() if p['pattern_type'] == 'builtin']),
+            'custom_patterns': len([p for p in all_patterns.values() if p['pattern_type'] == 'custom'])
+        }
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps({
+                'patterns': all_patterns,
+                'summary': pattern_summary,
+                'retrieved_at': datetime.utcnow().isoformat()
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting redaction patterns: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Failed to get redaction patterns: {str(e)}'})
+        }
+
+def handle_create_redaction_pattern(event, headers, context, user_context):
+    """Handle POST /redaction/patterns endpoint to create custom redaction patterns"""
+    try:
+        logger.info("Creating custom redaction pattern")
+        
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+        
+        # Get required parameters
+        pattern_name = body.get('pattern_name', '').strip()
+        regex_pattern = body.get('regex', '').strip()
+        replacement_text = body.get('replacement', '[REDACTED]').strip()
+        description = body.get('description', '').strip()
+        
+        # Validate parameters
+        if not pattern_name:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'pattern_name is required'})
+            }
+        
+        if not regex_pattern:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'regex pattern is required'})
+            }
+        
+        # Validate regex pattern
+        is_valid, validation_message = validate_regex_pattern(regex_pattern)
+        if not is_valid:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({
+                    'error': 'Invalid regex pattern',
+                    'validation_error': validation_message
+                })
+            }
+        
+        # Create the pattern
+        new_pattern = create_custom_pattern(
+            pattern_name=pattern_name,
+            regex_pattern=regex_pattern,
+            replacement_text=replacement_text,
+            description=description
+        )
+        
+        # In a full implementation, you'd save this to a database or S3
+        # For now, we'll return the created pattern
+        
+        logger.info(f"Created custom redaction pattern: {pattern_name}")
+        
+        return {
+            'statusCode': 201,
+            'headers': headers,
+            'body': json.dumps({
+                'message': 'Custom redaction pattern created successfully',
+                'pattern': new_pattern,
+                'validation': validation_message
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating custom redaction pattern: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Failed to create redaction pattern: {str(e)}'})
+        }
+
+def handle_apply_redaction(event, headers, context, user_context):
+    """Handle POST /redaction/apply endpoint to apply redaction patterns to content"""
+    try:
+        logger.info("Applying redaction patterns to content")
+        
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+        
+        # Get required parameters
+        content = body.get('content', '').strip()
+        patterns_to_use = body.get('patterns', ['all'])  # Default to all patterns
+        case_sensitive = body.get('case_sensitive', False)
+        custom_patterns = body.get('custom_patterns', {})
+        
+        if not content:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'content is required'})
+            }
+        
+        # Prepare patterns to apply
+        patterns = {}
+        
+        if 'all' in patterns_to_use or 'builtin' in patterns_to_use:
+            patterns.update(get_builtin_patterns())
+        
+        # Add specific builtin patterns if requested
+        if 'all' not in patterns_to_use and 'builtin' not in patterns_to_use:
+            builtin_patterns = get_builtin_patterns()
+            for pattern_name in patterns_to_use:
+                if pattern_name in builtin_patterns:
+                    patterns[pattern_name] = builtin_patterns[pattern_name]
+        
+        # Add custom patterns
+        if custom_patterns:
+            # Validate custom patterns first
+            for pattern_name, pattern_config in custom_patterns.items():
+                regex_pattern = pattern_config.get('regex', '')
+                if regex_pattern:
+                    is_valid, validation_message = validate_regex_pattern(regex_pattern)
+                    if is_valid:
+                        patterns[pattern_name] = pattern_config
+                    else:
+                        logger.warning(f"Skipping invalid custom pattern '{pattern_name}': {validation_message}")
+        
+        if not patterns:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'No valid patterns to apply'})
+            }
+        
+        # Apply redaction
+        redaction_result = apply_custom_redaction_patterns(
+            content=content,
+            patterns=patterns,
+            case_sensitive=case_sensitive
+        )
+        
+        # Check for errors
+        if 'error' in redaction_result:
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({
+                    'error': f'Redaction failed: {redaction_result["error"]}',
+                    'original_content': content
+                })
+            }
+        
+        # Prepare response
+        response_data = {
+            'original_content': content,
+            'redacted_content': redaction_result['processed_content'],
+            'redaction_statistics': redaction_result['pattern_statistics'],
+            'redaction_summary': redaction_result['redaction_summary'],
+            'settings': {
+                'case_sensitive': case_sensitive,
+                'patterns_requested': patterns_to_use,
+                'total_patterns_applied': len(patterns)
+            },
+            'processed_at': datetime.utcnow().isoformat()
+        }
+        
+        logger.info(f"Redaction completed: {redaction_result['total_replacements']} replacements made")
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps(response_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error applying redaction: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Redaction failed: {str(e)}'})
         }

@@ -41,9 +41,14 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
 | DELETE | /documents/{id} | Delete file |
 | POST | /documents/batch-download | Download multiple as ZIP |
 | POST | /documents/combine | Combine multiple files |
-| POST | /documents/ai-summary | Generate AI summary |
+| POST | /documents/ai-summary | Generate AI summary (Claude SDK) |
+| POST | /documents/extract-metadata | Extract comprehensive metadata |
+| POST | /documents/prepare-vectors | Prepare content for vector DBs |
 | GET | /user/files | List user's files |
 | GET/PUT | /api/config | Manage redaction rules |
+| GET | /redaction/patterns | List available redaction patterns |
+| POST | /redaction/patterns | Create custom redaction patterns |
+| POST | /redaction/apply | Apply redaction patterns to content |
 | GET | /quarantine/files | List quarantine files |
 | DELETE | /quarantine/{id} | Delete quarantine file |
 
@@ -105,10 +110,14 @@ User selects advanced models (e.g., Claude Opus 4.1) but system falls back to ba
    - Ensure fallback only happens when truly necessary
    - Test cost implications of different models
 
-## Recent Fixes (2025-08-20)
-- ⚠️ **Temporary Fix for AI Models**: Removed unsupported models from list
-  - Only showing models that work with direct invocation
-  - Need to implement inference profile support for advanced models
+## Recent Enhancements (2025-08-26)
+- ✅ **CORE DESIGN IMPLEMENTATION COMPLETE**:
+  - **Claude SDK Integration**: Fixed inference profile issues, enhanced model selection
+  - **Metadata Extraction**: Comprehensive entity extraction, document analysis 
+  - **Vector Preparation**: Multiple chunking strategies for AI applications
+  - **Custom Redaction**: Built-in + user-defined pattern support
+  - **New API Endpoints**: 6 new endpoints for enhanced document processing
+- ✅ **Production Deployed**: All features live and tested
 
 ## Recent Fixes (2025-08-10)
 - ✅ **AI SUMMARY FEATURE FIXED**:
