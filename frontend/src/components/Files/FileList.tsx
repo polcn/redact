@@ -303,6 +303,103 @@ export const FileList: React.FC = () => {
     }
   };
 
+  const handleBulkMetadataExport = async (format: 'json' | 'csv') => {
+    if (selectedFiles.size === 0) {
+      setError('No files selected');
+      return;
+    }
+
+    try {
+      setError('');
+      
+      // Get metadata for all selected files
+      const { extractMetadata } = await import('../../services/api');
+      const metadataPromises = Array.from(selectedFiles).map(async (fileId) => {
+        const file = files.find(f => f.id === fileId);
+        if (!file) return null;
+        
+        try {
+          const result = await extractMetadata(fileId);
+          return {
+            fileId: fileId,
+            originalFilename: file.filename,
+            ...result.metadata
+          };
+        } catch (err) {
+          console.warn(`Failed to get metadata for ${file.filename}:`, err);
+          return {
+            fileId: fileId,
+            originalFilename: file.filename,
+            filename: file.filename,
+            error: 'Failed to extract metadata'
+          };
+        }
+      });
+
+      const metadataResults = await Promise.all(metadataPromises);
+      const validMetadata = metadataResults.filter((meta): meta is NonNullable<typeof meta> => meta !== null);
+
+      if (validMetadata.length === 0) {
+        setError('Could not extract metadata for any selected files');
+        return;
+      }
+
+      // Create filename for export
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:\-]/g, '');
+      const filename = `bulk_metadata_${timestamp}.${format}`;
+      
+      let content: string;
+      let mimeType: string;
+
+      if (format === 'json') {
+        content = JSON.stringify(validMetadata, null, 2);
+        mimeType = 'application/json';
+      } else {
+        // CSV format - create a table with one row per file
+        const headers = ['Filename', 'File ID', 'File Size', 'Content Type', 'Created Date', 'Page Count', 'Word Count', 'Language', 'Topics', 'Entities', 'Error'];
+        const rows = validMetadata.map(meta => [
+          meta.filename || '',
+          meta.fileId || '',
+          (meta as any).file_size?.toString() || '',
+          (meta as any).content_type || '',
+          (meta as any).created_date || '',
+          (meta as any).page_count?.toString() || '',
+          (meta as any).word_count?.toString() || '',
+          (meta as any).language || '',
+          (meta as any).content_analysis?.key_topics?.join('; ') || '',
+          Object.entries((meta as any).entities || {}).map(([key, values]: [string, any]) => `${key}: ${Array.isArray(values) ? values.join(', ') : values}`).join('; ') || '',
+          (meta as any).error || ''
+        ]);
+
+        const csvContent = [
+          headers.map(h => `"${h}"`).join(','),
+          ...rows.map(row => row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+        
+        content = csvContent;
+        mimeType = 'text/csv';
+      }
+
+      // Download the file
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      // Clear selection after export
+      setSelectedFiles(new Set());
+
+    } catch (err: any) {
+      setError(`Failed to export metadata: ${err.message}`);
+      console.error('Bulk metadata export error:', err);
+    }
+  };
+
   const selectedCount = selectedFiles.size;
   const hasCompletedFiles = files.some(f => f.status === 'completed' && selectedFiles.has(f.id));
 
@@ -391,6 +488,16 @@ export const FileList: React.FC = () => {
                   </button>
                 </>
               )}
+              <button
+                onClick={() => handleBulkMetadataExport('json')}
+                className="btn-anthropic btn-anthropic-accent"
+                style={{ 
+                  padding: '0.5rem 1rem'
+                }}
+                title="Export metadata for all selected files as JSON"
+              >
+                📊 Export Metadata
+              </button>
               <button
                 onClick={handleBatchDelete}
                 disabled={isDeleting}

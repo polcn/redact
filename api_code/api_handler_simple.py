@@ -138,20 +138,19 @@ def get_user_context(event):
     if authorizer and 'claims' in authorizer:
         # Cognito authorizer adds claims
         claims = authorizer['claims']
+        user_id = claims.get('sub')
+        if not user_id:
+            logger.error("No user ID found in Cognito claims")
+            raise ValueError("Invalid authentication - no user ID in token")
         return {
-            'user_id': claims.get('sub', 'anonymous'),
+            'user_id': user_id,
             'email': claims.get('email', ''),
             'role': claims.get('custom:role', 'user')
         }
     
-    # Fallback for endpoints that might not have auth (like health checks)
-    # or when API Gateway hasn't passed auth context
-    logger.info("No Cognito claims found, using anonymous context")
-    return {
-        'user_id': 'anonymous',
-        'email': 'anonymous@example.com',
-        'role': 'user'
-    }
+    # No authentication context found - this is a security issue
+    logger.error("No Cognito claims found - authentication required")
+    raise ValueError("Authentication required - no valid user context found")
 
 def get_user_s3_prefix(user_id):
     """Get S3 prefix for user isolation"""
@@ -295,6 +294,27 @@ def lambda_handler(event, context):
         # Test redaction endpoint
         elif path == '/api/test-redaction' and method == 'POST':
             return handle_test_redaction(event, headers, context, user_context)
+            
+        # Vector storage and search endpoints
+        elif path == '/vectors/store' and method == 'POST':
+            logger.info(f"Handling vector storage request for path: {path}")
+            return handle_store_vectors(event, headers, context, user_context)
+            
+        elif path == '/vectors/search' and method == 'POST':
+            logger.info(f"Handling vector search request for path: {path}")
+            return handle_search_vectors(event, headers, context, user_context)
+            
+        elif path == '/vectors/delete' and method == 'DELETE':
+            logger.info(f"Handling vector delete request for path: {path}")
+            return handle_delete_vectors(event, headers, context, user_context)
+            
+        elif path == '/vectors/stats' and method == 'GET':
+            logger.info(f"Handling vector stats request for path: {path}")
+            return handle_vector_stats(event, headers, context, user_context)
+            
+        elif path == '/export/batch-metadata' and method == 'POST':
+            logger.info(f"Handling batch metadata export request for path: {path}")
+            return handle_batch_metadata_export(event, headers, context, user_context)
             
         else:
             return {
@@ -912,7 +932,9 @@ def handle_document_delete(event, headers, context, user_context):
 def handle_get_config(headers, user_context):
     """Handle GET /api/config endpoint with user-specific configuration"""
     try:
-        user_id = user_context.get('user_id', 'anonymous')
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
         
         # Try to get user-specific config first
         user_config_key = f'configs/users/{user_id}/config.json'
@@ -975,7 +997,9 @@ def handle_get_config(headers, user_context):
 def handle_update_config(event, headers, user_context):
     """Handle PUT /api/config endpoint with user-specific configuration"""
     try:
-        user_id = user_context.get('user_id', 'anonymous')
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
         
         # Parse request body
         body = event.get('body', '')
@@ -3026,7 +3050,9 @@ def handle_update_ai_config(event, headers, user_context):
 def handle_list_quarantine_files(event, headers, context, user_context):
     """Handle GET /quarantine/files endpoint to list user's quarantined files"""
     try:
-        user_id = user_context.get('user_id', 'anonymous')
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
         
         # List objects in the quarantine bucket for this user
         prefix = f'quarantine/users/{user_id}/'
@@ -3089,7 +3115,9 @@ def handle_list_quarantine_files(event, headers, context, user_context):
 def handle_delete_quarantine_file(event, headers, context, user_context):
     """Handle DELETE /quarantine/{id} endpoint to delete a specific quarantined file"""
     try:
-        user_id = user_context.get('user_id', 'anonymous')
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
         path = event.get('path', '')
         
         # Extract file ID from path
@@ -3141,7 +3169,9 @@ def handle_delete_quarantine_file(event, headers, context, user_context):
 def handle_delete_all_quarantine_files(event, headers, context, user_context):
     """Handle POST /quarantine/delete-all endpoint to delete all quarantined files for a user"""
     try:
-        user_id = user_context.get('user_id', 'anonymous')
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
         
         # List all files for the user
         prefix = f'quarantine/users/{user_id}/'
@@ -3216,7 +3246,9 @@ def handle_extract_metadata(event, headers, context, user_context):
         
         # If document_id is provided, fetch content from S3
         if document_id:
-            user_id = user_context.get('user_id', 'anonymous')
+            user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
             
             # The document_id is URL encoded S3 key from /user/files endpoint
             # Decode it to get the actual S3 key
@@ -3426,7 +3458,9 @@ def handle_prepare_vectors(event, headers, context, user_context):
         
         # If document_id is provided, verify user owns the document
         if document_id:
-            user_id = user_context.get('user_id', 'anonymous')
+            user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
             
             # Check if document exists in user's processed bucket
             try:
@@ -3711,4 +3745,456 @@ def handle_apply_redaction(event, headers, context, user_context):
             'statusCode': 500,
             'headers': headers,
             'body': json.dumps({'error': f'Redaction failed: {str(e)}'})
+        }
+
+def handle_store_vectors(event, headers, context, user_context):
+    """Handle POST /vectors/store endpoint to store document vectors in ChromaDB"""
+    try:
+        logger.info("Starting vector storage process")
+        
+        # Import ChromaDB client
+        from chromadb_client import get_chromadb_client
+        
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+        
+        # Get required parameters
+        document_id = body.get('document_id')
+        chunks = body.get('chunks')
+        metadata = body.get('metadata', {})
+        embeddings = body.get('embeddings')  # Optional pre-computed embeddings
+        
+        if not document_id or not chunks:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'document_id and chunks are required'})
+            }
+        
+        # Get user ID
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
+        
+        # Get ChromaDB client
+        chroma_client = get_chromadb_client()
+        
+        # Store vectors
+        result = chroma_client.store_vectors(
+            user_id=user_id,
+            document_id=document_id,
+            chunks=chunks,
+            metadata=metadata,
+            embeddings=embeddings
+        )
+        
+        if result['success']:
+            logger.info(f"Successfully stored {result['chunks_stored']} chunks for document {document_id}")
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(result)
+            }
+        else:
+            logger.error(f"Failed to store vectors: {result.get('error')}")
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({'error': result.get('error', 'Failed to store vectors')})
+            }
+            
+    except Exception as e:
+        logger.error(f"Error storing vectors: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Vector storage failed: {str(e)}'})
+        }
+
+def handle_search_vectors(event, headers, context, user_context):
+    """Handle POST /vectors/search endpoint to search similar vectors"""
+    try:
+        logger.info("Starting vector search process")
+        
+        # Import ChromaDB client
+        from chromadb_client import get_chromadb_client
+        
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+        
+        # Get required parameters
+        query = body.get('query')
+        n_results = body.get('n_results', 5)
+        filter_metadata = body.get('filter', {})
+        
+        if not query:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'query is required'})
+            }
+        
+        # Get user ID
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
+        
+        # Get ChromaDB client
+        chroma_client = get_chromadb_client()
+        
+        # Search vectors
+        result = chroma_client.search_similar(
+            user_id=user_id,
+            query_text=query,
+            n_results=n_results,
+            filter_metadata=filter_metadata
+        )
+        
+        if result['success']:
+            logger.info(f"Found {result['total_results']} similar chunks for user {user_id}")
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(result)
+            }
+        else:
+            logger.error(f"Failed to search vectors: {result.get('error')}")
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({'error': result.get('error', 'Failed to search vectors')})
+            }
+            
+    except Exception as e:
+        logger.error(f"Error searching vectors: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Vector search failed: {str(e)}'})
+        }
+
+def handle_delete_vectors(event, headers, context, user_context):
+    """Handle DELETE /vectors/delete endpoint to delete document vectors"""
+    try:
+        logger.info("Starting vector deletion process")
+        
+        # Import ChromaDB client
+        from chromadb_client import get_chromadb_client
+        
+        # Get document_id from query parameters
+        query_params = event.get('queryStringParameters', {})
+        document_id = query_params.get('document_id')
+        
+        if not document_id:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'document_id is required in query parameters'})
+            }
+        
+        # Get user ID
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
+        
+        # Get ChromaDB client
+        chroma_client = get_chromadb_client()
+        
+        # Delete vectors
+        result = chroma_client.delete_document_vectors(
+            user_id=user_id,
+            document_id=document_id
+        )
+        
+        if result['success']:
+            logger.info(f"Deleted {result['chunks_deleted']} chunks for document {document_id}")
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(result)
+            }
+        else:
+            logger.error(f"Failed to delete vectors: {result.get('error')}")
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({'error': result.get('error', 'Failed to delete vectors')})
+            }
+            
+    except Exception as e:
+        logger.error(f"Error deleting vectors: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Vector deletion failed: {str(e)}'})
+        }
+
+def handle_vector_stats(event, headers, context, user_context):
+    """Handle GET /vectors/stats endpoint to get vector statistics for user"""
+    try:
+        logger.info("Getting vector statistics")
+        
+        # Import ChromaDB client
+        from chromadb_client import get_chromadb_client
+        
+        # Get user ID
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
+        
+        # Get ChromaDB client
+        chroma_client = get_chromadb_client()
+        
+        # Get statistics
+        result = chroma_client.get_user_statistics(user_id)
+        
+        if result['success']:
+            logger.info(f"Retrieved statistics for user {user_id}: {result['total_chunks']} chunks")
+            return {
+                'statusCode': 200,
+                'headers': headers,
+                'body': json.dumps(result)
+            }
+        else:
+            logger.error(f"Failed to get statistics: {result.get('error')}")
+            return {
+                'statusCode': 500,
+                'headers': headers,
+                'body': json.dumps({'error': result.get('error', 'Failed to get statistics')})
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting vector statistics: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Failed to get statistics: {str(e)}'})
+        }
+
+def handle_batch_metadata_export(event, headers, context, user_context):
+    """Handle POST /export/batch-metadata endpoint for bulk metadata extraction"""
+    try:
+        logger.info("Starting batch metadata export")
+        
+        # Parse request body
+        try:
+            body = json.loads(event.get('body', '{}'))
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+        
+        # Get parameters
+        document_ids = body.get('document_ids', [])
+        include_vectors = body.get('include_vectors', False)
+        include_content = body.get('include_content', False)
+        vector_settings = body.get('vector_settings', {
+            'chunk_size': 512,
+            'overlap': 50,
+            'strategy': 'semantic'
+        })
+        
+        # Get user ID
+        user_id = user_context.get('user_id')
+        if not user_id or user_id == 'anonymous':
+            raise ValueError("Valid authentication required")
+        
+        # If no specific documents requested, get all user documents
+        if not document_ids:
+            logger.info("No specific documents requested, fetching all user documents")
+            
+            # List all user files
+            try:
+                # Get user's files from processed bucket
+                prefix = f"processed/users/{user_id}/"
+                response = s3.list_objects_v2(
+                    Bucket=PROCESSED_BUCKET,
+                    Prefix=prefix,
+                    MaxKeys=1000
+                )
+                
+                if 'Contents' in response:
+                    document_ids = [obj['Key'] for obj in response['Contents']]
+                    logger.info(f"Found {len(document_ids)} documents for user {user_id}")
+                else:
+                    return {
+                        'statusCode': 404,
+                        'headers': headers,
+                        'body': json.dumps({'error': 'No documents found for user'})
+                    }
+            except Exception as e:
+                logger.error(f"Error listing user files: {str(e)}")
+                return {
+                    'statusCode': 500,
+                    'headers': headers,
+                    'body': json.dumps({'error': 'Failed to list user documents'})
+                }
+        
+        # Process each document
+        export_data = {
+            'export_date': datetime.utcnow().isoformat(),
+            'user_id': user_id,
+            'total_documents': len(document_ids),
+            'include_vectors': include_vectors,
+            'include_content': include_content,
+            'documents': []
+        }
+        
+        processed = 0
+        failed = []
+        
+        for doc_id in document_ids[:50]:  # Limit to 50 documents per request to avoid timeout
+            try:
+                # Extract filename from S3 key
+                filename = doc_id.split('/')[-1]
+                
+                logger.info(f"Processing document {processed + 1}/{len(document_ids)}: {filename}")
+                
+                # Extract metadata
+                metadata = extract_document_metadata_from_s3(
+                    doc_id, 
+                    filename,
+                    PROCESSED_BUCKET,
+                    s3
+                )
+                
+                doc_export = {
+                    'document_id': doc_id,
+                    'filename': filename,
+                    'metadata': metadata
+                }
+                
+                # Include vectors if requested
+                if include_vectors:
+                    try:
+                        # Get document content
+                        obj = s3.get_object(Bucket=PROCESSED_BUCKET, Key=doc_id)
+                        content = obj['Body'].read()
+                        
+                        if isinstance(content, bytes):
+                            try:
+                                content = content.decode('utf-8')
+                            except UnicodeDecodeError:
+                                content = str(content)
+                        
+                        # Prepare vectors
+                        chunks = prepare_document_vectors(
+                            content,
+                            vector_settings['chunk_size'],
+                            vector_settings['overlap'],
+                            vector_settings['strategy']
+                        )
+                        
+                        doc_export['vectors'] = {
+                            'chunks': chunks,
+                            'settings': vector_settings,
+                            'total_chunks': len(chunks)
+                        }
+                    except Exception as e:
+                        logger.warning(f"Failed to prepare vectors for {filename}: {str(e)}")
+                        doc_export['vectors'] = {'error': str(e)}
+                
+                # Include content if requested
+                if include_content:
+                    try:
+                        obj = s3.get_object(Bucket=PROCESSED_BUCKET, Key=doc_id)
+                        content = obj['Body'].read()
+                        
+                        if isinstance(content, bytes):
+                            try:
+                                content = content.decode('utf-8')
+                            except UnicodeDecodeError:
+                                content = base64.b64encode(content).decode('utf-8')
+                                doc_export['content_encoded'] = True
+                        
+                        doc_export['content'] = content[:10000]  # Limit content size
+                    except Exception as e:
+                        logger.warning(f"Failed to get content for {filename}: {str(e)}")
+                
+                export_data['documents'].append(doc_export)
+                processed += 1
+                
+            except Exception as e:
+                logger.error(f"Failed to process document {doc_id}: {str(e)}")
+                failed.append(doc_id)
+        
+        # Add summary
+        export_data['summary'] = {
+            'requested': len(document_ids),
+            'processed': processed,
+            'failed': len(failed),
+            'failed_documents': failed
+        }
+        
+        # Check if more documents exist
+        if len(document_ids) > 50:
+            export_data['pagination'] = {
+                'has_more': True,
+                'next_batch_start': 50,
+                'total_available': len(document_ids)
+            }
+        
+        logger.info(f"Batch export completed: {processed}/{len(document_ids)} documents")
+        
+        return {
+            'statusCode': 200,
+            'headers': headers,
+            'body': json.dumps(export_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in batch metadata export: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({'error': f'Batch export failed: {str(e)}'})
+        }
+
+def extract_document_metadata_from_s3(s3_key, filename, bucket, s3_client):
+    """Extract metadata directly from S3 object"""
+    try:
+        # Get S3 object metadata
+        obj_metadata = s3_client.head_object(Bucket=bucket, Key=s3_key)
+        
+        # Get content for analysis
+        obj = s3_client.get_object(Bucket=bucket, Key=s3_key)
+        content = obj['Body'].read()
+        
+        if isinstance(content, bytes):
+            try:
+                content = content.decode('utf-8')
+            except UnicodeDecodeError:
+                # Binary file, limited metadata extraction
+                return {
+                    'file_size': obj_metadata['ContentLength'],
+                    'content_type': obj_metadata.get('ContentType', 'binary'),
+                    'last_modified': obj_metadata['LastModified'].isoformat(),
+                    'is_binary': True
+                }
+        
+        # Extract full metadata
+        return extract_document_metadata(content, filename, obj_metadata['ContentLength'])
+        
+    except Exception as e:
+        logger.error(f"Error extracting metadata from S3: {str(e)}")
+        return {
+            'error': str(e),
+            'file_size': 0,
+            'content_type': 'unknown'
         }

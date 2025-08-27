@@ -134,10 +134,17 @@ Claude Opus 4 inference profile routing issue causing AccessDenied errors when a
 - ❌ Claude Opus 4: Broken (inference profile routing issue)
 
 ## Recent Enhancements (2025-08-27)
+- ✅ **CHROMADB VECTOR INTEGRATION COMPLETE**:
+  - **Vector Storage**: Full ChromaDB integration with user-isolated storage
+  - **API Endpoints**: `/vectors/store`, `/vectors/search`, `/vectors/stats`, `/vectors/delete`, `/export/batch-metadata`
+  - **Security Patches**: Fixed critical authentication bypass, restricted IAM permissions, added API Gateway auth
+  - **Frontend Export**: Individual and bulk metadata export functionality (JSON/CSV)
+  - **Production Ready**: Comprehensive testing completed, all security vulnerabilities resolved
 - ✅ **METADATA EXTRACTION FEATURE COMPLETE**:
   - **Frontend Integration**: Added metadata button to FileItem component with comprehensive modal
   - **API Endpoint**: Implemented `/documents/extract-metadata` with proper CORS and authentication
   - **Data Display**: Shows file info, entities, topics, processing details with TypeScript safety
+  - **Export Capability**: Individual file metadata export (JSON/CSV) plus bulk export for multiple files
   - **Critical Fixes**: CORS resource creation, S3 path decoding, React object rendering, API response flattening
 - ✅ **CLAUDE 4 MODELS PARTIALLY OPERATIONAL**:
   - **Claude Sonnet 4 ⭐**: Next-generation Sonnet with superior performance - WORKING

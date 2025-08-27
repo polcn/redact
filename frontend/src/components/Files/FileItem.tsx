@@ -137,7 +137,55 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({ file, onDelete, o
     }
   };
 
+  const exportMetadata = (format: 'json' | 'csv') => {
+    if (!metadata) return;
 
+    const filename = `${metadata.filename}_metadata.${format}`;
+    let content: string;
+    let mimeType: string;
+
+    if (format === 'json') {
+      content = JSON.stringify(metadata, null, 2);
+      mimeType = 'application/json';
+    } else {
+      // CSV format - flatten metadata to key-value pairs
+      const flatData: Array<{key: string, value: string}> = [];
+      
+      const addToFlat = (obj: any, prefix = '') => {
+        Object.entries(obj).forEach(([key, value]) => {
+          const fullKey = prefix ? `${prefix}.${key}` : key;
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            addToFlat(value, fullKey);
+          } else if (Array.isArray(value)) {
+            flatData.push({ key: fullKey, value: value.join('; ') });
+          } else {
+            flatData.push({ key: fullKey, value: String(value || '') });
+          }
+        });
+      };
+
+      addToFlat(metadata);
+      
+      const csvContent = [
+        'Property,Value',
+        ...flatData.map(row => `"${row.key}","${row.value.replace(/"/g, '""')}"`)
+      ].join('\n');
+      
+      content = csvContent;
+      mimeType = 'text/csv';
+    }
+
+    // Create and download file
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const hasAISummary = file.filename.includes('_AI');
 
@@ -621,13 +669,44 @@ export const FileItem: React.FC<FileItemProps> = React.memo(({ file, onDelete, o
               </div>
             )}
             
-            {/* Close Button */}
+            {/* Action Buttons */}
             <div style={{ 
               display: 'flex', 
-              justifyContent: 'flex-end',
+              justifyContent: 'space-between',
+              alignItems: 'center',
               paddingTop: '1rem',
               borderTop: '1px solid var(--border-color, #E5E5E5)'
             }}>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  onClick={() => exportMetadata('json')}
+                  className="btn-anthropic btn-anthropic-secondary"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    fontSize: 'var(--font-size-sm, 1rem)',
+                    fontWeight: 500,
+                    borderRadius: 'var(--radius-md, 8px)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="Download metadata as JSON file"
+                >
+                  📄 Export JSON
+                </button>
+                <button
+                  onClick={() => exportMetadata('csv')}
+                  className="btn-anthropic btn-anthropic-secondary"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    fontSize: 'var(--font-size-sm, 1rem)',
+                    fontWeight: 500,
+                    borderRadius: 'var(--radius-md, 8px)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  title="Download metadata as CSV file"
+                >
+                  📊 Export CSV
+                </button>
+              </div>
               <button
                 onClick={() => setShowMetadata(false)}
                 className="btn-anthropic btn-anthropic-primary"
