@@ -67,50 +67,84 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
 
 ## Known Issues
 
-### Critical Issues
-- **AI Model Selection Not Working Properly**: Newer Claude models fail with inference profile errors
-  - Error: "Invocation of model ID ... with on-demand throughput isn't supported"
-  - Affects: Claude Opus 4.1, Opus 4, Sonnet 4, Sonnet 3.7, Haiku 3.5
-  - Current behavior: Falls back to Haiku 3 instead of using selected model
-  - Root cause: AWS Bedrock requires inference profiles for newer models
-  - **Investigation needed**: How to implement inference profile support
+### Recently Resolved (2025-08-26)
+- ✅ **Claude 4 Model Support Added**: 
+  - **Claude Sonnet 4**: `us.anthropic.claude-sonnet-4-20250514-v1:0` ✅ **WORKING** 
+  - Solution: Implemented model ID mapping from direct foundation model IDs to inference profile IDs
+  - IAM permissions updated for inference profiles
+  - Frontend displays new models with proper names and emojis
 
-### Other Issues  
+### Current Issues  
+- **Claude Opus 4 Inference Profile Routing Issue**: Critical issue preventing Claude Opus 4 from working
+  - **Problem**: `us.anthropic.claude-opus-4-20250514-v1:0` inference profile keeps routing to us-west-2 foundation models
+  - **Error**: `AccessDeniedException` when Bedrock attempts to invoke model in us-west-2 region
+  - **Root Cause**: Unknown - appears to be AWS Bedrock service-side routing issue with inference profiles
+  - **Impact**: Claude Opus 4 AI summaries completely broken, users receive errors
+  - **Workaround**: Switched default model to Claude Sonnet 4 (`us.anthropic.claude-sonnet-4-20250514-v1:0`) which works reliably
+  - **Status**: Under investigation - may require AWS Support ticket or region-specific inference profile configuration
+
 - **Presigned URL Signature Mismatch**: Download links show XML error in browser instead of downloading
   - Error: "SignatureDoesNotMatch" when clicking download links
   - Files display as XML instead of downloading
   - Likely caused by URL encoding or Content-Disposition header issues
 
+- **Claude Code Slash Commands**: Custom slash command system not working as expected
+  - **Problem**: Attempted to create `/prep-session` and `/prep-compact` commands for pre-compact workflow
+  - **Tried**: CLAUDE.md definitions, executable scripts in `.claude` directory
+  - **Status**: Need to investigate proper Claude Code slash command implementation
+  - **Workaround**: Manual execution of prep workflow templates
+
 ## Investigation Plan: AWS Bedrock Inference Profiles
 
-### Problem
-User selects advanced models (e.g., Claude Opus 4.1) but system falls back to basic models (Haiku 3) due to inference profile requirements.
+### Problem (PARTIALLY RESOLVED - 2025-08-26)
+Claude Opus 4 inference profile routing issue causing AccessDenied errors when attempting to invoke model.
 
-### Next Steps
-1. **Research AWS Documentation**
-   - Understand inference profile creation and usage
-   - Learn how to invoke models with inference profiles
-   - Check boto3 SDK requirements
+### Current Status
+- ✅ **Claude Sonnet 4**: Working reliably with inference profiles
+- ❌ **Claude Opus 4**: Experiencing routing issues to us-west-2 region
+- ✅ **Other models**: Claude 3.5 Sonnet, Haiku models working normally
 
-2. **Implementation Approach**
-   - Update `api_handler_simple.py` to detect models requiring profiles
-   - Create or use existing inference profiles for newer models
-   - Modify Bedrock invocation to use profile ARNs instead of model IDs
-   - Ensure proper model selection is respected
+### Immediate Workaround Applied
+1. **Default Model Changed**: SSM parameter `/redact/ai-config` updated to use Claude Sonnet 4
+2. **Admin Override**: Admin override model also set to Claude Sonnet 4
+3. **User Notification**: Opus 4 marked as "CURRENTLY BROKEN" in model selection
+4. **Fallback Strategy**: Users can still select Claude Sonnet 4 for advanced AI capabilities
 
-3. **Models to Enable**
-   - Claude Opus 4.1 (anthropic.claude-opus-4-1-20250805)
-   - Claude Opus 4 (anthropic.claude-opus-4-20250514)
-   - Claude Sonnet 4 (anthropic.claude-sonnet-4-20250514)
-   - Claude Sonnet 3.7 (anthropic.claude-3-7-sonnet-20250219)
-   - Claude Haiku 3.5 (anthropic.claude-3-5-haiku-20241022)
+### Next Steps for Opus 4 Resolution
+1. **AWS Support Investigation**
+   - Open support ticket regarding inference profile routing issues
+   - Provide specific error logs and model ID: `us.anthropic.claude-opus-4-20250514-v1:0`
+   - Request clarification on regional routing behavior
 
-4. **Testing Required**
-   - Verify each model works with inference profiles
-   - Ensure fallback only happens when truly necessary
-   - Test cost implications of different models
+2. **Alternative Approaches**
+   - Test creating region-specific inference profiles
+   - Investigate direct foundation model access (if available)
+   - Consider using different Opus 4 inference profile variants
 
-## Recent Enhancements (2025-08-26) 
+3. **Monitoring & Testing**
+   - Set up automated tests to detect when Opus 4 starts working
+   - Monitor AWS Bedrock service health status for updates
+   - Test periodically with manual API calls
+
+### Models Status Summary
+- ✅ Claude 3 Haiku: Working (foundation model)
+- ✅ Claude 3.5 Haiku: Working (inference profile)
+- ✅ Claude 3.5 Sonnet: Working (inference profile)
+- ✅ Claude Sonnet 4: Working (inference profile) - **CURRENT DEFAULT**
+- ❌ Claude Opus 4: Broken (inference profile routing issue)
+
+## Recent Enhancements (2025-08-27)
+- ✅ **METADATA EXTRACTION FEATURE COMPLETE**:
+  - **Frontend Integration**: Added metadata button to FileItem component with comprehensive modal
+  - **API Endpoint**: Implemented `/documents/extract-metadata` with proper CORS and authentication
+  - **Data Display**: Shows file info, entities, topics, processing details with TypeScript safety
+  - **Critical Fixes**: CORS resource creation, S3 path decoding, React object rendering, API response flattening
+- ✅ **CLAUDE 4 MODELS PARTIALLY OPERATIONAL**:
+  - **Claude Sonnet 4 ⭐**: Next-generation Sonnet with superior performance - WORKING
+  - **Claude Opus 4 🚀**: Most advanced model - CURRENTLY BROKEN (see Known Issues)
+  - **Inference Profile Support**: Automatic mapping from direct model IDs to inference profiles
+  - **Enhanced Model Selection**: Full range of Claude models available in AI summary dropdown
+  - **Default Model**: Switched to Claude Sonnet 4 as reliable working alternative
 - ✅ **CORE DESIGN IMPLEMENTATION COMPLETE**:
   - **Claude SDK Integration**: Enhanced error handling, fallback stability
   - **Metadata Extraction**: Comprehensive entity extraction, document analysis
@@ -118,7 +152,6 @@ User selects advanced models (e.g., Claude Opus 4.1) but system falls back to ba
   - **Custom Redaction**: Built-in + user-defined pattern support
   - **New API Endpoints**: 6 new endpoints for enhanced document processing
 - ✅ **Production Deployed**: All features live and stable
-- ⚠️ **Model Selection**: Still limited to Claude 3.x models (inference profiles needed for 4.x)
 
 ## Recent Fixes (2025-08-10)
 - ✅ **AI SUMMARY FEATURE FIXED**:

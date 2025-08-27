@@ -12,10 +12,16 @@ rm -f api_lambda.zip
 # Create build directory
 mkdir api_build
 
-# Copy API handler code
-cp api_code/api_handler_simple.py api_build/
+# Copy API source code
+cp api_code/*.py api_build/
 
-# No dependencies needed for API handler (uses boto3 which is in Lambda runtime)
+# Install dependencies if requirements.txt exists
+if [ -f api_code/requirements.txt ]; then
+    echo "Installing Python dependencies..."
+    pip install -r api_code/requirements.txt -t api_build/
+else
+    echo "No requirements.txt found for API, skipping dependency installation"
+fi
 
 # Create deployment package
 echo "Creating deployment package..."

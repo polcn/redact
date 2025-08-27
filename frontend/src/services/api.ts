@@ -331,4 +331,52 @@ export const updateAIConfig = async (config: any): Promise<any> => {
   return response.data;
 };
 
+// Extract metadata from a document
+export const extractMetadata = async (documentId: string): Promise<{
+  success: boolean;
+  metadata: {
+    document_id: string;
+    filename: string;
+    file_size: number;
+    content_type: string;
+    created_date: string;
+    page_count?: number;
+    word_count?: number;
+    character_count?: number;
+    language?: string;
+    author?: string;
+    title?: string;
+    subject?: string;
+    creator?: string;
+    producer?: string;
+    creation_date?: string;
+    modification_date?: string;
+    entities?: {
+      persons?: string[];
+      organizations?: string[];
+      locations?: string[];
+      dates?: string[];
+      emails?: string[];
+      phone_numbers?: string[];
+      urls?: string[];
+    };
+    content_analysis?: {
+      sentiment?: string;
+      key_topics?: string[];
+      content_type?: string;
+      reading_level?: string;
+    };
+    processing_info?: {
+      extraction_timestamp: string;
+      processing_time_ms: number;
+      method: string;
+    };
+  };
+}> => {
+  const response = await api.post('/documents/extract-metadata', {
+    document_id: documentId
+  });
+  return response.data;
+};
+
 export default api;

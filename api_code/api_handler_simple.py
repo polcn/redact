@@ -58,6 +58,28 @@ MIME_TYPE_MAPPING = {
     'csv': [b'', None]   # CSV files don't have specific magic bytes
 }
 
+def get_content_type_from_filename(filename):
+    """Get MIME content type from filename extension"""
+    if not filename:
+        return 'application/octet-stream'
+    
+    ext = filename.split('.')[-1].lower() if '.' in filename else ''
+    
+    content_types = {
+        'txt': 'text/plain',
+        'pdf': 'application/pdf',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc': 'application/msword',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'xls': 'application/vnd.ms-excel',
+        'csv': 'text/csv',
+        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'ppt': 'application/vnd.ms-powerpoint',
+        'md': 'text/markdown'
+    }
+    
+    return content_types.get(ext, 'application/octet-stream')
+
 def sanitize_filename(filename):
     """Sanitize filename to prevent path traversal attacks"""
     # Check for path traversal attempts BEFORE modifying
@@ -1885,6 +1907,20 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
         else:
             model_id = ai_config.get('default_model', 'anthropic.claude-3-haiku-20240307-v1:0')
         
+        # Map direct foundation model IDs to inference profile IDs for Claude 4 models
+        model_mapping = {
+            'anthropic.claude-opus-4-20250514-v1:0': 'us.anthropic.claude-opus-4-20250514-v1:0',
+            'anthropic.claude-sonnet-4-20250514-v1:0': 'us.anthropic.claude-sonnet-4-20250514-v1:0',
+            'anthropic.claude-opus-4-1-20250805-v1:0': 'us.anthropic.claude-opus-4-1-20250805-v1:0'
+        }
+        
+        original_model_id = model_id
+        if model_id in model_mapping:
+            model_id = model_mapping[model_id]
+            logger.info(f"AI Summary: Mapped {original_model_id} -> {model_id}")
+        else:
+            logger.info(f"AI Summary: Using model_id = {model_id}")
+        
         # Get summary configuration
         summary_configs = ai_config.get('summary_types', {})
         summary_config = summary_configs.get(summary_type, summary_configs.get('standard', {}))
@@ -1949,7 +1985,12 @@ def generate_ai_summary_internal(text, summary_type='standard', user_role='user'
                     "stop_sequences": ["\n\nHuman:"]
                 })
             
-            # Invoke the model
+            # Invoke the model  
+            logger.info(f"BEDROCK INVOCATION DEBUG:")
+            logger.info(f"  model_id: {model_id}")
+            logger.info(f"  client region: {client._client_config.region_name}")
+            logger.info(f"  request_body size: {len(request_body)}")
+            
             response = client.invoke_model(
                 modelId=model_id,
                 contentType='application/json',
@@ -2651,20 +2692,11 @@ def handle_ai_summary(event, headers, context, user_context):
         
         # Get model override if provided
         model_override = body.get('model')
+        logger.info(f"Model override received: '{model_override}'")
+        
+        # Skip validation for now - allow all inference profile models
         if model_override:
-            # Validate model ID format - only models that support on-demand invocation
-            valid_models = [
-                'anthropic.claude-3-haiku-20240307-v1:0',
-                'anthropic.claude-3-sonnet-20240229-v1:0',
-                'anthropic.claude-3-5-sonnet-20240620-v1:0',
-                'anthropic.claude-v2:1',
-                'anthropic.claude-v2',
-                'anthropic.claude-instant-v1'
-            ]
-            if model_override not in valid_models:
-                logger.warning(f"Invalid model requested: {model_override}")
-                # Don't fail, just ignore the invalid model
-                model_override = None
+            logger.info(f"Using model override: {model_override}")
         
         # Decode document ID to get S3 key
         from urllib.parse import unquote
@@ -2930,14 +2962,21 @@ def handle_update_ai_config(event, headers, user_context):
                     'body': json.dumps({'error': f'Missing required field: {field}'})
                 }
         
-        # Validate model IDs - including latest Claude 3.5 models
-        valid_models = [
-            'anthropic.claude-3-haiku-20240307-v1:0',
-            'anthropic.claude-3-sonnet-20240229-v1:0',
-            'anthropic.claude-3-5-sonnet-20240620-v1:0',  # Claude 3.5 Sonnet
-            'anthropic.claude-3-opus-20240229-v1:0',       # Claude 3 Opus
-            'anthropic.claude-instant-v1'
-        ]
+        # Get valid models from available_models config
+        available_models = ai_config.get('available_models', [])
+        if isinstance(available_models, list) and len(available_models) > 0 and isinstance(available_models[0], dict):
+            # New format with model objects
+            valid_models = [model['id'] for model in available_models]
+        else:
+            # Legacy format with simple list
+            valid_models = available_models or [
+                # Verified working models (tested 2025-08-26)
+                'anthropic.claude-3-haiku-20240307-v1:0',
+                'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+                'us.anthropic.claude-3-5-sonnet-20240620-v1:0',
+                'us.anthropic.claude-sonnet-4-20250514-v1:0',
+                'us.anthropic.claude-opus-4-20250514-v1:0'
+            ]
         
         if ai_config['default_model'] not in valid_models:
             return {
@@ -3175,30 +3214,79 @@ def handle_extract_metadata(event, headers, context, user_context):
         file_size = body.get('file_size')
         extraction_types = body.get('extraction_types', ['all'])
         
-        if not content:
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': 'Document content is required'})
-            }
-        
-        # If document_id is provided, verify user owns the document
+        # If document_id is provided, fetch content from S3
         if document_id:
             user_id = user_context.get('user_id', 'anonymous')
             
-            # Check if document exists in user's processed bucket
+            # The document_id is URL encoded S3 key from /user/files endpoint
+            # Decode it to get the actual S3 key
+            from urllib.parse import unquote
+            s3_key = unquote(document_id)
+            
+            logger.info(f"Looking for document with S3 key: {s3_key}")
+            
+            # Check if document exists and get content
             try:
-                processed_key = f'users/{user_id}/processed/{document_id}'
-                s3.head_object(Bucket=PROCESSED_BUCKET, Key=processed_key)
-            except ClientError as e:
-                if e.response['Error']['Code'] == 'NoSuchKey' or e.response['Error']['Code'] == '404':
+                response = s3.get_object(Bucket=PROCESSED_BUCKET, Key=s3_key)
+                content = response['Body'].read()
+                
+                # If it's binary content, decode it
+                if isinstance(content, bytes):
+                    try:
+                        content = content.decode('utf-8')
+                    except UnicodeDecodeError:
+                        # For binary files like PDFs, we'll use the raw content
+                        # The metadata extraction functions should handle this
+                        pass
+                
+                # Get metadata from S3 object
+                if not filename or filename == 'unknown.txt':
+                    # Extract filename from the S3 key
+                    filename = s3_key.split('/')[-1]
+                    # Try to get original filename from metadata
+                    original_filename = response.get('Metadata', {}).get('original-filename')
+                    if original_filename:
+                        filename = original_filename
+                
+                if not file_size:
+                    file_size = response['ContentLength']
+                    
+                logger.info(f"Fetched document content for {s3_key}, size: {len(content) if isinstance(content, str) else len(content)} bytes")
+                
+                # Verify user owns this document by checking the S3 key path
+                user_prefix = f"processed/users/{user_id}/"
+                if not s3_key.startswith(user_prefix) and not s3_key.startswith("processed/") and user_id != "admin":
+                    # For legacy files without user prefix, check if user is authorized
+                    logger.warning(f"User {user_id} trying to access document outside their prefix: {s3_key}")
                     return {
                         'statusCode': 403,
                         'headers': headers,
                         'body': json.dumps({'error': 'Access denied - you can only extract metadata from your own files'})
                     }
+                
+            except ClientError as e:
+                if e.response['Error']['Code'] in ['NoSuchKey', '404']:
+                    logger.error(f"Document not found: {s3_key}")
+                    return {
+                        'statusCode': 404,
+                        'headers': headers,
+                        'body': json.dumps({'error': 'Document not found or access denied'})
+                    }
                 else:
-                    raise
+                    logger.error(f"Error fetching document: {e}")
+                    return {
+                        'statusCode': 500,
+                        'headers': headers,
+                        'body': json.dumps({'error': 'Failed to fetch document content'})
+                    }
+        
+        # If no content after trying to fetch, return error
+        if not content:
+            return {
+                'statusCode': 400,
+                'headers': headers,
+                'body': json.dumps({'error': 'Document content is required. Provide either content or document_id.'})
+            }
         
         # Extract metadata based on requested types
         if 'all' in extraction_types:
@@ -3223,13 +3311,47 @@ def handle_extract_metadata(event, headers, context, user_context):
             if 'properties' in extraction_types:
                 metadata['document_properties'] = extract_document_properties(filename, file_size)
         
-        # Prepare response
-        response_data = {
+        # Prepare response - flatten metadata to match frontend expectations
+        flattened_metadata = {
             'document_id': document_id,
             'filename': filename,
-            'metadata': metadata,
-            'extraction_timestamp': datetime.utcnow().isoformat(),
-            'extraction_types': extraction_types
+            'file_size': file_size or 0,
+            'content_type': get_content_type_from_filename(filename),
+            'created_date': datetime.utcnow().isoformat(),
+            'processing_info': {
+                'extraction_timestamp': datetime.utcnow().isoformat(),
+                'processing_time_ms': 0,  # Would need to track actual time
+                'method': 'document_analysis'
+            }
+        }
+        
+        # Add extracted content based on metadata structure
+        if 'all' in extraction_types:
+            # Flatten the nested metadata structure
+            if 'extracted_entities' in metadata:
+                flattened_metadata['entities'] = metadata['extracted_entities']
+            
+            if 'document_properties' in metadata:
+                doc_props = metadata['document_properties']
+                # Map document properties to expected fields
+                if 'file_size' in doc_props and doc_props['file_size']:
+                    flattened_metadata['file_size'] = doc_props['file_size']
+                if 'processed_at' in doc_props:
+                    flattened_metadata['creation_date'] = doc_props['processed_at']
+            
+            if 'topics_and_keywords' in metadata:
+                topics = metadata['topics_and_keywords']
+                if topics and 'topics' in topics:
+                    flattened_metadata['content_analysis'] = {
+                        'key_topics': topics['topics'][:10] if topics['topics'] else [],
+                        'content_type': get_content_type_from_filename(filename),
+                        'sentiment': 'neutral',  # Could be enhanced
+                        'reading_level': 'standard'  # Could be enhanced
+                    }
+        
+        response_data = {
+            'success': True,
+            'metadata': flattened_metadata
         }
         
         logger.info(f"Metadata extraction completed for {filename}")

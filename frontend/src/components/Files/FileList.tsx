@@ -46,12 +46,22 @@ export const FileList: React.FC = () => {
 
   const formatModelName = (modelId: string): string => {
     const modelMap: { [key: string]: string } = {
+      // Direct models
       'anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku (Fast & Efficient)',
       'anthropic.claude-3-sonnet-20240229-v1:0': 'Claude 3 Sonnet (Balanced)',
       'anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet (Recommended)',
       'anthropic.claude-3-5-sonnet-20241022-v2:0': 'Claude 3.5 Sonnet v2 (Latest)',
       'anthropic.claude-3-opus-20240229-v1:0': 'Claude 3 Opus (Most Capable)',
       'anthropic.claude-instant-v1': 'Claude Instant (Fastest)',
+      // Cross-region inference profiles (better performance)
+      'us.anthropic.claude-3-haiku-20240307-v1:0': 'Claude 3 Haiku (Cross-Region)',
+      'us.anthropic.claude-3-sonnet-20240229-v1:0': 'Claude 3 Sonnet (Cross-Region)',
+      'us.anthropic.claude-3-5-sonnet-20240620-v1:0': 'Claude 3.5 Sonnet (Cross-Region)',
+      'us.anthropic.claude-3-opus-20240229-v1:0': 'Claude 3 Opus (Cross-Region)',
+      'us.anthropic.claude-3-5-haiku-20241022-v1:0': 'Claude 3.5 Haiku (Cross-Region)',
+      // Claude 4 models (inference profiles only)
+      'us.anthropic.claude-sonnet-4-20250514-v1:0': 'Claude Sonnet 4 ⭐ (Latest)',
+      'us.anthropic.claude-opus-4-20250514-v1:0': 'Claude Opus 4 🚀 (Most Advanced)',
     };
     return modelMap[modelId] || modelId;
   };
@@ -60,8 +70,15 @@ export const FileList: React.FC = () => {
     try {
       const config = await getAIConfig();
       if (config.available_models) {
-        setAvailableModels(config.available_models);
-        const defaultModelFromConfig = config.default_model || config.available_models[0];
+        // Handle both old format (array of strings) and new format (array of objects)
+        let modelList = config.available_models;
+        if (Array.isArray(modelList) && modelList.length > 0 && typeof modelList[0] === 'object') {
+          // New format with model objects
+          modelList = modelList.map((model: any) => model.id);
+        }
+        
+        setAvailableModels(modelList);
+        const defaultModelFromConfig = config.default_model || modelList[0];
         setDefaultModel(defaultModelFromConfig);
         if (!selectedModel) {
           setSelectedModel(defaultModelFromConfig);
