@@ -9,7 +9,9 @@ React → Cognito → API Gateway → Lambda → S3 (User-isolated storage)
 - **File Processing**: PDF/DOCX/TXT/CSV/PPTX/MD → redacted output
 - **Pattern Detection**: SSN, credit cards, phones, emails, IPs, licenses  
 - **AI Summaries**: AWS Bedrock integration (Claude models)
-- **User Isolation**: Each user's files stored separately in S3
+- **Vector Database**: ChromaDB integration for semantic search and embeddings
+- **Metadata Extraction**: Comprehensive document metadata with export capabilities
+- **User Isolation**: Each user's files and vectors stored separately
 - **Quarantine**: Failed files manageable via UI
 
 ## Key Resources
@@ -34,6 +36,8 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
 ```
 
 ## API Endpoints
+
+### Core Document Operations
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | /documents/upload | Upload file (base64) |
@@ -45,10 +49,31 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
 | POST | /documents/extract-metadata | Extract comprehensive metadata |
 | POST | /documents/prepare-vectors | Prepare content for vector DBs |
 | GET | /user/files | List user's files |
+
+### Vector Database Operations (ChromaDB Integration)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /vectors/store | Store document vectors in ChromaDB |
+| POST | /vectors/search | Semantic search in stored vectors |
+| DELETE | /vectors/delete | Delete vectors by document ID |
+| GET | /vectors/stats | Get collection statistics |
+
+### Metadata Export Operations  
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /export/batch-metadata | Export metadata for multiple files (JSON/CSV) |
+
+### Redaction & Configuration
+| Method | Path | Description |
+|--------|------|-------------|
 | GET/PUT | /api/config | Manage redaction rules |
 | GET | /redaction/patterns | List available redaction patterns |
 | POST | /redaction/patterns | Create custom redaction patterns |
 | POST | /redaction/apply | Apply redaction patterns to content |
+
+### Quarantine Management
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | /quarantine/files | List quarantine files |
 | DELETE | /quarantine/{id} | Delete quarantine file |
 
@@ -56,12 +81,17 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
 ```
 /
 ├── api_code/               # API Lambda handler
-│   └── api_handler_simple.py
+│   ├── api_handler_simple.py
+│   ├── chromadb_client.py  # Vector database integration
+│   └── chromadb/          # ChromaDB library for vector operations
 ├── lambda_code/            # Document processor
 │   └── lambda_function_v2.py
 ├── frontend/               # React application
 │   ├── src/
+│   │   ├── components/Files/FileItem.tsx  # Metadata extraction UI
+│   │   └── services/api.ts # API client with vector endpoints
 │   └── build/             # Deployed to S3
+├── tests/                  # Vector integration test suite
 └── terraform/             # Infrastructure as code
 ```
 
@@ -88,11 +118,11 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
   - Files display as XML instead of downloading
   - Likely caused by URL encoding or Content-Disposition header issues
 
-- **Claude Code Slash Commands**: Custom slash command system not working as expected
-  - **Problem**: Attempted to create `/prep-session` and `/prep-compact` commands for pre-compact workflow
-  - **Tried**: CLAUDE.md definitions, executable scripts in `.claude` directory
-  - **Status**: Need to investigate proper Claude Code slash command implementation
-  - **Workaround**: Manual execution of prep workflow templates
+- ✅ **Claude Code Slash Commands**: Custom workflow commands implemented successfully
+  - **Available Commands**: `/prep`, `/prep-session`, `/prep-compact`
+  - **Functionality**: Automated codebase cleanup, documentation updates, git operations
+  - **Implementation**: Commands defined in both global and project CLAUDE.md files
+  - **Status**: Working - provides structured workflows for maintenance and compaction preparation
 
 ## Investigation Plan: AWS Bedrock Inference Profiles
 
@@ -135,11 +165,16 @@ Claude Opus 4 inference profile routing issue causing AccessDenied errors when a
 
 ## Recent Enhancements (2025-08-27)
 - ✅ **CHROMADB VECTOR INTEGRATION COMPLETE**:
-  - **Vector Storage**: Full ChromaDB integration with user-isolated storage
-  - **API Endpoints**: `/vectors/store`, `/vectors/search`, `/vectors/stats`, `/vectors/delete`, `/export/batch-metadata`
-  - **Security Patches**: Fixed critical authentication bypass, restricted IAM permissions, added API Gateway auth
-  - **Frontend Export**: Individual and bulk metadata export functionality (JSON/CSV)
-  - **Production Ready**: Comprehensive testing completed, all security vulnerabilities resolved
+  - **Vector Storage**: Full ChromaDB integration with user-isolated collections
+  - **API Endpoints**: `/vectors/store`, `/vectors/search`, `/vectors/stats`, `/vectors/delete`
+  - **Semantic Search**: Document embedding and similarity search capabilities
+  - **User Isolation**: Each user gets dedicated ChromaDB collection (user-{cognito_id})
+  - **Production Ready**: Comprehensive test suite with security, performance, and integration tests
+- ✅ **METADATA EXPORT SYSTEM COMPLETE**:
+  - **Bulk Export**: `/export/batch-metadata` endpoint for multiple files (JSON/CSV)
+  - **Individual Export**: Per-file metadata export from FileItem component
+  - **Security Fixes**: Critical authentication bypass patched, IAM permissions restricted
+  - **API Gateway Auth**: Proper authentication enforcement on all vector endpoints
 - ✅ **METADATA EXTRACTION FEATURE COMPLETE**:
   - **Frontend Integration**: Added metadata button to FileItem component with comprehensive modal
   - **API Endpoint**: Implemented `/documents/extract-metadata` with proper CORS and authentication

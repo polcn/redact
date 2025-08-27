@@ -8,10 +8,18 @@ A serverless document redaction system that automatically removes sensitive info
 - **Pattern Detection**: SSN, credit cards, phone numbers, emails, IP addresses, driver's licenses
 - **Custom Rules**: User-defined find/replace patterns
 - **AI Summaries**: Generate summaries using AWS Bedrock (Claude models)
+- **Vector Database**: ChromaDB integration for semantic search and document embeddings
+- **Metadata Extraction**: Comprehensive document analysis with export capabilities
 - **File Management**: Combine files, batch download, quarantine handling
-- **User Isolation**: Secure, isolated storage per user
+- **User Isolation**: Secure, isolated storage per user with vector database isolation
 
 ## Recent Updates
+
+**2025-08-27**
+- **ChromaDB Vector Integration**: Full vector database with semantic search, user isolation, and comprehensive test suite
+- **Metadata Export System**: Bulk and individual metadata export with JSON/CSV formats
+- **Security Enhancements**: Fixed critical authentication bypass, restricted IAM permissions
+- **Claude Code Slash Commands**: `/prep`, `/prep-session`, `/prep-compact` for automated workflows
 
 **2025-08-07**
 - Added 9 specialized AI agents for enhanced development support
