@@ -104,6 +104,25 @@ aws cloudfront create-invalidation --distribution-id EOG2DS78ES8MD --paths "/*"
   - IAM permissions updated for inference profiles
   - Frontend displays new models with proper names and emojis
 
+### Recently Fixed (2025-08-29) - UNTESTED
+- ✅ **AI Summary 500 Errors Fixed**: 
+  - **Problem**: Claude Opus 4 and Sonnet 4 AI summaries returning 500 errors
+  - **Root Cause**: API Lambda role missing `lambda:InvokeFunction` permission for async processing
+  - **Solution**: Added `lambda:InvokeFunction` permission to `redact-api-lambda-role` IAM policy
+  - **Status**: ⚠️ **UNTESTED** - Fix applied but not yet verified in production
+
+- ✅ **AI Summary Status CORS Fixed**:
+  - **Problem**: CORS errors when polling `/documents/ai-summary-status/{id}` endpoint
+  - **Root Cause**: Missing API Gateway resource and CORS configuration
+  - **Solution**: Created API Gateway resources with proper CORS headers and deployed
+  - **Status**: ⚠️ **UNTESTED** - API Gateway changes deployed but not yet verified
+
+- ✅ **Markdown File Upload Fixed**:
+  - **Problem**: .md files rejected with "unsupported file type" error
+  - **Root Cause**: API Lambda not redeployed with updated ALLOWED_EXTENSIONS
+  - **Solution**: Redeployed API Lambda with .md and .vtt support
+  - **Status**: ✅ **VERIFIED** - .md file uploads now working
+
 ### Current Issues  
 - **Claude Opus 4 Inference Profile Routing Issue**: Critical issue preventing Claude Opus 4 from working
   - **Problem**: `us.anthropic.claude-opus-4-20250514-v1:0` inference profile keeps routing to us-west-2 foundation models
