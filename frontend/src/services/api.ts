@@ -296,18 +296,23 @@ export const combineFiles = async (
 export const generateAISummary = async (
   documentId: string,
   summaryType: 'brief' | 'standard' | 'detailed' = 'standard',
-  model?: string
+  model?: string,
+  useAsync: boolean = true
 ): Promise<{
   success: boolean;
   message: string;
-  document_id: string;
-  new_filename: string;
-  download_url: string;
-  summary_metadata: any;
+  document_id?: string;
+  new_filename?: string;
+  download_url?: string;
+  summary_metadata?: any;
+  summary_id?: string;
+  status?: string;
+  status_url?: string;
 }> => {
   const payload: any = {
     document_id: documentId,
-    summary_type: summaryType
+    summary_type: summaryType,
+    async: useAsync
   };
   
   // Only include model if provided
@@ -316,6 +321,25 @@ export const generateAISummary = async (
   }
   
   const response = await api.post('/documents/ai-summary', payload);
+  return response.data;
+};
+
+export const checkAISummaryStatus = async (
+  summaryId: string
+): Promise<{
+  status: 'processing' | 'completed' | 'failed';
+  summary_id: string;
+  created_at?: string;
+  error?: string;
+  result?: {
+    success: boolean;
+    filename: string;
+    s3_key: string;
+    metadata: any;
+    completed_at: string;
+  };
+}> => {
+  const response = await api.get(`/documents/ai-summary-status/${summaryId}`);
   return response.data;
 };
 

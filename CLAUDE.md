@@ -6,7 +6,7 @@
 React → Cognito → API Gateway → Lambda → S3 (User-isolated storage)
 
 ## Core Features
-- **File Processing**: PDF/DOCX/TXT/CSV/PPTX/MD → redacted output
+- **File Processing**: PDF/DOCX/TXT/CSV/PPTX/MD/VTT → redacted output
 - **Pattern Detection**: SSN, credit cards, phones, emails, IPs, licenses  
 - **AI Summaries**: AWS Bedrock integration (Claude models)
 - **Vector Database**: ChromaDB integration for semantic search and embeddings
@@ -245,7 +245,7 @@ Claude Opus 4 inference profile routing issue causing AccessDenied errors when a
 - Lambda logs: `/aws/lambda/{function-name}`
 - Test users: Use gmail.com, outlook.com, yahoo.com, or 9thcube.com emails
 - File size limit: 10MB
-- Supported formats: PDF, DOCX, TXT, CSV, XLSX, PPTX, MD
+- Supported formats: PDF, DOCX, TXT, CSV, XLSX, PPTX, MD, VTT
 
 ## Security Notes
 - User isolation enforced at S3 prefix level

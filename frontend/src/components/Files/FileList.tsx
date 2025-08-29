@@ -106,26 +106,77 @@ export const FileList: React.FC = () => {
     
     setIsGeneratingAI(true);
     try {
-      const { generateAISummary } = await import('../../services/api');
-      const result = await generateAISummary(selectedFileForAI.id, selectedSummaryType, selectedModel);
+      const { generateAISummary, checkAISummaryStatus } = await import('../../services/api');
+      
+      // Start async AI summary generation
+      const result = await generateAISummary(selectedFileForAI.id, selectedSummaryType, selectedModel, true);
       
       // Log the result to debug
-      console.log('AI Summary Result:', result);
+      console.log('AI Summary Started:', result);
       
-      // Close modal and show success message
-      setShowAISummaryModal(false);
-      setSelectedFileForAI(null);
+      if (result.summary_id) {
+        // Async processing - poll for status
+        const summaryId = result.summary_id;
+        
+        // Update UI to show processing status
+        setShowAISummaryModal(false);
+        setSelectedFileForAI(null);
+        alert('AI summary generation started. This may take up to 60 seconds for complex models. Please wait...');
+        
+        // Poll for completion
+        const maxAttempts = 30; // 60 seconds max (2 second intervals)
+        let attempts = 0;
+        
+        const pollStatus = async () => {
+          try {
+            const statusResult = await checkAISummaryStatus(summaryId);
+            console.log('AI Summary Status:', statusResult);
+            
+            if (statusResult.status === 'completed') {
+              // Success!
+              alert(`AI summary generated successfully! The new file has been added to your documents.`);
+              await loadFiles();
+              setIsGeneratingAI(false);
+            } else if (statusResult.status === 'failed') {
+              // Failed
+              alert(`AI summary generation failed: ${statusResult.error || 'Unknown error'}`);
+              setIsGeneratingAI(false);
+            } else if (attempts < maxAttempts) {
+              // Still processing - poll again
+              attempts++;
+              setTimeout(pollStatus, 2000);
+            } else {
+              // Timeout
+              alert('AI summary generation timed out. Please try again or use a faster model.');
+              setIsGeneratingAI(false);
+            }
+          } catch (err: any) {
+            console.error('Error checking AI summary status:', err);
+            if (attempts < maxAttempts) {
+              attempts++;
+              setTimeout(pollStatus, 2000);
+            } else {
+              alert('Failed to check AI summary status');
+              setIsGeneratingAI(false);
+            }
+          }
+        };
+        
+        // Start polling after a short delay
+        setTimeout(pollStatus, 2000);
+        
+      } else if (result.new_filename) {
+        // Synchronous result (fallback for fast models)
+        setShowAISummaryModal(false);
+        setSelectedFileForAI(null);
+        alert(`AI summary generated successfully! File "${result.new_filename}" has been added to your documents.`);
+        await loadFiles();
+        setIsGeneratingAI(false);
+      }
       
-      // Show success message
-      alert(`AI summary generated successfully! File "${result.new_filename}" has been added to your documents.`);
-      
-      // Don't use the download_url from the result - it might cause navigation
-      // Just refresh the file list
-      await loadFiles();
     } catch (err: any) {
       console.error('AI Summary Error:', err);
       alert(err.response?.data?.error || err.message || 'Failed to generate AI summary');
-    } finally {
       setIsGeneratingAI(false);
     }
   };

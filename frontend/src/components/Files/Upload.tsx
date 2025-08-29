@@ -66,7 +66,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
   };
 
   const validateFile = (file: File): string | null => {
-    const allowedTypes = ['txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'md', 'pptx', 'ppt'];
+    const allowedTypes = ['txt', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'md', 'vtt', 'pptx', 'ppt'];
     const fileExt = file.name.split('.').pop()?.toLowerCase();
     
     if (!fileExt || !allowedTypes.includes(fileExt)) {
@@ -226,7 +226,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
           type="file"
           className="hidden"
           id="file-upload"
-          accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv,.pptx,.ppt,.md"
+          accept=".txt,.pdf,.docx,.doc,.xlsx,.xls,.csv,.md,.vtt,.pptx,.ppt"
           onChange={handleFileSelect}
           disabled={uploading}
           multiple
@@ -243,7 +243,7 @@ export const Upload: React.FC<UploadProps> = ({ onUploadComplete }) => {
         </label>
         
         <p className="text-secondary mt-sm" style={{ fontSize: 'var(--font-size-xs)' }}>
-          Supported: TXT, PDF, DOCX, XLSX, CSV, PPTX (max 50MB)
+          Supported: TXT, PDF, DOCX, XLSX, CSV, PPTX, MD, VTT (max 50MB)
         </p>
       </div>
 
